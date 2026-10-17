@@ -1,0 +1,14 @@
+{{define "content"}}
+<form method="post" action="/{{.Owner}}/{{.Repo.Name}}/issues/new">
+  <div class="Box">
+    <div class="Box-body">
+      <input class="form-control input-block input-lg mb-3" type="text" name="title" placeholder="Title" value="{{.Data.Title}}" required autofocus autocomplete="off">
+      <textarea class="form-control input-block app-textarea" name="body" rows="14" placeholder="Leave a comment">{{.Data.Body}}</textarea>
+      <p class="color-fg-muted text-small mt-2 mb-0">Markdown is supported.</p>
+    </div>
+    <div class="Box-footer d-flex flex-justify-end">
+      <button class="btn btn-primary" type="submit">Submit new issue</button>
+    </div>
+  </div>
+</form>
+{{end}}

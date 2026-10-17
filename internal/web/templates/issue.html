@@ -1,0 +1,85 @@
+{{define "content"}}
+{{with .Data.Issue}}
+<div class="pb-3 border-bottom mb-4">
+  <h1 class="f1 text-normal lh-condensed mb-2 wb-break-word">{{.Title}} <span class="color-fg-muted">#{{.Number}}</span></h1>
+  <div class="d-flex flex-items-center">
+    {{if eq .State "open"}}
+    <span class="State State--open mr-2">{{icon "issue-opened"}} Open</span>
+    {{else}}
+    <span class="State State--merged mr-2">{{icon "issue-closed"}} Closed</span>
+    {{end}}
+    <span class="color-fg-muted"><strong class="color-fg-default">{{name .User}}</strong> opened this issue on {{datetime .CreatedAt}} · {{.Comments}} {{if eq .Comments 1}}comment{{else}}comments{{end}}</span>
+  </div>
+</div>
+{{end}}
+
+<div class="col-lg-9 app-timeline">
+  {{with .Data.Issue}}
+  <div class="TimelineItem pt-0">
+    <div class="TimelineItem-avatar app-avatar">{{icon "person"}}</div>
+    <div class="TimelineItem-body">
+      <div class="Box app-comment">
+        <div class="Box-header color-bg-subtle">
+          <strong>{{name .User}}</strong> <span class="color-fg-muted">commented on {{datetime .CreatedAt}}</span>
+        </div>
+        <div class="Box-body markdown-body">
+          {{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>No description provided.</em></p>{{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  {{range .Data.Timeline}}
+    {{if eq .Kind "comment"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-avatar app-avatar">{{icon "person"}}</div>
+      <div class="TimelineItem-body">
+        <div class="Box app-comment">
+          <div class="Box-header color-bg-subtle">
+            <strong>{{name .User}}</strong> <span class="color-fg-muted">commented on {{datetime .Time}}</span>
+          </div>
+          <div class="Box-body markdown-body">{{markdown .Body}}</div>
+        </div>
+      </div>
+    </div>
+    {{else if eq .Kind "closed"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge color-bg-done-emphasis color-fg-on-emphasis">{{icon "issue-closed"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> closed this on {{datetime .Time}}</div>
+    </div>
+    {{else if eq .Kind "reopened"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge color-bg-success-emphasis color-fg-on-emphasis">{{icon "issue-opened"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> reopened this on {{datetime .Time}}</div>
+    </div>
+    {{else if eq .Kind "title"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "tag"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> changed the title to <strong>{{.Title}}</strong> on {{datetime .Time}}</div>
+    </div>
+    {{end}}
+  {{end}}
+
+  {{with .Data.Issue}}
+  <div class="TimelineItem TimelineItem--condensed pt-0 pb-0"><div class="TimelineItem-body"></div></div>
+  <form method="post" action="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}/comments" class="mt-3 pt-3 border-top">
+    <div class="Box app-comment">
+      <div class="Box-header color-bg-subtle"><strong>Add a comment</strong></div>
+      <div class="Box-body">
+        <textarea class="form-control input-block app-textarea" name="body" rows="7" placeholder="Leave a comment"></textarea>
+        <p class="color-fg-muted text-small mt-2 mb-0">Markdown is supported.</p>
+      </div>
+      <div class="Box-footer d-flex flex-justify-end">
+        {{if eq .State "open"}}
+        <button class="btn mr-2" type="submit" name="action" value="close"><span class="color-fg-done">{{icon "issue-closed"}}</span> Close issue</button>
+        {{else}}
+        <button class="btn mr-2" type="submit" name="action" value="reopen"><span class="color-fg-success">{{icon "issue-opened"}}</span> Reopen issue</button>
+        {{end}}
+        <button class="btn btn-primary" type="submit" name="action" value="comment">Comment</button>
+      </div>
+    </div>
+  </form>
+  {{end}}
+</div>
+{{end}}

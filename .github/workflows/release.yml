@@ -1,0 +1,31 @@
+# タグ v* を打つと Windows 用 exe をビルドして Releases に置く
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: テスト
+        run: go test ./...
+
+      - name: ビルド
+        run: go build -trimpath -ldflags "-s -w" -o github-ppoi.exe ./cmd/github-ppoi
+
+      - name: Releases に置く
+        uses: softprops/action-gh-release@v2
+        with:
+          files: github-ppoi.exe

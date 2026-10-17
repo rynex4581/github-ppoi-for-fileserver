@@ -1,0 +1,4 @@
+# 改行コードはリポジトリ内では LF に揃える
+* text=auto eol=lf
+*.png binary
+*.ico binary

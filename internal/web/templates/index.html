@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="d-flex flex-items-center mb-3">
+  <h2 class="f2 text-normal flex-auto">Repositories</h2>
+  <a class="btn btn-primary" href="/new">{{icon "repo"}} New</a>
+</div>
+{{if .Data.Repos}}
+<div class="Box">
+  {{range .Data.Repos}}
+  <div class="Box-row">
+    <a class="f4 text-bold Link--primary d-inline-flex flex-items-center" href="/{{$.Owner}}/{{.Name}}/issues">
+      <span class="color-fg-muted mr-2">{{icon "repo"}}</span>{{.Name}}
+    </a>
+    {{if .Description}}<p class="color-fg-muted mb-0 mt-1">{{.Description}}</p>{{end}}
+  </div>
+  {{end}}
+</div>
+{{else}}
+<div class="blankslate border rounded-2">
+  <span class="color-fg-muted">{{icon "repo"}}</span>
+  <h3 class="blankslate-heading">No repositories yet</h3>
+  <p>Create a repository to start tracking issues.</p>
+  <div class="blankslate-action">
+    <a class="btn btn-primary" href="/new">New repository</a>
+  </div>
+</div>
+{{end}}
+{{end}}

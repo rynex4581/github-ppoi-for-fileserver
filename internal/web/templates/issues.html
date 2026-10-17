@@ -1,0 +1,37 @@
+{{define "content"}}
+<div class="d-flex flex-items-center mb-3">
+  <div class="flex-auto"></div>
+  <a class="btn btn-primary" href="/{{.Owner}}/{{.Repo.Name}}/issues/new">New issue</a>
+</div>
+<div class="Box">
+  <div class="Box-header d-flex">
+    <div class="flex-auto">
+      <a class="btn-link mr-3{{if eq .Data.State "open"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="?state=open">{{icon "issue-opened"}} {{.Data.OpenCount}} Open</a>
+      <a class="btn-link{{if eq .Data.State "closed"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="?state=closed">{{icon "check"}} {{.Data.ClosedCount}} Closed</a>
+    </div>
+  </div>
+  {{range .Data.Issues}}
+  <div class="Box-row d-flex">
+    <div class="mr-2 pt-1">
+      {{if eq .State "open"}}<span class="color-fg-success">{{icon "issue-opened"}}</span>{{else}}<span class="color-fg-done">{{icon "issue-closed"}}</span>{{end}}
+    </div>
+    <div class="flex-auto min-width-0">
+      <a class="Link--primary text-bold f4 lh-condensed wb-break-word" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}">{{.Title}}</a>
+      <div class="color-fg-muted text-small mt-1">
+        #{{.Number}}
+        {{if eq .State "open"}}opened on {{datetime .CreatedAt}}{{else}}closed on {{datetime .ClosedAt}}{{end}}
+        by {{name .User}}
+      </div>
+    </div>
+    {{if .Comments}}
+    <a class="Link--muted text-small d-flex flex-items-center" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}">{{icon "comment"}}<span class="ml-1">{{.Comments}}</span></a>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="blankslate">
+    <span class="color-fg-muted">{{icon "issue-opened"}}</span>
+    <h3 class="blankslate-heading">{{if eq .Data.State "open"}}There aren’t any open issues.{{else}}There aren’t any closed issues.{{end}}</h3>
+  </div>
+  {{end}}
+</div>
+{{end}}
