@@ -70,6 +70,7 @@
 - internal/version に表記の解析と比較（0.11A → 0.11.1.0 など）を入れた。go generate で goversioninfo（MIT、ビルド時だけ）を呼び、exe に VERSIONINFO を埋め込む
 - 起動時に各データルートの bin\github-ppoi.exe のリソースを自前で読み（Windows API は使わない）、自分より新しければ画面の上部に版とパスを出す
 - Actions は ci（push ごとに検査、テスト、ビルド、版の確認）と release（タグ v* でビルドして Releases に置く。タグと Number が違えば失敗）
+- タグ v0.10 を打って release を通し、Releases に github-ppoi.exe と smbtest.exe が置かれた。落とした exe の版は Ver 0.10（0.10.0.0）
 
 ## 設計メモに無い判断
 
