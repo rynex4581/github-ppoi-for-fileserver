@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -212,13 +211,18 @@ func (s *Store) eventFileName(t time.Time) string {
 }
 
 // writeEvent はイベントを1ファイルとして書く。Time が空なら現在時刻を入れる。
-func (s *Store) writeEvent(dir string, ev Event) error {
+func (s *Store) writeEvent(repo string, number int, ev Event) error {
 	if ev.Time.IsZero() {
 		ev.Time = time.Now()
 	}
 	// ファイル名と同じミリ秒までに揃える
 	ev.Time = ev.Time.UTC().Truncate(time.Millisecond)
-	return writeJSONAtomic(filepath.Join(dir, s.eventFileName(ev.Time)), ev)
+	name := s.eventFileName(ev.Time)
+	if err := writeJSONAtomic(filepath.Join(s.eventsDir(repo, number), name), ev); err != nil {
+		return err
+	}
+	s.rememberEvent(repo, number, name, ev)
+	return nil
 }
 
 // AllocateIssue は番号を採番してフォルダを作り、番号を返す。created イベントはまだ書かない。
@@ -240,18 +244,17 @@ func (s *Store) AllocateIssue(repo string) (int, error) {
 // WriteCreated は AllocateIssue で取った番号に created イベントを書き、組み立てた結果を返す。
 // labels と assignees が空でなければ、続けてそれぞれのイベントも書く。
 func (s *Store) WriteCreated(repo string, number int, ev Event, labels []int, assignees []string) (Issue, error) {
-	dir := s.eventsDir(repo, number)
 	ev.Type = EventCreated
-	if err := s.writeEvent(dir, ev); err != nil {
+	if err := s.writeEvent(repo, number, ev); err != nil {
 		return Issue{}, err
 	}
 	if len(labels) > 0 {
-		if err := s.writeEvent(dir, Event{Type: EventLabels, User: ev.User, Labels: labels}); err != nil {
+		if err := s.writeEvent(repo, number, Event{Type: EventLabels, User: ev.User, Labels: labels}); err != nil {
 			return Issue{}, err
 		}
 	}
 	if len(assignees) > 0 {
-		if err := s.writeEvent(dir, Event{Type: EventAssigned, User: ev.User, Assignees: assignees}); err != nil {
+		if err := s.writeEvent(repo, number, Event{Type: EventAssigned, User: ev.User, Assignees: assignees}); err != nil {
 			return Issue{}, err
 		}
 	}
@@ -270,40 +273,19 @@ func (s *Store) CreateIssue(repo, user, title, body string, labels []int, assign
 
 // AppendEvent は既存のIssueにイベントを追記する。
 func (s *Store) AppendEvent(repo string, number int, ev Event) error {
-	dir := s.eventsDir(repo, number)
-	info, err := os.Stat(dir)
+	info, err := os.Stat(s.eventsDir(repo, number))
 	if err != nil || !info.IsDir() {
 		return ErrIssueNotFound
 	}
-	return s.writeEvent(dir, ev)
+	return s.writeEvent(repo, number, ev)
 }
 
 // ReadEvents はIssueのイベントをファイル名順（時刻順）に読む。
+// events フォルダの一覧を見て、キャッシュに無いファイルだけを読み足す（cache.go）。
 // 拡張子が .json のファイルだけを対象とし、書きかけの一時ファイルは拾わない。
 // 読めないファイルがあれば、そのファイルだけ飛ばす。
 func (s *Store) ReadEvents(repo string, number int) ([]Event, error) {
-	dir := s.eventsDir(repo, number)
-	entries, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, ErrIssueNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	var events []Event
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-		var ev Event
-		if err := readJSON(filepath.Join(dir, e.Name()), &ev); err != nil {
-			continue
-		}
-		ev.File = e.Name()
-		events = append(events, ev)
-	}
-	sort.SliceStable(events, func(i, j int) bool { return events[i].File < events[j].File })
-	return events, nil
+	return s.cachedEvents(repo, number)
 }
 
 // BuildIssue はイベントを時系列に適用してIssueを組み立てる。

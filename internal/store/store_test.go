@@ -459,3 +459,90 @@ func TestAttachments(t *testing.T) {
 		t.Fatalf("WriteCreated の結果が違う: %+v %v", is, err)
 	}
 }
+
+func TestEventCache(t *testing.T) {
+	s := newTestStore(t)
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	s.SetCacheDir(cacheDir)
+	if _, err := s.CreateRepo("sample-tool", ""); err != nil {
+		t.Fatal(err)
+	}
+	is, err := s.CreateIssue("sample-tool", "testuser1", "キャッシュ", "本文", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendEvent("sample-tool", is.Number, Event{Type: EventComment, User: "testuser1", Body: "1"}); err != nil {
+		t.Fatal(err)
+	}
+	if n, e := s.CacheStats("sample-tool"); n != 1 || e != 2 {
+		t.Errorf("書いたイベントがキャッシュに入っていない: %d issues %d events", n, e)
+	}
+
+	// 別の端末が書いた体で、ファイルを直接置く
+	dir := filepath.Join(s.Root(), "meta", "sample-tool", "issues", "000001", "events")
+	other := `{"type":"comment","user":"testuser2","time":"2030-01-01T00:00:00Z","body":"他の端末から"}`
+	if err := os.WriteFile(filepath.Join(dir, "20300101T000000000Z_other-pc_001.json"), []byte(other), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetIssue("sample-tool", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Comments != 2 || len(got.Events) != 3 {
+		t.Errorf("他の端末のイベントを読み足していない: %+v", got)
+	}
+	if _, e := s.CacheStats("sample-tool"); e != 3 {
+		t.Errorf("読み足したイベントがキャッシュに入っていない: %d", e)
+	}
+
+	// 一時ファイルは拾わない
+	if err := os.WriteFile(filepath.Join(dir, "20300101T000000001Z_other-pc_002.json.tmp"), []byte(other), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s.GetIssue("sample-tool", 1)
+	if len(got.Events) != 3 {
+		t.Errorf("一時ファイルを拾っている: %d", len(got.Events))
+	}
+
+	// ディスクに書いて、新しい Store で読み直す。ファイルを読まずに済むことは、フォルダから json を消して確かめる
+	s.FlushCache()
+	if _, err := os.Stat(filepath.Join(cacheDir, "sample-tool.json")); err != nil {
+		t.Fatalf("キャッシュのファイルが無い: %v", err)
+	}
+	s2, err := Open(s.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2.SetCacheDir(cacheDir)
+	// 中身を壊して、読み直していないことを確かめる（ファイル名は残す）
+	if err := os.WriteFile(filepath.Join(dir, "20300101T000000000Z_other-pc_001.json"), []byte("broken"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s2.GetIssue("sample-tool", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Comments != 2 {
+		t.Errorf("キャッシュから復元できていない: %+v", got)
+	}
+
+	// ファイルが消えたらキャッシュからも消える
+	if err := os.Remove(filepath.Join(dir, "20300101T000000000Z_other-pc_001.json")); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s2.GetIssue("sample-tool", 1)
+	if got.Comments != 1 {
+		t.Errorf("消えたファイルがキャッシュに残っている: %+v", got)
+	}
+
+	// Issue のフォルダごと消えたら ErrIssueNotFound
+	if err := os.RemoveAll(filepath.Join(s.Root(), "meta", "sample-tool", "issues", "000001")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s2.GetIssue("sample-tool", 1); err != ErrIssueNotFound {
+		t.Errorf("消えた Issue が ErrIssueNotFound にならない: %v", err)
+	}
+	if n, _ := s2.CacheStats("sample-tool"); n != 0 {
+		t.Errorf("消えた Issue がキャッシュに残っている: %d", n)
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -143,6 +144,9 @@ func (s *Server) openStore(root string) (*store.Store, error) {
 	st, err := store.Open(root)
 	if err != nil {
 		return nil, err
+	}
+	if dir, err := localconfig.Dir(); err == nil {
+		st.SetCacheDir(filepath.Join(dir, "cache", st.Config().Owner))
 	}
 	if err := st.EnsureUser(s.login); err != nil {
 		log.Printf("利用者ファイルを作れない: %v", err)

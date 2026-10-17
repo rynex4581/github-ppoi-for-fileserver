@@ -49,6 +49,7 @@ Ver 0.10。開発中であり、職場で使える状態ではない。
 - 添付ファイル（本文の入力欄に Ctrl+V で画像を貼り付け。送信時に保存）
 - 使用している OSS とライセンス文の一覧ページ
 - Gitea 互換 API（下の節を参照）
+- イベントのローカルキャッシュ（`%LOCALAPPDATA%\github-ppoi\cache\`。画面を出すたびに新しいファイルだけ読み足す）
 - Settings：説明、デフォルトブランチ（ベアリポジトリの HEAD にも反映）、承認必須、force push 禁止（receive.denyNonFastForwards）
 - Pull requests：一覧、新規（ブランチを選んで比較）、詳細（Conversation／Commits／Files changed）、レビュー（承認／変更要請／コメント）、差分への行コメント、--no-ff でのマージとマージ後の head ブランチ削除、Revert、コンフリクトと force push の表示、承認必須の設定への対応
 - 自分の設定：データルートの一覧（追加・登録解除。1つのデータルートが owner 1つに対応し、複数登録できる）、表示名、言語（日本語／英語）
@@ -59,8 +60,7 @@ epos\<owner>\<リポジトリ名>`。無ければ作り、使うたびにリモ�
 
 未実装
 
-- ローカルキャッシュ
-- SMB上の同時更新の検証
+- SMB上の同時更新の検証（検証用プログラムはある。下の節を参照）
 - GitHub Actionsによるリリース
 
 ## 動かし方（開発中）
@@ -100,6 +100,26 @@ Issue と Pull Request は localhost の Gitea 互換 API で扱う。
 URL は http://localhost:<ポート>/api/v1/repos/<owner>/<リポジトリ名>/... で、
 Authorization ヘッダは token dummy のように空でない値を付ける。
 ```
+
+## SMB 上の同時更新の検証
+
+本体と同じ採番と書き込みのコードで、2台の端末から同じ共有フォルダに向けて Issue を作り続け、番号の重複や書きかけの読み込みが無いかを確かめる。
+
+```powershell
+go build -o smbtest.exe ./cmd/smbtest
+```
+
+2台のそれぞれで次を実行し（同時に始める）、両方が終わってからどちらか1台で `-check` を実行する。
+
+```powershell
+.\smbtest.exe -root \fileserver\share\smbtest -n 2000
+```
+
+```powershell
+.\smbtest.exe -root \fileserver\share\smbtest -check
+```
+
+各端末の結果には、採番の失敗、他の端末の Issue で読めなかったもの、他の端末の Issue が見えるまでの秒数が出る。`-check` は番号の重複、created イベントの数、ログと中身の一致を確かめる。
 
 ## データルートの構成
 

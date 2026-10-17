@@ -95,6 +95,7 @@ type Store struct {
 	config Config
 	host   string
 	seq    atomic.Uint64
+	cache  eventCache // イベントのローカルキャッシュ（cache.go）
 }
 
 var hostSanitize = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
