@@ -1,5 +1,5 @@
 # github-ppoi for Fileserver
-# Githubっぽいのをファイルサーバでやる
+## Githubっぽいのをファイルサーバでやる
 A GitHub-like issue tracker and code review tool that runs on each client PC and keeps all of its data on a plain SMB file server. No server, no database.
 
 Githubっぽいのをファイルサーバでやるやつ。
