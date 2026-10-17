@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none" stroke="#8b949e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 案2：重なった2枚のフォルダ（複数の端末から見ている共有フォルダ）。手前のフォルダに「!」の付いた Issue -->
+  <path d="M34 32v-6a6 6 0 0 1 6-6h22l10 10h36a6 6 0 0 1 6 6v46"/>
+  <path d="M20 44h22l10 10h50a6 6 0 0 1 6 6v42a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6V50a6 6 0 0 1 6-6z"/>
+  <circle cx="61" cy="81" r="14"/>
+  <path d="M61 73v9"/>
+  <circle cx="61" cy="88" r="2.2" fill="#8b949e" stroke="none"/>
+</svg>

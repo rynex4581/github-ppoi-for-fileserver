@@ -1,16 +1,31 @@
-# github-ppoi for Fileserver
-## Githubっぽいのをファイルサーバでやる
-A GitHub-like issue tracker and code review tool that runs on each client PC and keeps all of its data on a plain SMB file server. No server, no database.
+<p align="center">
+  <img src="docs/logo/logo-1.svg" width="160" height="160" alt="">
+</p>
+
+<h1 align="center">github-ppoi for Fileserver</h1>
+
+<p align="center"><strong>サーバも DB も無し。共有フォルダだけで Issue とコードレビューができる。</strong></p>
+
+<p align="center">A GitHub-like issue tracker and code review tool that runs on each client PC and keeps all of its data on a plain SMB file server. No server, no database.</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/rynex4581/github-ppoi-for-fileserver" alt="License"></a>
+  <img src="https://img.shields.io/github/go-mod/go-version/rynex4581/github-ppoi-for-fileserver" alt="Go version">
+  <a href="https://github.com/rynex4581/github-ppoi-for-fileserver/releases/latest"><img src="https://img.shields.io/github/v/release/rynex4581/github-ppoi-for-fileserver" alt="Release"></a>
+  <a href="https://github.com/rynex4581/github-ppoi-for-fileserver/stargazers"><img src="https://img.shields.io/github/stars/rynex4581/github-ppoi-for-fileserver?style=social" alt="GitHub stars"></a>
+</p>
 
 Githubっぽいのをファイルサーバでやるやつ。
 
-## 概要
+## インストール
 
-- 各メンバーが自分の端末で `github-ppoi.exe` を起動すると、localhost（既定ポート 9418）にWeb画面とGitea API v1互換のAPIが上がり、ブラウザが開く
-- データの正本はすべてファイルサーバ上の共有フォルダ（データルート）に置く。サーバもデータベースも使わない
-- コードのgitリポジトリはデータルート配下のベアリポジトリで、各自が従来どおり直接push/pullする
-- Issue、Pull Request、コメント、レビュー、添付ファイルは、データルート配下にファイルとして保存する。gitには入れない
-- 端末側にあるもの（exe、設定、キャッシュ）はすべて消えてよい。端末を作り直しても、exeを置いてデータルートを指定すれば元に戻る
+[Releases](https://github.com/rynex4581/github-ppoi-for-fileserver/releases/latest) から `github-ppoi.exe` を落として起動する。Git for Windows が入っていればそれだけでよい。
+
+<p align="center">
+  <img src="docs/images/top.png" width="800" alt="トップ画面">
+</p>
+
+> 各自の端末で動き、データはすべてファイルサーバの共有フォルダに置く、GitHub 風の Issue 管理とコードレビューのツール。
 
 ## 背景
 
@@ -25,48 +40,46 @@ Gitea程度の使い勝手で、ブラウザから直感的に使えることが
 
 本ツールの設計と実装は、Claude（Fable 5.1）とClaude Codeで行った。
 
-## 設計の要点
+## Features
 
-- Issue、コメント、状態変更はすべて「イベント1件につき1ファイル」の追記で保存し、既存ファイルの上書きは行わない。現在の状態はイベントを時系列に適用して組み立てる
-- Issue番号は、番号のフォルダを「既に存在すれば失敗する」方式で作成し、作成できた側がその番号を取る。SMB上の排他をこの1点に絞る
-- イベントのファイル名は「UTC時刻（ミリ秒）_端末名_端末内連番」とし、端末間で重複しないようにする
-- ファイルは一時名で書いてからrenameし、書きかけが他の端末から見えないようにする
-- 画面はGitHubの構成と導線をパク……リスペクトする！ CSSはPrimer、アイコンはOcticonsを使い、すべてexeに埋め込む。外部への参照は持たない
-- 画面の文言はGiteaの言語ファイルをそのまま使う。既定は日本語で、英語に切り替えられる
-- gitは各端末のGit for Windowsを呼ぶ。exeには同梱しない
+- 🗂️ **サーバもデータベースも使わない。** データの正本はすべて共有フォルダ（データルート）にあり、端末側の exe、設定、キャッシュは消えてよい
+- 📁 **複数のデータルートを1つの画面で扱える。** データルート1つが owner 1つに対応し、URL は `/<owner>/<リポジトリ名>/`
+- 🐞 **Issue。** 状態・ラベル・担当者での絞り込み、コメント、クローズと再オープン、ラベルと担当者の変更
+- 🔀 **Pull Request。** ブランチを選んで作成、Conversation／Commits／Files changed、承認・変更要請・コメントのレビュー、差分への行コメント、`--no-ff` のマージと Revert、コンフリクトと force push の表示、承認必須の設定
+- 📄 **Code。** ファイルツリー、Markdown と画像の表示、ブランチ切替、コミット履歴と差分、clone コマンドの表示
+- 🏷️ **ラベルの管理**と 📎 **添付ファイル**（本文の入力欄に Ctrl+V で画像を貼り付け）
+- 🔍 **横断ページ。** 全 owner の Issue と Pull Request を1つの一覧で見る（すべて／自分に割り当て／自分が作成）
+- 🤖 **Gitea API v1 互換の API。** tea（Gitea 公式 CLI）や Codex からそのまま使える
+- ⚡ **イベントのローカルキャッシュ。** 2回目以降の表示では新しいファイルだけを共有フォルダから読む
+- 🌐 **日本語と英語。** 画面の文言は Gitea の言語ファイルをそのまま使う
+- 🔔 **運用まわり。** 待ち受けポートの自動選択、二重起動の検知、データルートの `bin\` に置いた新しい exe の通知
 
-## 現在の状態
+## <img src="docs/images/icon-rocket.svg" width="24" height="24" align="top" alt=""> Getting started
 
-Ver 0.10。開発中であり、職場で使える状態ではない。
+### exe を置く
 
-実装済み
+`github-ppoi.exe` は端末のどこに置いてもよい。配布用にはデータルートの `bin\` に置くと、古い版を使っている端末の画面に「新しい版がある」と出る。Git for Windows が入っていること（`git` がコマンドラインから呼べること）が前提になる。
 
-- 手元のディスク上のデータルートでの動作
-- トップ画面：全データルートのリポジトリを owner ごとに一覧、新規リポジトリの作成（作成先の owner を選ぶ。ベアリポジトリの作成を含む）
-- Code：ファイルツリー、ファイル表示（Markdown の描画、画像）、ブランチ切替、コミット履歴、コミットの差分、clone コマンドの表示、空リポジトリへの push 手順の表示
-- Issues：一覧（open／closed、ラベル、担当者で絞り込み）、詳細、新規作成、コメント、クローズと再オープン、ラベルと担当者の変更
-- ラベルの管理（作成、編集、削除）
-- 添付ファイル（本文の入力欄に Ctrl+V で画像を貼り付け。送信時に保存）
-- 使用している OSS とライセンス文の一覧ページ
-- Gitea 互換 API（下の節を参照）
-- イベントのローカルキャッシュ（`%LOCALAPPDATA%\github-ppoi\cache\`。画面を出すたびに新しいファイルだけ読み足す）
-- Settings：説明、デフォルトブランチ（ベアリポジトリの HEAD にも反映）、承認必須、force push 禁止（receive.denyNonFastForwards）
-- Pull requests：一覧、新規（ブランチを選んで比較）、詳細（Conversation／Commits／Files changed）、レビュー（承認／変更要請／コメント）、差分への行コメント、--no-ff でのマージとマージ後の head ブランチ削除、Revert、コンフリクトと force push の表示、承認必須の設定への対応
-- 自分の設定：データルートの一覧（追加・登録解除。1つのデータルートが owner 1つに対応し、複数登録できる）、表示名、言語（日本語／英語）
-- 横断ページ：全 owner をまたいだ Issue 一覧と Pull Request 一覧（すべて／自分に割り当て／自分が作成、open／closed）
-- 待ち受けポートの自動選択（9418〜9427）、二重起動の検知、`%LOCALAPPDATA%\github-ppoi\port.txt` へのポートの書き出し
-- マージと Revert に使うツール専用 clone（`%LOCALAPPDATA%\github-ppoi
-epos\<owner>\<リポジトリ名>`。無ければ作り、使うたびにリモートに合わせる）
+### 初回の起動
 
-未実装
+起動するとブラウザに設定画面が開く。データルートにするフォルダ（共有フォルダのパス）と owner 名を入れて登録する。
 
-- SMB上の同時更新の検証（検証用プログラムはある。下の節を参照）
+- owner 名は URL に使うので半角英数（`.` `_` `-` 可）。表示名は任意で、日本語でよい
+- `config.json` の無いフォルダを指定すると、そのフォルダをデータルートとして初期化する。既にデータルートになっているフォルダなら登録だけを行う
+- 設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される
 
-リリースは GitHub Actions で行う。`v0.10` のようにタグを打つと、Windows 用の exe をビルドして Releases に置く。タグは `internal/version` の Number と一致していないと失敗する。
+### 2つ目以降のデータルート
 
-## 動かし方（開発中）
+画面右上の歯車から「自分の設定」を開き、データルートを追加する。1つのデータルートが owner 1つに対応し、同じ owner 名のデータルートは2つ登録できない。トップ画面には owner ごとにリポジトリが並ぶ。
 
-Go 1.27以上とGit for Windowsが要る。
+> [!TIP]
+> 待ち受けポートは 9418 から 9427 の範囲で空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に出る。
+> `config.json` に `"port"` を書けばそのポートだけを使い、使えなければエラーで止まる。
+> 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する。`--no-browser` を付けると起動時にブラウザを開かない。
+
+### ソースからビルドする
+
+Go 1.27 以上と Git for Windows が要る。
 
 ```powershell
 go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
@@ -77,55 +90,60 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 
 `go generate` は exe のプロパティに出す版（VERSIONINFO）のリソースを作る。goversioninfo（MIT）はビルドのときだけ使い、exe には入らない。省くとビルドはできるが、exe に版が入らず、更新通知の比較もできない。
 
-初回はブラウザに設定画面が開くので、データルートにするフォルダのパスと owner 名（URL に使う半角英数）を入れて登録する。データルートは複数登録できる。設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される。
+## Codex／AI エージェントと使う
 
-- 待ち受けポートは 9418 から順に空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に出る
-- `config.json` に `"port"` を書いてあれば、そのポートだけを使い、使えなければエラーで止まる
-- 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する
-- `--no-browser` を付けると起動時にブラウザを開かない
-- 起動時に各データルートの `bin\github-ppoi.exe` の版を読み、自分より新しければ画面の上部に知らせる
-
-## Gitea 互換 API
-
-`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントを持つ。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。トークンは空でなければ何でも通る（`Authorization: token x`）。`/api/v1/version` だけは認証無し。
+`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使える。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。トークンは空でなければ何でも通る（`Authorization: token x`）。`/api/v1/version` だけは認証無し。
 
 持っているもの
 
 - user、users/{login}、user/orgs、orgs/{org}、user/repos、repos/search、orgs/{org}/repos
 - repos/{owner}/{repo}：本体、branches、commits、git/commits/{sha}（`.diff` 付きで差分）、contents、raw、compare/{base}...{head}
-- issues：一覧（state、type、labels、q）、作成、取得、PATCH（title、state、assignees、labels。body の書き換えは無い）、comments、labels、assets
+- issues：一覧（state、type、labels、q）、作成、取得、PATCH（title、state、assignees、labels）、comments、labels、assets
 - labels：一覧、作成、取得、PATCH、削除
 - pulls：一覧、作成、取得、PATCH、`.diff`、commits、files、merge（`Do` は merge のみ）、reviews（APPROVED／REQUEST_CHANGES／COMMENT と行コメント）
 - tea（Gitea 公式 CLI）の v0.16 で、ログイン、リポジトリ一覧、Issue の一覧・作成・表示・クローズ、コメント、ラベル、ブランチ、PR の一覧・作成・マージが通ることを確認した
 
+予定（未実装）
+
+- Issue 本文の書き換え（PATCH の `body`）
+- マイルストーン、Wiki、リリース、通知など、上に無い Gitea API の範囲
+
 Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように書く。
 
-```
-Issue と Pull Request は localhost の Gitea 互換 API で扱う。
-ポートは %LOCALAPPDATA%\github-ppoi\port.txt に書いてある。
-URL は http://localhost:<ポート>/api/v1/repos/<owner>/<リポジトリ名>/... で、
-Authorization ヘッダは token dummy のように空でない値を付ける。
-```
+> Issue と Pull Request は localhost の Gitea 互換 API で扱う。
+> ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。
+> URL は `http://localhost:<ポート>/api/v1/repos/<owner>/<リポジトリ名>/...` で、
+> Authorization ヘッダは `token dummy` のように空でない値を付ける。
 
-## SMB 上の同時更新の検証
+## <img src="docs/images/icon-browser.svg" width="24" height="24" align="top" alt=""> Web 画面
 
-本体と同じ採番と書き込みのコードで、2台の端末から同じ共有フォルダに向けて Issue を作り続け、番号の重複や書きかけの読み込みが無いかを確かめる。
+Issue の詳細。本文とコメントは Markdown で書け、右側で担当者とラベルを変える。
 
-```powershell
-go build -o smbtest.exe ./cmd/smbtest
-```
+<p align="center">
+  <img src="docs/images/issue.png" width="800" alt="Issue の詳細">
+</p>
 
-2台のそれぞれで次を実行し（同時に始める）、両方が終わってからどちらか1台で `-check` を実行する。
+Pull Request の Files changed。差分の行にコメントを付けられる。
 
-```powershell
-.\smbtest.exe -root \fileserver\share\smbtest -n 2000
-```
+<p align="center">
+  <img src="docs/images/pull-files.png" width="800" alt="Pull Request の Files changed">
+</p>
 
-```powershell
-.\smbtest.exe -root \fileserver\share\smbtest -check
-```
+横断ページ。全 owner、全リポジトリの Issue を1つの一覧で見る。
 
-各端末の結果には、採番の失敗、他の端末の Issue で読めなかったもの、他の端末の Issue が見えるまでの秒数が出る。`-check` は番号の重複、created イベントの数、ログと中身の一致を確かめる。
+<p align="center">
+  <img src="docs/images/cross-issues.png" width="800" alt="横断の Issue 一覧">
+</p>
+
+## 設計の要点
+
+- Issue、コメント、状態変更はすべて「イベント1件につき1ファイル」の追記で保存し、既存ファイルの上書きは行わない。現在の状態はイベントを時系列に適用して組み立てる
+- Issue番号は、番号のフォルダを「既に存在すれば失敗する」方式で作成し、作成できた側がその番号を取る。SMB上の排他をこの1点に絞る
+- イベントのファイル名は「UTC時刻（ミリ秒）_端末名_端末内連番」とし、端末間で重複しないようにする
+- ファイルは一時名で書いてからrenameし、書きかけが他の端末から見えないようにする
+- 画面はGitHubの構成と導線をパク……リスペクトする！ CSSはPrimer、アイコンはOcticonsを使い、すべてexeに埋め込む。外部への参照は持たない
+- 画面の文言はGiteaの言語ファイルをそのまま使う。既定は日本語で、英語に切り替えられる
+- gitは各端末のGit for Windowsを呼ぶ。exeには同梱しない
 
 ## データルートの構成
 
@@ -144,6 +162,54 @@ go build -o smbtest.exe ./cmd/smbtest
           events\              イベント（1件1ファイル）
           attachments\         添付ファイル
 ```
+
+## 設定
+
+端末側 `%LOCALAPPDATA%\github-ppoi\config.json`
+
+| 項目 | 内容 | 既定 |
+| --- | --- | --- |
+| `data_roots` | データルートのパスの一覧 | 無し（設定画面で登録する） |
+| `port` | 待ち受けポート。書くとそのポートだけを使う | 9418〜9427 から空きを探す |
+| `lang` | 画面の言語。`ja-JP` または `en-US` | `ja-JP` |
+
+データルート直下の `config.json`
+
+| 項目 | 内容 | 既定 |
+| --- | --- | --- |
+| `owner` | owner 名。URL に使う半角英数。データルートを作るときに決める | 無し（必須） |
+| `owner_name` | owner の表示名。日本語可 | 空（owner 名を表示） |
+| `default_branch` | 新規リポジトリの既定ブランチ名 | `main` |
+| `attachment_max_bytes` | 添付ファイルのサイズ上限 | 10485760（10 MB） |
+
+どちらも設定画面から書き換えられる。端末側のファイルは消しても、exe を起動してデータルートを登録し直せば元に戻る。
+
+## Troubleshooting
+
+**起動時に「ポート 9418〜9427 がすべて使用中」と出る**
+
+他のプログラムがその範囲を使っている。`%LOCALAPPDATA%\github-ppoi\config.json` に `"port": 9500` のように空いているポートを書いて起動し直す。本ツールがもう上がっているだけなら、新しい方はブラウザを開いて終了するので、この表示にはならない。
+
+**git が「dubious ownership」「safe.directory」の警告を出す**
+
+共有フォルダ上のベアリポジトリは所有者が自分と違うため、Git for Windows が安全のために弾く。本ツールが git を呼ぶときは `safe.directory=*` を付けているので画面には出ないが、自分で clone や push をするときに出る。次を一度実行する。
+
+```powershell
+git config --global --add safe.directory "*"
+```
+
+`*` の代わりに特定のパスだけを許可してもよい。
+
+## 現在の状態
+
+Ver 0.10。開発中であり、職場で使える状態ではない。
+
+未実装
+
+- SMB 上の同時更新の検証。本体と同じ採番と書き込みを2台から同時に回す `smbtest.exe` を Releases に置いている。2台で `.\smbtest.exe -root <共有フォルダ>\smbtest -n 2000` を同時に実行し、終わってから `-check` で番号の重複と書きかけの読み込みが無いかを確かめる
+- Gitea API のうち、上の「予定（未実装）」に挙げたもの
+
+リリースは GitHub Actions で行う。`v0.10` のようにタグを打つと、Windows 用の exe をビルドして Releases に置く。タグは `internal/version` の Number と一致していないと失敗する。README の画像は `go run ./tools/screenshot` で撮り直せる（端末の Chrome、Iron、Edge のいずれかを使う）。
 
 ## ライセンス
 

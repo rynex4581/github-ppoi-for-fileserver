@@ -72,6 +72,12 @@
 - Actions は ci（push ごとに検査、テスト、ビルド、版の確認）と release（タグ v* でビルドして Releases に置く。タグと Number が違えば失敗）
 - タグ v0.10 を打って release を通し、Releases に github-ppoi.exe と smbtest.exe が置かれた。落とした exe の版は Ver 0.10（0.10.0.0）
 
+### README の作り直し
+
+- README を Backlog.md の README と同じ見せ方に組み替えた。ロゴ、キャッチコピー、バッジ、インストールの1行、Features、Getting started、Codex と使う、Web 画面、設定の表、Troubleshooting の順
+- ロゴは docs/logo に SVG で3案（共有フォルダと Issue を組み合わせたもの。背景は透過、線は中間色）。README には仮に1案目を入れた
+- 画面の画像は tools/screenshot で撮る。一時フォルダに架空のデータルート（リポジトリ2つ、Issue 6件、Pull Request 1件）を作り、本体と同じサーバを上げて、端末の Chromium 系ブラウザ（Chrome、Iron、Edge の順に探す）で4画面を撮って docs/images に置く。`go run ./tools/screenshot` で撮り直せる
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
@@ -85,6 +91,8 @@
 - API の数値 ID は Gitea のような連番を持たないため、Issue と PR は番号、コメントとレビューはイベントのファイル名、リポジトリと利用者は名前のハッシュで作る
 - API の PATCH で本文は書き換えられない（本文を書き換えるイベントが無い）。tea が空のタイトルを送ってきたときは変更なしとして扱う
 - レビューと行コメントは紐付けて保存していないので、reviews/{id}/comments は「前のレビュー以降そのレビューまでに付いた行コメント」を返す
+- 撮影スクリプトの依存（chromedp）は go.mod に入るが、本体の exe にはリンクされないので third_party の一覧には入れない
+- 撮影中は LOCALAPPDATA を一時フォルダに向け、端末側の設定とキャッシュに触らない
 - 添付は貼った時点では送らず、フォーム送信時に一緒に送る（作成前の Issue に番号が無いため）。本文中の参照は Gitea と同じ /attachments/ で始め、その後ろに owner、リポジトリ名、番号、ファイル名を続ける
 
 ## 残作業
