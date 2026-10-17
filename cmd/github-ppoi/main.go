@@ -1,5 +1,12 @@
 // github-ppoi は本ツールの起動部。
 // 端末側の設定を読み、localhost でWeb画面を上げ、ブラウザを開く。
+//
+// ビルドの前に go generate で VERSIONINFO のリソース（resource.syso）を作る。
+// goversioninfo（github.com/josephspurrier/goversioninfo、MIT）が要る。無いときは
+// リソース無しでもビルドできるが、exe のプロパティに版が出ず、更新通知の比較もできない。
+//
+//go:generate go run ../mkversioninfo versioninfo.json
+//go:generate goversioninfo -64 -o resource.syso versioninfo.json
 package main
 
 import (

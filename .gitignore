@@ -7,3 +7,7 @@ docs_local/
 
 # エディタ・ツールの個人設定
 .claude/
+
+# go generate で作る VERSIONINFO のリソース
+/cmd/github-ppoi/versioninfo.json
+/cmd/github-ppoi/resource.syso

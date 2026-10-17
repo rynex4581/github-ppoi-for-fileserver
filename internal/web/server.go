@@ -49,6 +49,7 @@ type Server struct {
 
 	login  string
 	port   int
+	newer  *newerVersion // bin\github-ppoi.exe の版が自分より新しいときに入る
 	pages  map[string]*template.Template
 	icons  map[string]template.HTML
 	md     goldmark.Markdown
@@ -90,8 +91,38 @@ func New(cfg localconfig.Config, login string, port int) (*Server, error) {
 		owners[owner] = root
 		s.stores = append(s.stores, st)
 	}
+	s.newer = s.findNewerVersion()
 	s.routes()
 	return s, nil
+}
+
+// newerVersion は配布用 exe の版が自分より新しいときの情報。
+type newerVersion struct {
+	Version string // "0.11A" の形
+	Path    string // その exe のパス
+}
+
+// findNewerVersion は各データルートの bin\github-ppoi.exe の VERSIONINFO を読み、
+// 自分より新しいものがあれば一番新しいものを返す。読めないものは無視する。
+func (s *Server) findNewerVersion() *newerVersion {
+	var best *newerVersion
+	bestParsed := version.Current
+	for _, st := range s.stores {
+		path := filepath.Join(st.Root(), "bin", "github-ppoi.exe")
+		major, minor, patch, _, err := version.ReadFileVersion(path)
+		if err != nil {
+			continue
+		}
+		p := version.FromNumeric(major, minor, patch)
+		if version.Compare(p, bestParsed) > 0 {
+			bestParsed = p
+			best = &newerVersion{Version: p.String(), Path: path}
+		}
+	}
+	if best != nil {
+		log.Printf("新しい版がある: Ver %s %s", best.Version, best.Path)
+	}
+	return best
 }
 
 // allStores は開けているデータルートを登録順で返す。
@@ -332,6 +363,7 @@ type page struct {
 	Port      int
 	Lang      string
 	Owner     string
+	Newer     *newerVersion
 	MaxAttach int64 // 添付ファイルの上限（バイト）。リポジトリの画面で入る
 	Repo      *store.Repo
 	Tab       string
@@ -340,7 +372,7 @@ type page struct {
 }
 
 func (s *Server) newPage(title string) page {
-	return page{Title: title, Login: s.login, LoginName: s.displayName(s.login), Version: version.Display, Port: s.port, Lang: s.locale().Lang()}
+	return page{Title: title, Login: s.login, LoginName: s.displayName(s.login), Version: version.Display, Port: s.port, Lang: s.locale().Lang(), Newer: s.newer}
 }
 
 func (s *Server) render(w http.ResponseWriter, status int, name string, p page) {

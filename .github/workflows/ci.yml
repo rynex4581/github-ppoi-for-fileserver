@@ -1,0 +1,45 @@
+# push と pull request のたびに、検査、テスト、ビルドを通す
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: 検査
+        run: |
+          gofmt -l . | Tee-Object -Variable unformatted
+          if ($unformatted) { Write-Error "gofmt で整形されていないファイルがある"; exit 1 }
+          go vet ./...
+
+      - name: テスト
+        run: go test ./...
+
+      - name: VERSIONINFO のリソースを作る
+        run: |
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
+          go generate ./cmd/github-ppoi
+
+      - name: ビルド
+        run: go build -trimpath -ldflags "-s -w" -o github-ppoi.exe ./cmd/github-ppoi
+
+      - name: 版の確認
+        run: |
+          $v = (Get-Item .\github-ppoi.exe).VersionInfo
+          "FileVersion=$($v.FileVersion) ProductVersion=$($v.ProductVersion)"
+          if (-not $v.FileVersion) { Write-Error "VERSIONINFO が入っていない"; exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: github-ppoi
+          path: github-ppoi.exe

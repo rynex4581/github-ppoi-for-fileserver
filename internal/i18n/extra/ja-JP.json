@@ -85,5 +85,6 @@
   "ppoi.licenses.link": "ライセンス",
   "ppoi.licenses.self": "本ツール自体は MIT License で公開している。",
   "ppoi.api.bad_state": "state の値が正しくありません。",
-  "ppoi.api.body_edit": "本文の書き換えには対応していません（本文を書き換えるイベントが無いため）。"
+  "ppoi.api.body_edit": "本文の書き換えには対応していません（本文を書き換えるイベントが無いため）。",
+  "ppoi.update.available": "新しい版（Ver %s）があります。次のファイルを自分の端末にコピーして起動し直してください。"
 }

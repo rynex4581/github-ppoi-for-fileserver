@@ -61,16 +61,21 @@ epos\<owner>\<リポジトリ名>`。無ければ作り、使うたびにリモ�
 未実装
 
 - SMB上の同時更新の検証（検証用プログラムはある。下の節を参照）
-- GitHub Actionsによるリリース
+
+リリースは GitHub Actions で行う。`v0.10` のようにタグを打つと、Windows 用の exe をビルドして Releases に置く。タグは `internal/version` の Number と一致していないと失敗する。
 
 ## 動かし方（開発中）
 
 Go 1.27以上とGit for Windowsが要る。
 
 ```powershell
+go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
+go generate ./cmd/github-ppoi
 go build -o github-ppoi.exe ./cmd/github-ppoi
 .\github-ppoi.exe
 ```
+
+`go generate` は exe のプロパティに出す版（VERSIONINFO）のリソースを作る。goversioninfo（MIT）はビルドのときだけ使い、exe には入らない。省くとビルドはできるが、exe に版が入らず、更新通知の比較もできない。
 
 初回はブラウザに設定画面が開くので、データルートにするフォルダのパスと owner 名（URL に使う半角英数）を入れて登録する。データルートは複数登録できる。設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される。
 
@@ -78,6 +83,7 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 - `config.json` に `"port"` を書いてあれば、そのポートだけを使い、使えなければエラーで止まる
 - 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する
 - `--no-browser` を付けると起動時にブラウザを開かない
+- 起動時に各データルートの `bin\github-ppoi.exe` の版を読み、自分より新しければ画面の上部に知らせる
 
 ## Gitea 互換 API
 
