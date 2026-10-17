@@ -1,15 +1,57 @@
 {{define "content"}}
 <div class="d-flex flex-items-center mb-3">
   <div class="flex-auto"></div>
-  <a class="btn btn-primary" href="/{{.Owner}}/{{.Repo.Name}}/issues/new">New issue</a>
+  <a class="btn mr-2" href="{{.Data.LabelsURL}}">{{icon "tag"}} {{tr "repo.labels"}}{{if .Data.LabelCount}} <span class="Counter">{{.Data.LabelCount}}</span>{{end}}</a>
+  <a class="btn btn-primary" href="{{.Data.NewIssueURL}}">{{tr "repo.issues.new"}}</a>
 </div>
+
+{{if .Data.Filtered}}
+<div class="mb-3 d-flex flex-items-center text-small">
+  <a class="Link--muted d-flex flex-items-center" href="{{.Data.ClearURL}}">{{icon "x"}}<span class="ml-1">{{tr "ppoi.clear_filter"}}</span></a>
+</div>
+{{end}}
+
 <div class="Box">
-  <div class="Box-header d-flex">
+  <div class="Box-header d-flex flex-items-center">
     <div class="flex-auto">
-      <a class="btn-link mr-3{{if eq .Data.State "open"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="?state=open">{{icon "issue-opened"}} {{.Data.OpenCount}} Open</a>
-      <a class="btn-link{{if eq .Data.State "closed"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="?state=closed">{{icon "check"}} {{.Data.ClosedCount}} Closed</a>
+      <a class="btn-link mr-3{{if eq .Data.State "open"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="{{.Data.OpenURL}}">{{icon "issue-opened"}} {{.Data.OpenCount}} {{tr "repo.issues.open_title"}}</a>
+      <a class="btn-link{{if eq .Data.State "closed"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="{{.Data.ClosedURL}}">{{icon "check"}} {{.Data.ClosedCount}} {{tr "repo.issues.closed_title"}}</a>
     </div>
+
+    <details class="details-reset details-overlay position-relative mr-3">
+      <summary class="btn-link color-fg-muted" aria-haspopup="menu">{{tr "repo.issues.filter_label"}} <span class="dropdown-caret"></span></summary>
+      <div class="SelectMenu right-0">
+        <div class="SelectMenu-modal">
+          <header class="SelectMenu-header"><h3 class="SelectMenu-title">{{tr "repo.issues.filter_labels"}}</h3></header>
+          <div class="SelectMenu-list">
+            {{range .Data.LabelItems}}
+            <a class="SelectMenu-item" role="menuitemcheckbox" aria-checked="{{if .Selected}}true{{else}}false{{end}}" href="{{.URL}}">
+              <span class="SelectMenu-icon SelectMenu-icon--check">{{icon "check"}}</span>
+              {{if .Label}}<span class="IssueLabel mr-2" style="{{labelStyle .Label.Color}}">{{.Label.Name}}</span>{{if .Label.Description}}<span class="color-fg-muted text-small">{{.Label.Description}}</span>{{end}}{{else}}{{.Text}}{{end}}
+            </a>
+            {{end}}
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="details-reset details-overlay position-relative">
+      <summary class="btn-link color-fg-muted" aria-haspopup="menu">{{tr "repo.issues.filter_assignee"}} <span class="dropdown-caret"></span></summary>
+      <div class="SelectMenu right-0">
+        <div class="SelectMenu-modal">
+          <header class="SelectMenu-header"><h3 class="SelectMenu-title">{{tr "repo.issues.filter_assignees"}}</h3></header>
+          <div class="SelectMenu-list">
+            {{range .Data.AssigneeItems}}
+            <a class="SelectMenu-item" role="menuitemcheckbox" aria-checked="{{if .Selected}}true{{else}}false{{end}}" href="{{.URL}}">
+              <span class="SelectMenu-icon SelectMenu-icon--check">{{icon "check"}}</span>{{.Text}}
+            </a>
+            {{end}}
+          </div>
+        </div>
+      </div>
+    </details>
   </div>
+
   {{range .Data.Issues}}
   <div class="Box-row d-flex">
     <div class="mr-2 pt-1">
@@ -17,12 +59,15 @@
     </div>
     <div class="flex-auto min-width-0">
       <a class="Link--primary text-bold f4 lh-condensed wb-break-word" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}">{{.Title}}</a>
+      {{range .Labels}}<a class="IssueLabel ml-1" style="{{labelStyle .Color}}" title="{{.Description}}" href="/{{$.Owner}}/{{$.Repo.Name}}/issues?state={{$.Data.State}}&labels={{.ID}}">{{.Name}}</a>{{end}}
       <div class="color-fg-muted text-small mt-1">
         #{{.Number}}
-        {{if eq .State "open"}}opened on {{datetime .CreatedAt}}{{else}}closed on {{datetime .ClosedAt}}{{end}}
-        by {{name .User}}
+        {{if eq .State "open"}}{{trh "repo.issues.opened_by" (datetime .CreatedAt) (print "?assignee=" .User) (name .User)}}{{else}}{{trh "repo.issues.closed_by" (datetime .ClosedAt) (print "?assignee=" .User) (name .User)}}{{end}}
       </div>
     </div>
+    {{if .Assignees}}
+    <span class="color-fg-muted text-small mr-3 d-flex flex-items-center" title="{{tr "repo.issues.new.assignees"}}">{{icon "person"}}<span class="ml-1">{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{name $a}}{{end}}</span></span>
+    {{end}}
     {{if .Comments}}
     <a class="Link--muted text-small d-flex flex-items-center" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}">{{icon "comment"}}<span class="ml-1">{{.Comments}}</span></a>
     {{end}}
@@ -30,7 +75,7 @@
   {{else}}
   <div class="blankslate">
     <span class="color-fg-muted">{{icon "issue-opened"}}</span>
-    <h3 class="blankslate-heading">{{if eq .Data.State "open"}}There aren’t any open issues.{{else}}There aren’t any closed issues.{{end}}</h3>
+    <h3 class="blankslate-heading">{{if .Data.Filtered}}{{tr "ppoi.issues.no_match"}}{{else if eq .Data.State "open"}}{{tr "ppoi.issues.no_open"}}{{else}}{{tr "ppoi.issues.no_closed"}}{{end}}</h3>
   </div>
   {{end}}
 </div>

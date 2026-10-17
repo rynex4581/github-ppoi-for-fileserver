@@ -48,3 +48,22 @@ body {
 .markdown-body {
   font-size: 14px;
 }
+
+.app-sidebar-summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.app-sidebar-summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-color {
+  height: 32px;
+  padding: 2px 4px;
+  width: 100%;
+}
+
+.IssueLabel {
+  vertical-align: middle;
+}

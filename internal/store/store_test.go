@@ -105,11 +105,11 @@ func TestIssueNumberingAndEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	first, err := s.CreateIssue("sample-tool", "testuser1", "最初のIssue", "本文1")
+	first, err := s.CreateIssue("sample-tool", "testuser1", "最初のIssue", "本文1", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := s.CreateIssue("sample-tool", "testuser2", "次のIssue", "")
+	second, err := s.CreateIssue("sample-tool", "testuser2", "次のIssue", "", []int{1, 2}, []string{"testuser2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,12 +124,25 @@ func TestIssueNumberingAndEvents(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(s.Root(), "meta", "sample-tool", "issues", "000003"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	third, err := s.CreateIssue("sample-tool", "testuser1", "飛ばされる番号の次", "")
+	third, err := s.CreateIssue("sample-tool", "testuser1", "飛ばされる番号の次", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if third.Number != 4 {
 		t.Fatalf("既に存在する番号を避けていない: %d", third.Number)
+	}
+	if len(second.Labels) != 2 || !second.HasLabel(2) || !second.HasAssignee("testuser2") {
+		t.Errorf("作成時のラベルと担当者が入っていない: %+v", second)
+	}
+	if err := s.AppendEvent("sample-tool", 2, Event{Type: EventLabels, User: "testuser1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendEvent("sample-tool", 2, Event{Type: EventAssigned, User: "testuser1", Assignees: []string{"testuser1", "testuser2"}}); err != nil {
+		t.Fatal(err)
+	}
+	second, _ = s.GetIssue("sample-tool", 2)
+	if len(second.Labels) != 0 || len(second.Assignees) != 2 {
+		t.Errorf("ラベル全解除と担当者変更が反映されていない: %+v", second)
 	}
 
 	// イベントのファイル名の形式
@@ -198,7 +211,7 @@ func TestIssueNumberingAndEvents(t *testing.T) {
 	if _, err := s.GetIssue("sample-tool", 3); err != ErrIssueNotFound {
 		t.Errorf("残骸のフォルダが ErrIssueNotFound にならない: %v", err)
 	}
-	if _, err := s.CreateIssue("nothing", "testuser1", "x", ""); err != ErrRepoNotFound {
+	if _, err := s.CreateIssue("nothing", "testuser1", "x", "", nil, nil); err != ErrRepoNotFound {
 		t.Errorf("無いリポジトリへの作成が ErrRepoNotFound にならない: %v", err)
 	}
 
@@ -225,5 +238,80 @@ func TestDisplayName(t *testing.T) {
 	}
 	if got := s.DisplayName("../x"); got != "../x" {
 		t.Errorf("不正な名前でファイルを読みに行っている: %s", got)
+	}
+}
+
+func TestLabels(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.CreateRepo("sample-tool", ""); err != nil {
+		t.Fatal(err)
+	}
+	labels, err := s.ListLabels("sample-tool")
+	if err != nil || len(labels) != 0 {
+		t.Fatalf("初期状態が空でない: %v %v", labels, err)
+	}
+	bug, err := s.CreateLabel("sample-tool", Label{Name: "bug", Color: "#D73A4A", Description: "不具合"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bug.ID != 1 || bug.Color != "d73a4a" {
+		t.Errorf("作成結果が違う: %+v", bug)
+	}
+	if _, err := s.CreateLabel("sample-tool", Label{Name: "Bug", Color: "000000"}); err == nil {
+		t.Error("同名（大文字小文字違い）が通った")
+	}
+	if _, err := s.CreateLabel("sample-tool", Label{Name: "x", Color: "red"}); err == nil {
+		t.Error("不正な色が通った")
+	}
+	doc, err := s.CreateLabel("sample-tool", Label{Name: "documentation", Color: "0075ca"})
+	if err != nil || doc.ID != 2 {
+		t.Fatalf("2つ目のIDが違う: %+v %v", doc, err)
+	}
+	if err := s.UpdateLabel("sample-tool", Label{ID: 1, Name: "bug", Color: "ff0000", Description: "直す"}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.GetLabel("sample-tool", 1)
+	if got.Color != "ff0000" || got.Description != "直す" {
+		t.Errorf("更新が反映されていない: %+v", got)
+	}
+	if err := s.DeleteLabel("sample-tool", 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GetLabel("sample-tool", 1); err != ErrLabelNotFound {
+		t.Errorf("削除後に残っている: %v", err)
+	}
+	labels, _ = s.ListLabels("sample-tool")
+	if len(labels) != 1 || labels[0].ID != 2 {
+		t.Errorf("削除後の一覧が違う: %+v", labels)
+	}
+	if _, err := s.CreateLabel("sample-tool", Label{Name: "bug", Color: "d73a4a"}); err != nil {
+		t.Fatal(err)
+	}
+	labels, _ = s.ListLabels("sample-tool")
+	if labels[1].ID != 3 {
+		t.Errorf("IDは最大＋1で振る: %+v", labels)
+	}
+}
+
+func TestUsers(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.EnsureUser("testuser1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureUser("testuser1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureUser("../x"); err == nil {
+		t.Error("不正なログオン名が通った")
+	}
+	if err := os.WriteFile(filepath.Join(s.Root(), "meta", "users", "testuser2.json"), []byte(`{"name": "試験 次郎"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	users, err := s.ListUsers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 2 || users[0].Login != "testuser1" || users[1].Name != "試験 次郎" {
+		t.Errorf("利用者一覧が違う: %+v", users)
 	}
 }

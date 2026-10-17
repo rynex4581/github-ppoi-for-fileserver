@@ -14,20 +14,24 @@ import (
 
 // イベントの種類。
 const (
-	EventCreated  = "created"  // Issueの作成。title と body を持つ
-	EventComment  = "comment"  // コメント。body を持つ
-	EventClosed   = "closed"   // クローズ。body があればコメントも兼ねる
-	EventReopened = "reopened" // 再オープン。body があればコメントも兼ねる
-	EventTitle    = "title"    // タイトルの変更。title を持つ
+	EventCreated  = "created"   // Issueの作成。title と body を持つ
+	EventComment  = "comment"   // コメント。body を持つ
+	EventClosed   = "closed"    // クローズ。body があればコメントも兼ねる
+	EventReopened = "reopened"  // 再オープン。body があればコメントも兼ねる
+	EventTitle    = "title"     // タイトルの変更。title を持つ
+	EventLabels   = "labels"    // ラベルの変更。変更後のラベルID全体を labels に持つ
+	EventAssigned = "assignees" // 担当者の変更。変更後のログオン名全体を assignees に持つ
 )
 
 // Event はIssueに対する操作1件。events フォルダの1ファイルに対応する。
 type Event struct {
-	Type  string    `json:"type"`
-	User  string    `json:"user"`
-	Time  time.Time `json:"time"`
-	Title string    `json:"title,omitempty"`
-	Body  string    `json:"body,omitempty"`
+	Type      string    `json:"type"`
+	User      string    `json:"user"`
+	Time      time.Time `json:"time"`
+	Title     string    `json:"title,omitempty"`
+	Body      string    `json:"body,omitempty"`
+	Labels    []int     `json:"labels,omitempty"`    // type が labels のとき、変更後のラベルID全体（空なら全解除）
+	Assignees []string  `json:"assignees,omitempty"` // type が assignees のとき、変更後の担当者全体（空なら全解除）
 
 	// File は読み込み元のファイル名。書き込み時は空でよい。
 	File string `json:"-"`
@@ -44,7 +48,29 @@ type Issue struct {
 	UpdatedAt time.Time
 	ClosedAt  time.Time // openのときはゼロ値
 	Comments  int       // コメント数（クローズ・再オープン時の本文も数える）
+	Labels    []int     // 付いているラベルのID（削除済みのラベルのIDが残ることがある）
+	Assignees []string  // 担当者のログオン名
 	Events    []Event
+}
+
+// HasLabel はラベルが付いているかを返す。
+func (is Issue) HasLabel(id int) bool {
+	for _, x := range is.Labels {
+		if x == id {
+			return true
+		}
+	}
+	return false
+}
+
+// HasAssignee は担当者に含まれるかを返す。
+func (is Issue) HasAssignee(login string) bool {
+	for _, x := range is.Assignees {
+		if x == login {
+			return true
+		}
+	}
+	return false
 }
 
 // ErrIssueNotFound はIssueが無いときのエラー。
@@ -136,7 +162,8 @@ func (s *Store) writeEvent(dir string, ev Event) error {
 }
 
 // CreateIssue は番号を採番し、created イベントを書いて、組み立てたIssueを返す。
-func (s *Store) CreateIssue(repo, user, title, body string) (Issue, error) {
+// labels と assignees が空でなければ、続けてそれぞれのイベントも書く。
+func (s *Store) CreateIssue(repo, user, title, body string, labels []int, assignees []string) (Issue, error) {
 	if _, err := s.GetRepo(repo); err != nil {
 		return Issue{}, err
 	}
@@ -151,6 +178,16 @@ func (s *Store) CreateIssue(repo, user, title, body string) (Issue, error) {
 	ev := Event{Type: EventCreated, User: user, Title: title, Body: body}
 	if err := s.writeEvent(dir, ev); err != nil {
 		return Issue{}, err
+	}
+	if len(labels) > 0 {
+		if err := s.writeEvent(dir, Event{Type: EventLabels, User: user, Labels: labels}); err != nil {
+			return Issue{}, err
+		}
+	}
+	if len(assignees) > 0 {
+		if err := s.writeEvent(dir, Event{Type: EventAssigned, User: user, Assignees: assignees}); err != nil {
+			return Issue{}, err
+		}
 	}
 	return s.GetIssue(repo, number)
 }
@@ -225,6 +262,10 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 			}
 		case EventTitle:
 			is.Title = ev.Title
+		case EventLabels:
+			is.Labels = append([]int(nil), ev.Labels...)
+		case EventAssigned:
+			is.Assignees = append([]string(nil), ev.Assignees...)
 		}
 		if ev.Time.After(is.UpdatedAt) {
 			is.UpdatedAt = ev.Time

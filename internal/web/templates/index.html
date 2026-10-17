@@ -1,7 +1,7 @@
 {{define "content"}}
 <div class="d-flex flex-items-center mb-3">
-  <h2 class="f2 text-normal flex-auto">Repositories</h2>
-  <a class="btn btn-primary" href="/new">{{icon "repo"}} New</a>
+  <h2 class="f2 text-normal flex-auto">{{tr "home.my_repos"}}</h2>
+  <a class="btn btn-primary" href="/new">{{icon "repo"}} {{tr "new_repo"}}</a>
 </div>
 {{if .Data.Repos}}
 <div class="Box">
@@ -17,10 +17,10 @@
 {{else}}
 <div class="blankslate border rounded-2">
   <span class="color-fg-muted">{{icon "repo"}}</span>
-  <h3 class="blankslate-heading">No repositories yet</h3>
-  <p>Create a repository to start tracking issues.</p>
+  <h3 class="blankslate-heading">{{tr "ppoi.no_repos"}}</h3>
+  <p>{{tr "ppoi.no_repos_desc"}}</p>
   <div class="blankslate-action">
-    <a class="btn btn-primary" href="/new">New repository</a>
+    <a class="btn btn-primary" href="/new">{{tr "new_repo"}}</a>
   </div>
 </div>
 {{end}}

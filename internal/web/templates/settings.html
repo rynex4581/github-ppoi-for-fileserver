@@ -1,24 +1,32 @@
 {{define "content"}}
 <div class="col-md-8 mx-auto">
   <div class="Subhead">
-    <h2 class="Subhead-heading">Settings</h2>
+    <h2 class="Subhead-heading">{{tr "ppoi.settings.title"}}</h2>
   </div>
-  {{if .Data.Saved}}<div class="flash flash-success mb-3">Saved.</div>{{end}}
+  {{if .Data.Saved}}<div class="flash flash-success mb-3">{{tr "ppoi.settings.saved"}}</div>{{end}}
   {{if .Data.OpenError}}<div class="flash flash-error mb-3">{{.Data.OpenError}}</div>{{end}}
   {{if not .DataRoot}}
-  <div class="flash mb-3">Set the data root (the shared folder on the file server) to start.</div>
+  <div class="flash mb-3">{{tr "ppoi.settings.first_time"}}</div>
   {{end}}
   <form method="post" action="/settings">
     <div class="form-group">
-      <div class="form-group-header"><label for="data_root">Data root</label></div>
+      <div class="form-group-header"><label for="data_root">{{tr "ppoi.settings.data_root"}}</label></div>
       <div class="form-group-body">
         <input class="form-control input-block text-mono" type="text" id="data_root" name="data_root" value="{{.Data.DataRoot}}" placeholder="\\fileserver\share\github-ppoi" required autofocus autocomplete="off">
-        <p class="note">The folder must already exist. <code>config.json</code>, <code>repos\</code> and <code>meta\</code> are created in it if missing.</p>
+        <p class="note">{{tr "ppoi.settings.data_root_help"}}</p>
       </div>
     </div>
-    <button class="btn btn-primary" type="submit">Save</button>
+    <div class="form-group">
+      <div class="form-group-header"><label for="lang">{{tr "settings.language"}}</label></div>
+      <div class="form-group-body">
+        <select class="form-select" id="lang" name="lang">
+          {{range .Data.Langs}}<option value="{{.}}"{{if eq . $.Data.Lang}} selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit">{{tr "save"}}</button>
   </form>
   <hr>
-  <p class="color-fg-muted text-small">This setting is stored in <code>{{.Data.ConfigPath}}</code> on this PC.</p>
+  <p class="color-fg-muted text-small">{{trh "ppoi.settings.stored_in" .Data.ConfigPath}}</p>
 </div>
 {{end}}

@@ -1,13 +1,36 @@
 {{define "content"}}
 <form method="post" action="/{{.Owner}}/{{.Repo.Name}}/issues/new">
-  <div class="Box">
-    <div class="Box-body">
-      <input class="form-control input-block input-lg mb-3" type="text" name="title" placeholder="Title" value="{{.Data.Title}}" required autofocus autocomplete="off">
-      <textarea class="form-control input-block app-textarea" name="body" rows="14" placeholder="Leave a comment">{{.Data.Body}}</textarea>
-      <p class="color-fg-muted text-small mt-2 mb-0">Markdown is supported.</p>
+  <div class="d-flex flex-column flex-lg-row gutter-lg">
+    <div class="col-lg-9">
+      <div class="Box">
+        <div class="Box-body">
+          <input class="form-control input-block input-lg mb-3" type="text" name="title" placeholder="{{tr "form.Title"}}" value="{{.Data.Title}}" required autofocus autocomplete="off">
+          <textarea class="form-control input-block app-textarea" name="body" rows="14" placeholder="{{tr "repo.diff.comment.placeholder"}}">{{.Data.Body}}</textarea>
+          <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+        </div>
+        <div class="Box-footer d-flex flex-justify-end">
+          <button class="btn btn-primary" type="submit">{{tr "repo.issues.create"}}</button>
+        </div>
+      </div>
     </div>
-    <div class="Box-footer d-flex flex-justify-end">
-      <button class="btn btn-primary" type="submit">Submit new issue</button>
+
+    <div class="col-lg-3">
+      <div class="border-bottom py-3">
+        <div class="text-bold color-fg-muted text-small mb-2">{{tr "repo.issues.new.assignees"}}</div>
+        {{range .Data.AllUsers}}
+        <label class="d-block py-1"><input type="checkbox" name="assignees" value="{{.Login}}"{{if $.Data.HasAssignee .Login}} checked{{end}}> {{name .Login}}</label>
+        {{else}}
+        <span class="color-fg-muted text-small">{{tr "repo.issues.new.no_assignees"}}</span>
+        {{end}}
+      </div>
+      <div class="border-bottom py-3">
+        <div class="text-bold color-fg-muted text-small mb-2">{{tr "repo.issues.new.labels"}}</div>
+        {{range .Data.AllLabels}}
+        <label class="d-block py-1"><input type="checkbox" name="labels" value="{{.ID}}"{{if $.Data.HasLabel .ID}} checked{{end}}> <span class="IssueLabel" style="{{labelStyle .Color}}">{{.Name}}</span>{{if .Description}} <span class="color-fg-muted text-small">{{.Description}}</span>{{end}}</label>
+        {{else}}
+        <span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>
+        {{end}}
+      </div>
     </div>
   </div>
 </form>

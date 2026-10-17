@@ -2,28 +2,30 @@
 {{with .Data.Issue}}
 <div class="pb-3 border-bottom mb-4">
   <h1 class="f1 text-normal lh-condensed mb-2 wb-break-word">{{.Title}} <span class="color-fg-muted">#{{.Number}}</span></h1>
-  <div class="d-flex flex-items-center">
+  <div class="d-flex flex-items-center flex-wrap">
     {{if eq .State "open"}}
-    <span class="State State--open mr-2">{{icon "issue-opened"}} Open</span>
+    <span class="State State--open mr-2">{{icon "issue-opened"}} {{tr "repo.issues.open_title"}}</span>
     {{else}}
-    <span class="State State--merged mr-2">{{icon "issue-closed"}} Closed</span>
+    <span class="State State--merged mr-2">{{icon "issue-closed"}} {{tr "repo.issues.closed_title"}}</span>
     {{end}}
-    <span class="color-fg-muted"><strong class="color-fg-default">{{name .User}}</strong> opened this issue on {{datetime .CreatedAt}} · {{.Comments}} {{if eq .Comments 1}}comment{{else}}comments{{end}}</span>
+    <span class="color-fg-muted">{{trh "repo.issues.opened_by" (datetime .CreatedAt) (print "/" $.Owner "/" $.Repo.Name "/issues?assignee=" .User) (name .User)}} · {{if eq .Comments 1}}{{tr "repo.issues.num_comments_1" .Comments}}{{else}}{{tr "repo.issues.num_comments" .Comments}}{{end}}</span>
   </div>
 </div>
 {{end}}
 
-<div class="col-lg-9 app-timeline">
+<div class="d-flex flex-column flex-lg-row gutter-lg">
+<div class="col-lg-9">
+<div class="app-timeline">
   {{with .Data.Issue}}
   <div class="TimelineItem pt-0">
     <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
     <div class="TimelineItem-body">
       <div class="Box app-comment">
         <div class="Box-header color-bg-subtle">
-          <strong>{{name .User}}</strong> <span class="color-fg-muted">commented on {{datetime .CreatedAt}}</span>
+          <strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span>
         </div>
         <div class="Box-body markdown-body">
-          {{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>No description provided.</em></p>{{end}}
+          {{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>{{tr "repo.issues.no_content"}}</em></p>{{end}}
         </div>
       </div>
     </div>
@@ -37,7 +39,7 @@
       <div class="TimelineItem-body">
         <div class="Box app-comment">
           <div class="Box-header color-bg-subtle">
-            <strong>{{name .User}}</strong> <span class="color-fg-muted">commented on {{datetime .Time}}</span>
+            <strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .Time)}}</span>
           </div>
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
         </div>
@@ -46,40 +48,117 @@
     {{else if eq .Kind "closed"}}
     <div class="TimelineItem">
       <div class="TimelineItem-badge color-bg-done-emphasis color-fg-on-emphasis">{{icon "issue-closed"}}</div>
-      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> closed this on {{datetime .Time}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.closed_at" "" (datetime .Time)}}</div>
     </div>
     {{else if eq .Kind "reopened"}}
     <div class="TimelineItem">
       <div class="TimelineItem-badge color-bg-success-emphasis color-fg-on-emphasis">{{icon "issue-opened"}}</div>
-      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> reopened this on {{datetime .Time}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.reopened_at" "" (datetime .Time)}}</div>
     </div>
     {{else if eq .Kind "title"}}
     <div class="TimelineItem">
       <div class="TimelineItem-badge">{{icon "tag"}}</div>
-      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> changed the title to <strong>{{.Title}}</strong> on {{datetime .Time}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.change_title_at" .OldTitle .Title (datetime .Time)}}</div>
+    </div>
+    {{else if eq .Kind "labels"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "tag"}}</div>
+      <div class="TimelineItem-body">
+        <strong class="color-fg-default">{{name .User}}</strong>
+        {{template "labelchange" .}}
+      </div>
+    </div>
+    {{else if eq .Kind "assignee"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "person"}}</div>
+      <div class="TimelineItem-body">
+        {{if eq .Assignee .User}}
+          <strong class="color-fg-default">{{name .User}}</strong>
+          {{if .Assigned}}{{trh "repo.issues.self_assign_at" (datetime .Time)}}{{else}}{{trh "repo.issues.remove_self_assignment" (datetime .Time)}}{{end}}
+        {{else}}
+          <strong class="color-fg-default">{{name .Assignee}}</strong>
+          {{if .Assigned}}{{trh "repo.issues.add_assignee_at" (name .User) (datetime .Time)}}{{else}}{{trh "repo.issues.remove_assignee_at" (name .User) (datetime .Time)}}{{end}}
+        {{end}}
+      </div>
     </div>
     {{end}}
   {{end}}
 
   {{with .Data.Issue}}
-  <div class="TimelineItem TimelineItem--condensed pt-0 pb-0"><div class="TimelineItem-body"></div></div>
   <form method="post" action="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}/comments" class="mt-3 pt-3 border-top">
     <div class="Box app-comment">
-      <div class="Box-header color-bg-subtle"><strong>Add a comment</strong></div>
+      <div class="Box-header color-bg-subtle"><strong>{{tr "ppoi.issues.add_comment"}}</strong></div>
       <div class="Box-body">
-        <textarea class="form-control input-block app-textarea" name="body" rows="7" placeholder="Leave a comment"></textarea>
-        <p class="color-fg-muted text-small mt-2 mb-0">Markdown is supported.</p>
+        <textarea class="form-control input-block app-textarea" name="body" rows="7" placeholder="{{tr "repo.diff.comment.placeholder"}}"></textarea>
+        <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
       </div>
       <div class="Box-footer d-flex flex-justify-end">
         {{if eq .State "open"}}
-        <button class="btn mr-2" type="submit" name="action" value="close"><span class="color-fg-done">{{icon "issue-closed"}}</span> Close issue</button>
+        <button class="btn mr-2" type="submit" name="action" value="close"><span class="color-fg-done">{{icon "issue-closed"}}</span> {{tr "repo.issues.close"}}</button>
         {{else}}
-        <button class="btn mr-2" type="submit" name="action" value="reopen"><span class="color-fg-success">{{icon "issue-opened"}}</span> Reopen issue</button>
+        <button class="btn mr-2" type="submit" name="action" value="reopen"><span class="color-fg-success">{{icon "issue-opened"}}</span> {{tr "repo.issues.reopen_issue"}}</button>
         {{end}}
-        <button class="btn btn-primary" type="submit" name="action" value="comment">Comment</button>
+        <button class="btn btn-primary" type="submit" name="action" value="comment">{{tr "repo.issues.create_comment"}}</button>
       </div>
     </div>
   </form>
   {{end}}
 </div>
+</div>
+
+<div class="col-lg-3">
+  <div class="border-bottom py-3">
+    <details class="details-reset">
+      <summary class="text-bold color-fg-muted text-small d-flex flex-items-center app-sidebar-summary">
+        <span class="flex-auto">{{tr "repo.issues.new.assignees"}}</span>{{icon "gear"}}
+      </summary>
+      <form method="post" action="/{{.Owner}}/{{.Repo.Name}}/issues/{{.Data.Issue.Number}}/assignees" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        {{range .Data.AllUsers}}
+        <label class="d-block py-1"><input type="checkbox" name="assignees" value="{{.Login}}"{{if $.Data.Issue.HasAssignee .Login}} checked{{end}}> {{name .Login}}</label>
+        {{end}}
+        <button class="btn btn-sm btn-primary mt-2" type="submit">{{tr "ppoi.apply"}}</button>
+      </form>
+    </details>
+    <div class="mt-2">
+      {{range .Data.Assignees}}<div class="py-1 d-flex flex-items-center">{{icon "person"}}<span class="ml-1 text-bold">{{name .}}</span></div>{{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_assignees"}}</span>{{end}}
+    </div>
+  </div>
+  <div class="border-bottom py-3">
+    <details class="details-reset">
+      <summary class="text-bold color-fg-muted text-small d-flex flex-items-center app-sidebar-summary">
+        <span class="flex-auto">{{tr "repo.issues.new.labels"}}</span>{{icon "gear"}}
+      </summary>
+      <form method="post" action="/{{.Owner}}/{{.Repo.Name}}/issues/{{.Data.Issue.Number}}/labels" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        {{range .Data.AllLabels}}
+        <label class="d-block py-1"><input type="checkbox" name="labels" value="{{.ID}}"{{if $.Data.Issue.HasLabel .ID}} checked{{end}}> <span class="IssueLabel" style="{{labelStyle .Color}}">{{.Name}}</span></label>
+        {{else}}
+        <span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>
+        {{end}}
+        <div class="mt-2 d-flex flex-items-center">
+          <button class="btn btn-sm btn-primary" type="submit">{{tr "ppoi.apply"}}</button>
+          <a class="ml-2 text-small" href="/{{.Owner}}/{{.Repo.Name}}/labels">{{tr "repo.labels"}}</a>
+        </div>
+      </form>
+    </details>
+    <div class="mt-2">
+      {{range .Data.Labels}}<a class="IssueLabel mr-1 mb-1 d-inline-block" style="{{labelStyle .Color}}" title="{{.Description}}" href="/{{$.Owner}}/{{$.Repo.Name}}/issues?labels={{.ID}}">{{.Name}}</a>{{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>{{end}}
+    </div>
+  </div>
+</div>
+</div>
+{{end}}
+
+{{define "labelchange"}}
+{{- $added := len .Added}}{{$removed := len .Removed -}}
+{{- if and $added $removed -}}
+  {{trh "repo.issues.add_remove_labels" (chips .Added) (chips .Removed) (datetime .Time)}}
+{{- else if gt $added 1 -}}
+  {{trh "repo.issues.add_labels" (chips .Added) (datetime .Time)}}
+{{- else if eq $added 1 -}}
+  {{trh "repo.issues.add_label" (chips .Added) (datetime .Time)}}
+{{- else if gt $removed 1 -}}
+  {{trh "repo.issues.remove_labels" (chips .Removed) (datetime .Time)}}
+{{- else -}}
+  {{trh "repo.issues.remove_label" (chips .Removed) (datetime .Time)}}
+{{- end -}}
 {{end}}

@@ -1,24 +1,24 @@
 {{define "content"}}
 <div class="col-md-8 mx-auto">
   <div class="Subhead">
-    <h2 class="Subhead-heading">Create a new repository</h2>
-    <div class="Subhead-description">A bare git repository is created under the data root.</div>
+    <h2 class="Subhead-heading">{{tr "new_repo"}}</h2>
+    <div class="Subhead-description">{{tr "ppoi.new_repo_desc"}}</div>
   </div>
   <form method="post" action="/new">
     <div class="form-group">
-      <div class="form-group-header"><label for="name">Repository name</label></div>
+      <div class="form-group-header"><label for="name">{{tr "repo.repo_name"}}</label></div>
       <div class="form-group-body">
         <input class="form-control" type="text" id="name" name="name" value="{{.Data.Name}}" required autofocus autocomplete="off">
       </div>
     </div>
     <div class="form-group">
-      <div class="form-group-header"><label for="description">Description <span class="color-fg-muted text-normal">(optional)</span></label></div>
+      <div class="form-group-header"><label for="description">{{tr "repo.repo_desc"}} <span class="color-fg-muted text-normal">{{tr "ppoi.optional"}}</span></label></div>
       <div class="form-group-body">
-        <input class="form-control input-block" type="text" id="description" name="description" value="{{.Data.Description}}" autocomplete="off">
+        <input class="form-control input-block" type="text" id="description" name="description" value="{{.Data.Description}}" placeholder="{{tr "repo.repo_desc_helper"}}" autocomplete="off">
       </div>
     </div>
     <hr>
-    <button class="btn btn-primary" type="submit">Create repository</button>
+    <button class="btn btn-primary" type="submit">{{tr "repo.create_repo"}}</button>
   </form>
 </div>
 {{end}}

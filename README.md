@@ -6,7 +6,7 @@ Githubっぽいのをファイルサーバでやるやつ。
 
 ## 概要
 
-- 各メンバーが自分の端末で `github-ppoi.exe` を起動すると、`localhost:3000` にWeb画面とGitea API v1互換のAPIが上がり、ブラウザが開く
+- 各メンバーが自分の端末で `github-ppoi.exe` を起動すると、localhost（既定ポート 9418）にWeb画面とGitea API v1互換のAPIが上がり、ブラウザが開く
 - データの正本はすべてファイルサーバ上の共有フォルダ（データルート）に置く。サーバもデータベースも使わない
 - コードのgitリポジトリはデータルート配下のベアリポジトリで、各自が従来どおり直接push/pullする
 - Issue、Pull Request、コメント、レビュー、添付ファイルは、データルート配下にファイルとして保存する。gitには入れない
@@ -31,6 +31,7 @@ Githubっぽいのをファイルサーバでやるやつ。
 - イベントのファイル名は「UTC時刻（ミリ秒）_端末名_端末内連番」とし、端末間で重複しないようにする
 - ファイルは一時名で書いてからrenameし、書きかけが他の端末から見えないようにする
 - 画面はGitHubの構成と導線を真似る。CSSはPrimer、アイコンはOcticonsを使い、すべてexeに埋め込む。外部への参照は持たない
+- 画面の文言はGiteaの言語ファイルをそのまま使う。既定は日本語で、英語に切り替えられる
 - gitは各端末のGit for Windowsを呼ぶ。exeには同梱しない
 
 ## 現在の状態
@@ -41,12 +42,16 @@ Ver 0.10。開発中であり、職場で使える状態ではない。
 
 - 手元のディスク上のデータルートでの動作
 - トップ画面：リポジトリ一覧、新規リポジトリの作成（ベアリポジトリの作成を含む）
-- Issues：一覧（open／closed）、詳細、新規作成、コメント、クローズと再オープン
+- Issues：一覧（open／closed、ラベル、担当者で絞り込み）、詳細、新規作成、コメント、クローズと再オープン、ラベルと担当者の変更
+- ラベルの管理（作成、編集、削除）
+- 自分の設定：データルート、言語（日本語／英語）
+- 待ち受けポートの自動選択（9418〜9427）、二重起動の検知、`%LOCALAPPDATA%\github-ppoi\port.txt` へのポートの書き出し
 
 これからのもの
 
-- Code（ファイルツリー、コミット履歴、差分）、Pull requests、レビュー、ラベル、担当、添付ファイル、Settings
-- Gitea互換API
+- Code（ファイルツリー、コミット履歴、差分）、Pull requests、レビュー、添付ファイル、Settings、表示名の登録、ライセンス一覧ページ
+- Gitea互換API（現在は `/api/v1/version` のみ）
+- ローカルキャッシュ
 - SMB上の同時更新の検証
 - GitHub Actionsによるリリース
 
@@ -61,6 +66,11 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 
 初回はブラウザに設定画面が開くので、データルートにするフォルダのパスを入れる。設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される。
 
+- 待ち受けポートは 9418 から順に空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に出る
+- `config.json` に `"port"` を書いてあれば、そのポートだけを使い、使えなければエラーで止まる
+- 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する
+- `--no-browser` を付けると起動時にブラウザを開かない
+
 ## データルートの構成
 
 ```
@@ -72,6 +82,7 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
     users\<ログオン名>.json    表示名
     <リポジトリ名>\
       repo.json                説明、既定のブランチ名、承認必須、force push禁止
+      labels.json              ラベル
       issues\
         000012\
           events\              イベント（1件1ファイル）
@@ -80,4 +91,4 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 
 ## ライセンス
 
-MIT License。同梱しているOSSのライセンスは [third_party/](third_party/) を参照。
+MIT License。同梱しているOSS（Primer CSS、Octicons、Giteaの言語ファイル）のライセンスは [third_party/](third_party/) を参照。

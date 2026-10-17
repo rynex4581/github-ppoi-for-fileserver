@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github-ppoi-for-fileserver/internal/i18n"
 	"github-ppoi-for-fileserver/internal/localconfig"
 	"github-ppoi-for-fileserver/internal/store"
 )
@@ -25,7 +28,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	p := s.newPage("Repositories")
+	p := s.newPage(s.tr("home.my_repos"))
 	p.Data = map[string]any{"Repos": repos}
 	s.render(w, http.StatusOK, "index", p)
 }
@@ -41,7 +44,7 @@ func (s *Server) handleRepoNew(w http.ResponseWriter, r *http.Request) {
 	if s.requireStore(w, r) == nil {
 		return
 	}
-	p := s.newPage("Create a new repository")
+	p := s.newPage(s.tr("new_repo"))
 	p.Data = repoForm{}
 	s.render(w, http.StatusOK, "repo_new", p)
 }
@@ -57,24 +60,26 @@ func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	repo, err := st.CreateRepo(form.Name, form.Description)
 	if err != nil {
-		p := s.newPage("Create a new repository")
+		p := s.newPage(s.tr("new_repo"))
 		p.Error = err.Error()
 		p.Data = form
 		s.render(w, http.StatusUnprocessableEntity, "repo_new", p)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/%s/%s/issues", st.Config().Owner, repo.Name), http.StatusSeeOther)
+	http.Redirect(w, r, s.repoURL(st, repo)+"/issues", http.StatusSeeOther)
 }
 
 func (s *Server) handleRepoHome(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
 	// Code画面ができるまでは Issues に送る
-	http.Redirect(w, r, fmt.Sprintf("/%s/%s/issues", st.Config().Owner, repo.Name), http.StatusSeeOther)
+	http.Redirect(w, r, s.repoURL(st, repo)+"/issues", http.StatusSeeOther)
 }
 
-// ---- 設定 ----
+// ---- 自分の設定 ----
 
 type settingsForm struct {
 	DataRoot   string
+	Lang       string
+	Langs      []string
 	ConfigPath string
 	OpenError  string
 	Saved      bool
@@ -83,7 +88,7 @@ type settingsForm struct {
 func (s *Server) settingsData() settingsForm {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	f := settingsForm{DataRoot: s.cfg.DataRoot}
+	f := settingsForm{DataRoot: s.cfg.DataRoot, Lang: s.loc.Lang(), Langs: i18n.Langs}
 	if s.openErr != nil {
 		f.OpenError = s.openErr.Error()
 	}
@@ -92,7 +97,7 @@ func (s *Server) settingsData() settingsForm {
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	p := s.newPage("Settings")
+	p := s.newPage(s.tr("ppoi.settings.title"))
 	f := s.settingsData()
 	f.Saved = r.URL.Query().Get("saved") == "1"
 	p.Data = f
@@ -101,48 +106,198 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	root := strings.TrimSpace(r.FormValue("data_root"))
-	p := s.newPage("Settings")
+	lang := r.FormValue("lang")
+	if !i18n.IsSupported(lang) {
+		lang = localconfig.DefaultLang
+	}
+
+	p := s.newPage(s.tr("ppoi.settings.title"))
 	f := s.settingsData()
 	f.DataRoot = root
+	f.Lang = lang
 	f.OpenError = ""
 
-	if root == "" {
-		p.Error = "データルートのパスを入れる"
+	fail := func(status int, msg string) {
+		p.Error = msg
 		p.Data = f
-		s.render(w, http.StatusUnprocessableEntity, "settings", p)
+		s.render(w, status, "settings", p)
+	}
+	if root == "" {
+		fail(http.StatusUnprocessableEntity, s.tr("ppoi.error.data_root_required"))
 		return
 	}
-	st, err := store.Open(root)
+	st, err := s.openStore(root)
 	if err != nil {
-		p.Error = err.Error()
-		p.Data = f
-		s.render(w, http.StatusUnprocessableEntity, "settings", p)
+		fail(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	loc, err := i18n.Load(lang)
+	if err != nil {
+		fail(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	s.mu.Lock()
 	s.cfg.DataRoot = root
+	s.cfg.Lang = lang
 	s.st = st
 	s.openErr = nil
+	s.loc = loc
 	cfg := s.cfg
 	s.mu.Unlock()
 
 	if err := localconfig.Save(cfg); err != nil {
-		p.Error = "設定の保存に失敗: " + err.Error()
-		p.Data = f
-		s.render(w, http.StatusInternalServerError, "settings", p)
+		fail(http.StatusInternalServerError, s.tr("ppoi.error.save_failed", err.Error()))
 		return
 	}
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
 
-// ---- Issues ----
+// ---- Issues 一覧 ----
+
+// filterItem は絞り込みメニューの1項目。
+type filterItem struct {
+	Text     string
+	URL      string
+	Selected bool
+	Label    *store.Label
+}
+
+type issueRow struct {
+	store.Issue
+	Labels    []store.Label
+	Assignees []string
+}
 
 type issuesView struct {
-	State       string
-	Issues      []store.Issue
-	OpenCount   int
-	ClosedCount int
+	State          string
+	Issues         []issueRow
+	OpenCount      int
+	ClosedCount    int
+	LabelCount     int
+	OpenURL        string
+	ClosedURL      string
+	ClearURL       string
+	Filtered       bool
+	LabelItems     []filterItem
+	AssigneeItems  []filterItem
+	NewIssueURL    string
+	LabelsURL      string
+	SelectedLabels []store.Label
+}
+
+// issueFilter は一覧の絞り込み条件。クエリ文字列と相互に変換する。
+type issueFilter struct {
+	State    string
+	Labels   []int  // 付いているラベルのID（すべて付いているものだけ出す）。0 は「ラベルなし」
+	Assignee string // ログオン名。"0" は「担当者なし」
+}
+
+func parseIssueFilter(q url.Values) issueFilter {
+	f := issueFilter{State: q.Get("state"), Assignee: q.Get("assignee")}
+	if f.State != "closed" {
+		f.State = "open"
+	}
+	for _, part := range strings.Split(q.Get("labels"), ",") {
+		if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && n >= 0 {
+			f.Labels = append(f.Labels, n)
+		}
+	}
+	return f
+}
+
+func (f issueFilter) query() string {
+	q := url.Values{}
+	q.Set("state", f.State)
+	if len(f.Labels) > 0 {
+		parts := make([]string, len(f.Labels))
+		for i, n := range f.Labels {
+			parts[i] = strconv.Itoa(n)
+		}
+		q.Set("labels", strings.Join(parts, ","))
+	}
+	if f.Assignee != "" {
+		q.Set("assignee", f.Assignee)
+	}
+	return "?" + q.Encode()
+}
+
+func (f issueFilter) hasLabel(id int) bool {
+	for _, x := range f.Labels {
+		if x == id {
+			return true
+		}
+	}
+	return false
+}
+
+// toggleLabel はラベルの選択を反転した条件を返す。「ラベルなし」は他と同時に選べない。
+func (f issueFilter) toggleLabel(id int) issueFilter {
+	g := f
+	g.Labels = nil
+	if id == 0 {
+		if !f.hasLabel(0) {
+			g.Labels = []int{0}
+		}
+		return g
+	}
+	for _, x := range f.Labels {
+		if x != id && x != 0 {
+			g.Labels = append(g.Labels, x)
+		}
+	}
+	if !f.hasLabel(id) {
+		g.Labels = append(g.Labels, id)
+	}
+	return g
+}
+
+func (f issueFilter) matches(is store.Issue) bool {
+	if is.State != f.State {
+		return false
+	}
+	for _, id := range f.Labels {
+		if id == 0 {
+			if len(is.Labels) > 0 {
+				return false
+			}
+			continue
+		}
+		if !is.HasLabel(id) {
+			return false
+		}
+	}
+	switch f.Assignee {
+	case "":
+	case "0":
+		if len(is.Assignees) > 0 {
+			return false
+		}
+	default:
+		if !is.HasAssignee(f.Assignee) {
+			return false
+		}
+	}
+	return true
+}
+
+func labelsByID(labels []store.Label) map[int]store.Label {
+	m := make(map[int]store.Label, len(labels))
+	for _, l := range labels {
+		m[l.ID] = l
+	}
+	return m
+}
+
+// resolveLabels はIDの列を、今あるラベルだけに解決する。
+func resolveLabels(ids []int, byID map[int]store.Label) []store.Label {
+	var out []store.Label
+	for _, id := range ids {
+		if l, ok := byID[id]; ok {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 func (s *Server) handleIssues(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
@@ -151,79 +306,229 @@ func (s *Server) handleIssues(w http.ResponseWriter, r *http.Request, st *store.
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	v := issuesView{State: r.URL.Query().Get("state")}
-	if v.State != "closed" {
-		v.State = "open"
+	labels, err := st.ListLabels(repo.Name)
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	users, err := st.ListUsers()
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	byID := labelsByID(labels)
+	f := parseIssueFilter(r.URL.Query())
+	base := s.repoURL(st, repo) + "/issues"
+
+	v := issuesView{
+		State:       f.State,
+		LabelCount:  len(labels),
+		NewIssueURL: base + "/new",
+		LabelsURL:   s.repoURL(st, repo) + "/labels",
+		Filtered:    len(f.Labels) > 0 || f.Assignee != "",
 	}
 	for _, is := range all {
+		// 件数は open/closed 以外の条件を掛けた上で数える（GitHubと同じ）
+		g := f
+		g.State = is.State
+		if !g.matches(is) {
+			continue
+		}
 		if is.State == "open" {
 			v.OpenCount++
 		} else {
 			v.ClosedCount++
 		}
-		if is.State == v.State {
-			v.Issues = append(v.Issues, is)
+		if is.State == f.State {
+			v.Issues = append(v.Issues, issueRow{Issue: is, Labels: resolveLabels(is.Labels, byID), Assignees: is.Assignees})
 		}
 	}
-	p := s.repoPage("Issues", repo, "issues")
+
+	open, closed := f, f
+	open.State, closed.State = "open", "closed"
+	v.OpenURL = base + open.query()
+	v.ClosedURL = base + closed.query()
+	v.ClearURL = base + issueFilter{State: f.State}.query()
+
+	v.LabelItems = append(v.LabelItems, filterItem{
+		Text: s.tr("repo.issues.filter_label_select_no_label"), URL: base + f.toggleLabel(0).query(), Selected: f.hasLabel(0),
+	})
+	for i := range labels {
+		l := labels[i]
+		v.LabelItems = append(v.LabelItems, filterItem{
+			Text: l.Name, URL: base + f.toggleLabel(l.ID).query(), Selected: f.hasLabel(l.ID), Label: &l,
+		})
+		if f.hasLabel(l.ID) {
+			v.SelectedLabels = append(v.SelectedLabels, l)
+		}
+	}
+	noAssignee := f
+	noAssignee.Assignee = "0"
+	if f.Assignee == "0" {
+		noAssignee.Assignee = ""
+	}
+	v.AssigneeItems = append(v.AssigneeItems, filterItem{
+		Text: s.tr("repo.issues.filter_assignee_no_assignee"), URL: base + noAssignee.query(), Selected: f.Assignee == "0",
+	})
+	for _, u := range users {
+		g := f
+		g.Assignee = u.Login
+		if f.Assignee == u.Login {
+			g.Assignee = ""
+		}
+		v.AssigneeItems = append(v.AssigneeItems, filterItem{Text: st.DisplayName(u.Login), URL: base + g.query(), Selected: f.Assignee == u.Login})
+	}
+
+	p := s.repoPage(s.tr("repo.issues"), repo, "issues")
 	p.Data = v
 	s.render(w, http.StatusOK, "issues", p)
 }
 
+// ---- Issue 新規 ----
+
 type issueForm struct {
-	Title string
-	Body  string
+	Title     string
+	Body      string
+	Labels    []int
+	Assignees []string
+	AllLabels []store.Label
+	AllUsers  []store.User
+}
+
+func (f issueForm) HasLabel(id int) bool {
+	for _, x := range f.Labels {
+		if x == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (f issueForm) HasAssignee(login string) bool {
+	for _, x := range f.Assignees {
+		if x == login {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) issueFormChoices(st *store.Store, repo store.Repo, f *issueForm) error {
+	var err error
+	if f.AllLabels, err = st.ListLabels(repo.Name); err != nil {
+		return err
+	}
+	f.AllUsers, err = st.ListUsers()
+	return err
+}
+
+// parseLabelIDs はフォームの labels の値を、今あるラベルのIDだけに絞って返す。
+func parseLabelIDs(values []string, labels []store.Label) []int {
+	byID := labelsByID(labels)
+	var out []int
+	for _, v := range values {
+		id, err := strconv.Atoi(v)
+		if err != nil {
+			continue
+		}
+		if _, ok := byID[id]; ok {
+			out = append(out, id)
+		}
+	}
+	sort.Ints(out)
+	return out
+}
+
+// parseAssignees はフォームの assignees の値を、登録のある利用者だけに絞って返す。
+func parseAssignees(values []string, users []store.User) []string {
+	known := map[string]bool{}
+	for _, u := range users {
+		known[u.Login] = true
+	}
+	var out []string
+	for _, v := range values {
+		if known[v] {
+			out = append(out, v)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (s *Server) handleIssueNew(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
-	p := s.repoPage("New Issue", repo, "issues")
-	p.Data = issueForm{}
+	f := issueForm{}
+	if err := s.issueFormChoices(st, repo, &f); err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	p := s.repoPage(s.tr("repo.issues.new"), repo, "issues")
+	p.Data = f
 	s.render(w, http.StatusOK, "issue_new", p)
 }
 
 func (s *Server) handleIssueCreate(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
-	form := issueForm{
+	f := issueForm{
 		Title: strings.TrimSpace(r.FormValue("title")),
 		Body:  normalizeNewlines(r.FormValue("body")),
 	}
-	if form.Title == "" {
-		p := s.repoPage("New Issue", repo, "issues")
-		p.Error = "タイトルを入れる"
-		p.Data = form
+	if err := s.issueFormChoices(st, repo, &f); err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	f.Labels = parseLabelIDs(r.Form["labels"], f.AllLabels)
+	f.Assignees = parseAssignees(r.Form["assignees"], f.AllUsers)
+	if f.Title == "" {
+		p := s.repoPage(s.tr("repo.issues.new"), repo, "issues")
+		p.Error = s.tr("ppoi.error.title_required")
+		p.Data = f
 		s.render(w, http.StatusUnprocessableEntity, "issue_new", p)
 		return
 	}
-	is, err := st.CreateIssue(repo.Name, s.login, form.Title, form.Body)
+	is, err := st.CreateIssue(repo.Name, s.login, f.Title, f.Body, f.Labels, f.Assignees)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/%s/%s/issues/%d", st.Config().Owner, repo.Name, is.Number), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("%s/issues/%d", s.repoURL(st, repo), is.Number), http.StatusSeeOther)
 }
+
+// ---- Issue 詳細 ----
 
 // timelineItem はIssue詳細のタイムラインに出す1項目。
 type timelineItem struct {
-	Kind  string // comment / closed / reopened / title
-	User  string
-	Time  time.Time
-	Body  string
-	Title string
+	Kind     string // comment / closed / reopened / title / labels / assignee
+	User     string // 操作した人
+	Time     time.Time
+	Body     string
+	Title    string
+	OldTitle string
+	Added    []store.Label // labels
+	Removed  []store.Label // labels
+	Assignee string        // assignee: 対象の人
+	Assigned bool          // assignee: true なら指名、false なら解除
 }
 
 type issueView struct {
-	Issue    store.Issue
-	Timeline []timelineItem
+	Issue     store.Issue
+	Labels    []store.Label
+	Assignees []string
+	Timeline  []timelineItem
+	AllLabels []store.Label
+	AllUsers  []store.User
 }
 
-func buildTimeline(is store.Issue) []timelineItem {
+func buildTimeline(is store.Issue, byID map[int]store.Label) []timelineItem {
 	var items []timelineItem
 	seenCreated := false
+	title := ""
+	var labels []int
+	var assignees []string
 	for _, ev := range is.Events {
 		switch ev.Type {
 		case store.EventCreated:
 			if !seenCreated {
 				seenCreated = true
-				continue
+				title = ev.Title
 			}
 		case store.EventComment:
 			items = append(items, timelineItem{Kind: "comment", User: ev.User, Time: ev.Time, Body: ev.Body})
@@ -233,21 +538,72 @@ func buildTimeline(is store.Issue) []timelineItem {
 			}
 			items = append(items, timelineItem{Kind: ev.Type, User: ev.User, Time: ev.Time})
 		case store.EventTitle:
-			items = append(items, timelineItem{Kind: "title", User: ev.User, Time: ev.Time, Title: ev.Title})
+			items = append(items, timelineItem{Kind: "title", User: ev.User, Time: ev.Time, Title: ev.Title, OldTitle: title})
+			title = ev.Title
+		case store.EventLabels:
+			it := timelineItem{Kind: "labels", User: ev.User, Time: ev.Time}
+			for _, id := range ev.Labels {
+				if !containsInt(labels, id) {
+					if l, ok := byID[id]; ok {
+						it.Added = append(it.Added, l)
+					}
+				}
+			}
+			for _, id := range labels {
+				if !containsInt(ev.Labels, id) {
+					if l, ok := byID[id]; ok {
+						it.Removed = append(it.Removed, l)
+					}
+				}
+			}
+			labels = append([]int(nil), ev.Labels...)
+			if len(it.Added)+len(it.Removed) > 0 {
+				items = append(items, it)
+			}
+		case store.EventAssigned:
+			for _, login := range ev.Assignees {
+				if !containsString(assignees, login) {
+					items = append(items, timelineItem{Kind: "assignee", User: ev.User, Time: ev.Time, Assignee: login, Assigned: true})
+				}
+			}
+			for _, login := range assignees {
+				if !containsString(ev.Assignees, login) {
+					items = append(items, timelineItem{Kind: "assignee", User: ev.User, Time: ev.Time, Assignee: login})
+				}
+			}
+			assignees = append([]string(nil), ev.Assignees...)
 		}
 	}
 	return items
 }
 
+func containsInt(xs []int, x int) bool {
+	for _, v := range xs {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
+func containsString(xs []string, x string) bool {
+	for _, v := range xs {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) (store.Issue, bool) {
 	number, err := strconv.Atoi(r.PathValue("number"))
 	if err != nil || number <= 0 {
-		s.renderError(w, http.StatusNotFound, "Issueが無い")
+		s.renderError(w, http.StatusNotFound, s.tr("ppoi.error.issue_not_found"))
 		return store.Issue{}, false
 	}
 	is, err := st.GetIssue(repo.Name, number)
 	if errors.Is(err, store.ErrIssueNotFound) {
-		s.renderError(w, http.StatusNotFound, "Issueが無い")
+		s.renderError(w, http.StatusNotFound, s.tr("ppoi.error.issue_not_found"))
 		return store.Issue{}, false
 	}
 	if err != nil {
@@ -257,14 +613,38 @@ func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request, st *store.Sto
 	return is, true
 }
 
+func (s *Server) issuePage(st *store.Store, repo store.Repo, is store.Issue) (page, error) {
+	v := issueView{Issue: is, Assignees: is.Assignees}
+	var err error
+	if v.AllLabels, err = st.ListLabels(repo.Name); err != nil {
+		return page{}, err
+	}
+	if v.AllUsers, err = st.ListUsers(); err != nil {
+		return page{}, err
+	}
+	byID := labelsByID(v.AllLabels)
+	v.Labels = resolveLabels(is.Labels, byID)
+	v.Timeline = buildTimeline(is, byID)
+	p := s.repoPage(fmt.Sprintf("%s · #%d", is.Title, is.Number), repo, "issues")
+	p.Data = v
+	return p, nil
+}
+
 func (s *Server) handleIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
 	is, ok := s.loadIssue(w, r, st, repo)
 	if !ok {
 		return
 	}
-	p := s.repoPage(fmt.Sprintf("%s · Issue #%d", is.Title, is.Number), repo, "issues")
-	p.Data = issueView{Issue: is, Timeline: buildTimeline(is)}
+	p, err := s.issuePage(st, repo, is)
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	s.render(w, http.StatusOK, "issue", p)
+}
+
+func (s *Server) redirectIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, number int) {
+	http.Redirect(w, r, fmt.Sprintf("%s/issues/%d", s.repoURL(st, repo), number), http.StatusSeeOther)
 }
 
 func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
@@ -289,9 +669,12 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 		ev = store.Event{Type: store.EventReopened, User: s.login, Body: body}
 	default:
 		if strings.TrimSpace(body) == "" {
-			p := s.repoPage(fmt.Sprintf("%s · Issue #%d", is.Title, is.Number), repo, "issues")
-			p.Error = "コメントの本文を入れる"
-			p.Data = issueView{Issue: is, Timeline: buildTimeline(is)}
+			p, err := s.issuePage(st, repo, is)
+			if err != nil {
+				s.renderError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			p.Error = s.tr("ppoi.error.comment_required")
 			s.render(w, http.StatusUnprocessableEntity, "issue", p)
 			return
 		}
@@ -303,7 +686,164 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 			return
 		}
 	}
-	http.Redirect(w, r, fmt.Sprintf("/%s/%s/issues/%d", st.Config().Owner, repo.Name, is.Number), http.StatusSeeOther)
+	s.redirectIssue(w, r, st, repo, is.Number)
+}
+
+func (s *Server) handleIssueLabels(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	is, ok := s.loadIssue(w, r, st, repo)
+	if !ok {
+		return
+	}
+	labels, err := st.ListLabels(repo.Name)
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	r.ParseForm()
+	next := parseLabelIDs(r.Form["labels"], labels)
+	cur := append([]int(nil), is.Labels...)
+	sort.Ints(cur)
+	if !equalInts(cur, next) {
+		if err := st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventLabels, User: s.login, Labels: next}); err != nil {
+			s.renderError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	s.redirectIssue(w, r, st, repo, is.Number)
+}
+
+func (s *Server) handleIssueAssignees(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	is, ok := s.loadIssue(w, r, st, repo)
+	if !ok {
+		return
+	}
+	users, err := st.ListUsers()
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	r.ParseForm()
+	next := parseAssignees(r.Form["assignees"], users)
+	cur := append([]string(nil), is.Assignees...)
+	sort.Strings(cur)
+	if strings.Join(cur, "\n") != strings.Join(next, "\n") {
+		if err := st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventAssigned, User: s.login, Assignees: next}); err != nil {
+			s.renderError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	s.redirectIssue(w, r, st, repo, is.Number)
+}
+
+func equalInts(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ---- ラベル管理 ----
+
+type labelsView struct {
+	Labels  []store.Label
+	EditID  int         // 編集中のラベルのID（?edit=ID）
+	Form    store.Label // 新規または編集中の入力値
+	ShowNew bool
+	BaseURL string
+}
+
+func (s *Server) labelsPage(st *store.Store, repo store.Repo, v labelsView) (page, error) {
+	labels, err := st.ListLabels(repo.Name)
+	if err != nil {
+		return page{}, err
+	}
+	v.Labels = labels
+	v.BaseURL = s.repoURL(st, repo) + "/labels"
+	p := s.repoPage(s.tr("repo.labels"), repo, "issues")
+	p.Data = v
+	return p, nil
+}
+
+func (s *Server) handleLabels(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	v := labelsView{Form: store.Label{Color: "0075ca"}}
+	if id, err := strconv.Atoi(r.URL.Query().Get("edit")); err == nil {
+		if l, err := st.GetLabel(repo.Name, id); err == nil {
+			v.EditID = id
+			v.Form = l
+		}
+	}
+	v.ShowNew = r.URL.Query().Get("new") == "1"
+	p, err := s.labelsPage(st, repo, v)
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.render(w, http.StatusOK, "labels", p)
+}
+
+func labelFromForm(r *http.Request) store.Label {
+	return store.Label{
+		Name:        strings.TrimSpace(r.FormValue("name")),
+		Color:       store.NormalizeLabelColor(r.FormValue("color")),
+		Description: strings.TrimSpace(r.FormValue("description")),
+	}
+}
+
+func (s *Server) handleLabelCreate(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	l := labelFromForm(r)
+	if _, err := st.CreateLabel(repo.Name, l); err != nil {
+		p, perr := s.labelsPage(st, repo, labelsView{Form: l, ShowNew: true})
+		if perr != nil {
+			s.renderError(w, http.StatusInternalServerError, perr.Error())
+			return
+		}
+		p.Error = err.Error()
+		s.render(w, http.StatusUnprocessableEntity, "labels", p)
+		return
+	}
+	http.Redirect(w, r, s.repoURL(st, repo)+"/labels", http.StatusSeeOther)
+}
+
+func (s *Server) handleLabelUpdate(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		s.renderError(w, http.StatusNotFound, s.tr("ppoi.error.label_not_found"))
+		return
+	}
+	l := labelFromForm(r)
+	l.ID = id
+	if err := st.UpdateLabel(repo.Name, l); err != nil {
+		if errors.Is(err, store.ErrLabelNotFound) {
+			s.renderError(w, http.StatusNotFound, s.tr("ppoi.error.label_not_found"))
+			return
+		}
+		p, perr := s.labelsPage(st, repo, labelsView{Form: l, EditID: id})
+		if perr != nil {
+			s.renderError(w, http.StatusInternalServerError, perr.Error())
+			return
+		}
+		p.Error = err.Error()
+		s.render(w, http.StatusUnprocessableEntity, "labels", p)
+		return
+	}
+	http.Redirect(w, r, s.repoURL(st, repo)+"/labels", http.StatusSeeOther)
+}
+
+func (s *Server) handleLabelDelete(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err == nil {
+		err = st.DeleteLabel(repo.Name, id)
+	}
+	if err != nil && !errors.Is(err, store.ErrLabelNotFound) {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	http.Redirect(w, r, s.repoURL(st, repo)+"/labels", http.StatusSeeOther)
 }
 
 // normalizeNewlines はフォームから来る CRLF を LF に揃え、末尾の空白を落とす。

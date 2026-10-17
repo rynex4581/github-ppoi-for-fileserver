@@ -1,0 +1,65 @@
+{{define "content"}}
+<div class="d-flex flex-items-center mb-3">
+  <a class="btn mr-2" href="/{{.Owner}}/{{.Repo.Name}}/issues">{{icon "issue-opened"}} {{tr "repo.issues"}}</a>
+  <div class="flex-auto"></div>
+  {{if not .Data.ShowNew}}<a class="btn btn-primary" href="{{.Data.BaseURL}}?new=1">{{tr "repo.issues.new_label"}}</a>{{end}}
+</div>
+
+{{if .Data.ShowNew}}
+<form method="post" action="{{.Data.BaseURL}}" class="Box p-3 mb-3 color-bg-subtle">
+  {{template "labelform" .}}
+  <div class="d-flex flex-justify-end mt-2">
+    <a class="btn mr-2" href="{{.Data.BaseURL}}">{{tr "cancel"}}</a>
+    <button class="btn btn-primary" type="submit">{{tr "repo.issues.create_label"}}</button>
+  </div>
+</form>
+{{end}}
+
+<div class="Box">
+  <div class="Box-header"><strong>{{tr "repo.issues.label_count" (len .Data.Labels)}}</strong></div>
+  {{range .Data.Labels}}
+  <div class="Box-row">
+    {{if eq .ID $.Data.EditID}}
+    <form method="post" action="{{$.Data.BaseURL}}/{{.ID}}">
+      {{template "labelform" $}}
+      <div class="d-flex flex-justify-end mt-2">
+        <a class="btn mr-2" href="{{$.Data.BaseURL}}">{{tr "cancel"}}</a>
+        <button class="btn btn-primary" type="submit">{{tr "ppoi.labels.save"}}</button>
+      </div>
+    </form>
+    {{else}}
+    <div class="d-flex flex-items-center">
+      <div class="col-4"><a class="IssueLabel" style="{{labelStyle .Color}}" href="/{{$.Owner}}/{{$.Repo.Name}}/issues?labels={{.ID}}">{{.Name}}</a></div>
+      <div class="flex-auto color-fg-muted text-small">{{.Description}}</div>
+      <a class="btn-link text-small mr-3" href="{{$.Data.BaseURL}}?edit={{.ID}}">{{tr "repo.issues.label_edit"}}</a>
+      <form method="post" action="{{$.Data.BaseURL}}/{{.ID}}/delete" onsubmit="return confirm({{tr "repo.issues.label_deletion_desc"}})">
+        <button class="btn-link text-small color-fg-danger" type="submit">{{tr "repo.issues.label_delete"}}</button>
+      </form>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="blankslate">
+    <span class="color-fg-muted">{{icon "tag"}}</span>
+    <h3 class="blankslate-heading">{{tr "ppoi.labels.no_labels"}}</h3>
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{define "labelform"}}
+<div class="d-flex flex-wrap gutter-condensed">
+  <div class="col-12 col-md-4 mb-2">
+    <label class="d-block text-small text-bold mb-1" for="label-name">{{tr "repo.issues.label_title"}}</label>
+    <input class="form-control input-block" type="text" id="label-name" name="name" value="{{.Data.Form.Name}}" required autocomplete="off">
+  </div>
+  <div class="col-12 col-md-5 mb-2">
+    <label class="d-block text-small text-bold mb-1" for="label-description">{{tr "repo.issues.label_description"}}</label>
+    <input class="form-control input-block" type="text" id="label-description" name="description" value="{{.Data.Form.Description}}" autocomplete="off">
+  </div>
+  <div class="col-12 col-md-3 mb-2">
+    <label class="d-block text-small text-bold mb-1" for="label-color">{{tr "repo.issues.label_color"}}</label>
+    <input class="form-control app-color" type="color" id="label-color" name="color" value="#{{.Data.Form.Color}}">
+  </div>
+</div>
+{{end}}
