@@ -1,0 +1,46 @@
+{{define "content"}}
+<div class="d-flex flex-items-center flex-wrap mb-3">
+  {{template "branchmenu" .Data}}
+  <div class="f4 ml-3">
+    <a class="text-bold" href="{{.Data.RootURL}}">{{.Repo.Name}}</a>
+    {{range .Data.Crumbs}}<span class="color-fg-muted mx-1">/</span><a href="{{.URL}}">{{.Name}}</a>{{end}}
+    <span class="color-fg-muted mx-1">/</span><strong>{{.Data.Name}}</strong>
+  </div>
+</div>
+
+<div class="Box">
+  <div class="Box-header color-bg-subtle d-flex flex-items-center">
+    <span class="flex-auto color-fg-muted text-small">
+      {{if .Data.Lines}}{{tr "ppoi.code.lines_n" (len .Data.Lines)}} · {{end}}{{tr "ppoi.code.bytes" .Data.Size}}
+    </span>
+    {{if .Data.IsMarkdown}}
+      {{if .Data.ShowSource}}
+      <a class="btn btn-sm mr-2" href="{{.Data.RenderURL}}">{{tr "repo.file_view_rendered"}}</a>
+      {{else}}
+      <a class="btn btn-sm mr-2" href="{{.Data.SourceURL}}">{{tr "repo.file_view_source"}}</a>
+      {{end}}
+    {{end}}
+    <a class="btn btn-sm mr-2" href="{{.Data.RawURL}}">{{tr "repo.file_raw"}}</a>
+    <a class="btn btn-sm" href="{{.Data.HistoryURL}}">{{icon "history"}} {{tr "repo.file_history"}}</a>
+  </div>
+  {{if .Data.IsImage}}
+  <div class="Box-body text-center"><img class="app-blob-image" src="{{.Data.RawURL}}" alt="{{.Data.Name}}"></div>
+  {{else if .Data.TooLarge}}
+  <div class="blankslate"><p>{{tr "repo.file_too_large"}}</p><a class="btn" href="{{.Data.RawURL}}">{{tr "repo.file_view_raw"}}</a></div>
+  {{else if .Data.IsBinary}}
+  <div class="blankslate"><p>{{tr "repo.diff.bin_not_shown"}}</p><a class="btn" href="{{.Data.RawURL}}">{{tr "repo.file_view_raw"}}</a></div>
+  {{else if .Data.Rendered}}
+  <div class="Box-body markdown-body app-rendered">{{.Data.Rendered}}</div>
+  {{else if .Data.Lines}}
+  <div class="app-blob-wrapper">
+    <table class="app-blob">
+      {{range $i, $line := .Data.Lines}}
+      <tr><td class="app-num" id="L{{inc $i}}">{{inc $i}}</td><td class="app-code">{{$line}}</td></tr>
+      {{end}}
+    </table>
+  </div>
+  {{else}}
+  <div class="Box-body color-fg-muted">{{tr "repo.file_is_empty"}}</div>
+  {{end}}
+</div>
+{{end}}

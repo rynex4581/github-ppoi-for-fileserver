@@ -1,0 +1,65 @@
+{{define "content"}}
+{{if .Data.Empty}}
+<div class="Box mb-3">
+  <div class="Box-header"><h3 class="Box-title">{{tr "repo.empty_message"}}</h3></div>
+  <div class="Box-body">
+    <p class="text-bold">{{tr "repo.clone_this_repo"}}</p>
+    <input class="form-control input-block text-mono mb-3" type="text" readonly value="{{.Data.CloneCmd}}" onclick="this.select()">
+    <p class="text-bold">{{tr "repo.push_exist_repo"}}</p>
+    <p class="color-fg-muted text-small">{{tr "ppoi.code.empty_help"}}</p>
+    <pre class="color-bg-subtle rounded-2 p-3 text-mono text-small">{{.Data.PushCmds}}</pre>
+  </div>
+</div>
+{{else}}
+<div class="d-flex flex-items-center flex-wrap mb-3">
+  {{template "branchmenu" .Data}}
+  <a class="Link--muted ml-3 d-flex flex-items-center" href="{{.Data.CommitsHere}}">{{icon "history"}}<span class="ml-1"><strong>{{.Data.CommitCount}}</strong> {{tr "repo.commits"}}</span></a>
+  <div class="flex-auto"></div>
+  <details class="details-reset details-overlay position-relative">
+    <summary class="btn btn-primary">{{icon "code"}} {{tr "repo.code"}} <span class="dropdown-caret"></span></summary>
+    <div class="SelectMenu right-0 app-clone-menu">
+      <div class="SelectMenu-modal">
+        <header class="SelectMenu-header"><h3 class="SelectMenu-title">{{tr "repo.clone_this_repo"}}</h3></header>
+        <div class="p-3">
+          <input class="form-control input-block text-mono text-small" type="text" readonly value="{{.Data.CloneCmd}}" onclick="this.select()">
+          <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.code.clone_help"}}</p>
+        </div>
+      </div>
+    </div>
+  </details>
+</div>
+
+{{if .Data.Crumbs}}
+<div class="f4 mb-3">
+  <a class="text-bold" href="{{.Data.RootURL}}">{{.Repo.Name}}</a>
+  {{range .Data.Crumbs}}<span class="color-fg-muted mx-1">/</span><a href="{{.URL}}">{{.Name}}</a>{{end}}
+</div>
+{{end}}
+
+<div class="Box">
+  {{if .Data.Latest}}
+  <div class="Box-header color-bg-subtle d-flex flex-items-center">
+    <span class="color-fg-muted mr-2">{{icon "git-commit"}}</span>
+    <span class="flex-auto min-width-0 css-truncate css-truncate-overflow">
+      <strong>{{.Data.Latest.Author}}</strong>
+      <a class="Link--primary" href="{{.Data.LatestURL}}">{{.Data.Latest.Subject}}</a>
+    </span>
+    <a class="Link--muted text-mono text-small ml-3" href="{{.Data.LatestURL}}">{{.Data.Latest.ShortSHA}}</a>
+    <span class="color-fg-muted text-small ml-3">{{datetime .Data.Latest.Time}}</span>
+  </div>
+  {{end}}
+  {{if .Data.ParentURL}}
+  <div class="Box-row py-2"><a class="Link--primary" href="{{.Data.ParentURL}}">..</a></div>
+  {{end}}
+  {{range .Data.Entries}}
+  <div class="Box-row py-2 d-flex flex-items-center">
+    <span class="mr-2 {{if .IsDir}}color-fg-accent{{else}}color-fg-muted{{end}}">{{if .IsDir}}{{icon "file-directory-fill"}}{{else}}{{icon "file"}}{{end}}</span>
+    <a class="Link--primary flex-auto min-width-0 css-truncate css-truncate-overflow" href="{{.URL}}">{{.Name}}</a>
+    {{if not .IsDir}}<span class="color-fg-muted text-small">{{tr "ppoi.code.bytes" .Size}}</span>{{end}}
+  </div>
+  {{else}}
+  <div class="Box-row color-fg-muted">{{tr "repo.file_is_empty"}}</div>
+  {{end}}
+</div>
+{{end}}
+{{end}}

@@ -27,5 +27,12 @@
   "ppoi.error.title_required": "Enter a title",
   "ppoi.error.comment_required": "Enter the comment text",
   "ppoi.error.data_root_required": "Enter the data root path",
-  "ppoi.error.save_failed": "Failed to save settings: %s"
+  "ppoi.error.save_failed": "Failed to save settings: %s",
+  "ppoi.code.clone_help": "Paste into PowerShell. Includes the remote.origin.receivepack setting that works around the ownership check on push.",
+  "ppoi.code.empty_help": "Run the following inside your existing local repository.",
+  "ppoi.code.no_commits": "No commits yet.",
+  "ppoi.code.path_not_found": "Path not found",
+  "ppoi.code.ref_not_found": "Branch or commit not found",
+  "ppoi.code.bytes": "%d bytes",
+  "ppoi.code.lines_n": "%d lines"
 }

@@ -14,7 +14,7 @@
   </div>
   {{if .Repo}}
   <div class="Header-item">
-    <a class="Header-link" href="/{{.Owner}}/{{.Repo.Name}}/issues">{{.Owner}} / <strong>{{.Repo.Name}}</strong></a>
+    <a class="Header-link" href="/{{.Owner}}/{{.Repo.Name}}">{{.Owner}} / <strong>{{.Repo.Name}}</strong></a>
   </div>
   {{end}}
   <div class="Header-item Header-item--full"></div>
@@ -33,10 +33,11 @@
       <span class="color-fg-muted">{{icon "repo"}}</span>
       <a class="ml-2" href="/">{{.Owner}}</a>
       <span class="mx-1 color-fg-muted">/</span>
-      <a class="text-bold" href="/{{.Owner}}/{{.Repo.Name}}/issues">{{.Repo.Name}}</a>
+      <a class="text-bold" href="/{{.Owner}}/{{.Repo.Name}}">{{.Repo.Name}}</a>
     </div>
     <nav class="UnderlineNav" aria-label="Repository">
       <div class="UnderlineNav-body">
+        <a class="UnderlineNav-item{{if eq .Tab "code"}} selected{{end}}" {{if eq .Tab "code"}}aria-current="page"{{end}} href="/{{.Owner}}/{{.Repo.Name}}">{{icon "code"}}<span class="ml-1">{{tr "repo.code"}}</span></a>
         <a class="UnderlineNav-item{{if eq .Tab "issues"}} selected{{end}}" {{if eq .Tab "issues"}}aria-current="page"{{end}} href="/{{.Owner}}/{{.Repo.Name}}/issues">{{icon "issue-opened"}}<span class="ml-1">{{tr "repo.issues"}}</span></a>
       </div>
     </nav>

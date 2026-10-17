@@ -1,0 +1,26 @@
+{{define "content"}}
+{{with .Data.Commit}}
+<div class="Box mb-3">
+  <div class="Box-body">
+    <div class="d-flex flex-items-start">
+      <div class="flex-auto min-width-0">
+        <h2 class="f3 text-bold wb-break-word mb-1">{{.Subject}}</h2>
+        {{if .Body}}<pre class="app-commit-body color-fg-muted">{{.Body}}</pre>{{end}}
+      </div>
+      <a class="btn ml-3" href="{{$.Data.TreeURL}}">{{icon "code"}} {{tr "repo.diff.browse_source"}}</a>
+    </div>
+    <div class="color-fg-muted text-small mt-2 d-flex flex-items-center flex-wrap">
+      <span class="mr-3"><strong class="color-fg-default">{{.Author}}</strong> · {{datetime .Time}}</span>
+      <span class="mr-3">{{tr "repo.diff.commit"}} <span class="text-mono">{{.ShortSHA}}</span></span>
+      {{if $.Data.Parents}}
+      <span>{{if gt (len $.Data.Parents) 1}}{{tr "repo.diff.parents"}}{{else}}{{tr "repo.diff.parent"}}{{end}}
+        {{range $.Data.Parents}}<a class="text-mono ml-1" href="{{.URL}}">{{.Name}}</a>{{end}}</span>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+
+<div class="mb-3">{{.Data.StatsHTML}}</div>
+{{template "difffiles" .Data.Files}}
+{{end}}

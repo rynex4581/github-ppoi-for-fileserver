@@ -67,3 +67,90 @@ body {
 .IssueLabel {
   vertical-align: middle;
 }
+
+/* ファイル表示と差分 */
+.app-blob-wrapper {
+  overflow-x: auto;
+}
+
+.app-blob {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 20px;
+  tab-size: 4;
+}
+
+.app-blob td {
+  padding: 0 10px;
+  vertical-align: top;
+}
+
+.app-blob .app-num {
+  width: 1%;
+  min-width: 50px;
+  text-align: right;
+  color: var(--fgColor-muted);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.app-blob .app-code {
+  white-space: pre;
+}
+
+.app-diff-table .app-code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.app-diff .app-hunk td {
+  background-color: var(--diffBlob-hunk-bgColor-num);
+  color: var(--fgColor-muted);
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.app-diff .app-add td {
+  background-color: var(--diffBlob-addition-bgColor-line);
+}
+
+.app-diff .app-add .app-num {
+  background-color: var(--diffBlob-addition-bgColor-num);
+}
+
+.app-diff .app-del td {
+  background-color: var(--diffBlob-deletion-bgColor-line);
+}
+
+.app-diff .app-del .app-num {
+  background-color: var(--diffBlob-deletion-bgColor-num);
+}
+
+.app-sign {
+  display: inline-block;
+  width: 1ch;
+  margin-right: 4px;
+  user-select: none;
+}
+
+.app-blob-image {
+  max-width: 100%;
+}
+
+.app-rendered {
+  padding: 32px;
+}
+
+.app-commit-body {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 14px;
+  margin: 0;
+}
+
+.app-clone-menu {
+  width: 480px;
+  max-width: 90vw;
+}

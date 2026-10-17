@@ -7,7 +7,7 @@
 <div class="Box">
   {{range .Data.Repos}}
   <div class="Box-row">
-    <a class="f4 text-bold Link--primary d-inline-flex flex-items-center" href="/{{$.Owner}}/{{.Name}}/issues">
+    <a class="f4 text-bold Link--primary d-inline-flex flex-items-center" href="/{{$.Owner}}/{{.Name}}">
       <span class="color-fg-muted mr-2">{{icon "repo"}}</span>{{.Name}}
     </a>
     {{if .Description}}<p class="color-fg-muted mb-0 mt-1">{{.Description}}</p>{{end}}

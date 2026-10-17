@@ -1,0 +1,35 @@
+{{define "content"}}
+<div class="d-flex flex-items-center flex-wrap mb-3">
+  {{template "branchmenu" .Data}}
+  {{if .Data.Path}}
+  <div class="f4 ml-3">
+    <a class="text-bold" href="{{.Data.RootURL}}">{{.Repo.Name}}</a>
+    {{range .Data.Crumbs}}<span class="color-fg-muted mx-1">/</span><a href="{{.URL}}">{{.Name}}</a>{{end}}
+  </div>
+  {{end}}
+  <div class="flex-auto"></div>
+  <a class="btn" href="{{.Data.TreeHere}}">{{icon "code"}} {{tr "repo.diff.browse_source"}}</a>
+</div>
+
+<div class="Box">
+  <div class="Box-header"><h3 class="Box-title">{{tr "repo.commits"}}</h3></div>
+  {{range .Data.Commits}}
+  <div class="Box-row d-flex flex-items-center">
+    <div class="flex-auto min-width-0">
+      <a class="Link--primary text-bold wb-break-word" href="{{.URL}}">{{.Subject}}</a>
+      <div class="color-fg-muted text-small mt-1"><strong>{{.Author}}</strong> · {{datetime .Time}}</div>
+    </div>
+    <a class="btn btn-sm text-mono ml-3" href="{{.URL}}">{{.ShortSHA}}</a>
+  </div>
+  {{else}}
+  <div class="blankslate"><h3 class="blankslate-heading">{{tr "ppoi.code.no_commits"}}</h3></div>
+  {{end}}
+</div>
+
+{{if or .Data.NewerURL .Data.OlderURL}}
+<div class="d-flex flex-justify-center mt-3">
+  {{if .Data.NewerURL}}<a class="btn mr-2" href="{{.Data.NewerURL}}">{{tr "repo.commits.newer"}}</a>{{end}}
+  {{if .Data.OlderURL}}<a class="btn" href="{{.Data.OlderURL}}">{{tr "repo.commits.older"}}</a>{{end}}
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,54 @@
+{{/* ブランチ切替のメニュー。.BranchItems と .Ref を持つデータを渡す */}}
+{{define "branchmenu"}}
+<details class="details-reset details-overlay position-relative">
+  <summary class="btn" aria-haspopup="menu">{{icon "git-branch"}} <span class="text-bold">{{.Ref}}</span> <span class="dropdown-caret"></span></summary>
+  <div class="SelectMenu">
+    <div class="SelectMenu-modal">
+      <header class="SelectMenu-header"><h3 class="SelectMenu-title">{{tr "repo.branches"}}</h3></header>
+      <div class="SelectMenu-list">
+        {{range .BranchItems}}
+        <a class="SelectMenu-item" role="menuitemradio" aria-checked="{{if .Selected}}true{{else}}false{{end}}" href="{{.URL}}">
+          <span class="SelectMenu-icon SelectMenu-icon--check">{{icon "check"}}</span>{{.Text}}
+        </a>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</details>
+{{end}}
+
+{{/* 差分のファイル一覧。[]gitcmd.DiffFile を渡す */}}
+{{define "difffiles"}}
+{{range .}}
+<div class="Box mb-3 app-diff">
+  <div class="Box-header color-bg-subtle d-flex flex-items-center">
+    <span class="flex-auto min-width-0 text-mono text-small wb-break-word">
+      {{if eq .Status "added"}}<span class="color-fg-success mr-1">{{icon "plus"}}</span>{{else if eq .Status "deleted"}}<span class="color-fg-danger mr-1">{{icon "x"}}</span>{{end}}{{.Path}}
+    </span>
+    <span class="text-small text-mono ml-3"><span class="color-fg-success">+{{.Additions}}</span> <span class="color-fg-danger">−{{.Deletions}}</span></span>
+  </div>
+  {{if .IsBinary}}
+  <div class="Box-body color-fg-muted text-small">{{tr "repo.diff.bin_not_shown"}}</div>
+  {{else if .TooLarge}}
+  <div class="Box-body color-fg-muted text-small">{{tr "repo.diff.file_suppressed"}}</div>
+  {{else if not .Hunks}}
+  <div class="Box-body color-fg-muted text-small">{{tr "repo.commits.nothing_to_compare"}}</div>
+  {{else}}
+  <div class="app-blob-wrapper">
+    <table class="app-blob app-diff-table">
+      {{range .Hunks}}
+      <tr class="app-hunk"><td class="app-num" colspan="2"></td><td class="app-code">{{.Header}}</td></tr>
+      {{range .Lines}}
+      <tr class="app-{{.Kind}}">
+        <td class="app-num">{{if .OldNum}}{{.OldNum}}{{end}}</td>
+        <td class="app-num">{{if .NewNum}}{{.NewNum}}{{end}}</td>
+        <td class="app-code"><span class="app-sign">{{if eq .Kind "add"}}+{{else if eq .Kind "del"}}-{{else}} {{end}}</span>{{.Text}}</td>
+      </tr>
+      {{end}}
+      {{end}}
+    </table>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}

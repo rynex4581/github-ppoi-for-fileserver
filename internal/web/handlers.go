@@ -69,11 +69,6 @@ func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.repoURL(st, repo)+"/issues", http.StatusSeeOther)
 }
 
-func (s *Server) handleRepoHome(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
-	// Code画面ができるまでは Issues に送る
-	http.Redirect(w, r, s.repoURL(st, repo)+"/issues", http.StatusSeeOther)
-}
-
 // ---- 自分の設定 ----
 
 type settingsForm struct {

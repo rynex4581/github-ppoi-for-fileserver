@@ -27,5 +27,12 @@
   "ppoi.error.title_required": "タイトルを入れてください",
   "ppoi.error.comment_required": "コメントの本文を入れてください",
   "ppoi.error.data_root_required": "データルートのパスを入れてください",
-  "ppoi.error.save_failed": "設定の保存に失敗しました: %s"
+  "ppoi.error.save_failed": "設定の保存に失敗しました: %s",
+  "ppoi.code.clone_help": "PowerShell に貼り付けて実行します。push 時の所有者チェック対策（remote.origin.receivepack の設定）を含みます。",
+  "ppoi.code.empty_help": "手元にある既存のリポジトリの中で、次を順に実行します。",
+  "ppoi.code.no_commits": "コミットはまだありません。",
+  "ppoi.code.path_not_found": "パスが見つかりません",
+  "ppoi.code.ref_not_found": "ブランチまたはコミットが見つかりません",
+  "ppoi.code.bytes": "%d バイト",
+  "ppoi.code.lines_n": "%d 行"
 }

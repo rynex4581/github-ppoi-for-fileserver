@@ -160,14 +160,17 @@ func (s *Server) tr(key string, args ...any) string {
 }
 
 // trh はHTMLを含む文言（Gitea のタイムライン用の文言など）を返す。
-// 引数は template.HTML ならそのまま、それ以外はエスケープしてから埋める。
+// 引数のうち template.HTML はそのまま、文字列はエスケープしてから埋める。数値はそのまま渡す。
 func (s *Server) trh(key string, args ...any) template.HTML {
 	safe := make([]any, len(args))
 	for i, a := range args {
-		if h, ok := a.(template.HTML); ok {
-			safe[i] = string(h)
-		} else {
-			safe[i] = html.EscapeString(fmt.Sprint(a))
+		switch v := a.(type) {
+		case template.HTML:
+			safe[i] = string(v)
+		case string:
+			safe[i] = html.EscapeString(v)
+		default:
+			safe[i] = a
 		}
 	}
 	return template.HTML(s.locale().Tr(key, safe...))
@@ -193,6 +196,7 @@ func (s *Server) funcs() template.FuncMap {
 		},
 		"labelStyle": labelStyle,
 		"chips":      labelChips,
+		"inc":        func(i int) int { return i + 1 },
 	}
 }
 
@@ -239,10 +243,11 @@ func (s *Server) loadTemplates() error {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		if name == "layout.html" {
+		if name == "layout.html" || strings.HasPrefix(name, "_") {
 			continue
 		}
-		t, err := template.New("layout.html").Funcs(s.funcs()).ParseFS(templateFS, "templates/layout.html", "templates/"+name)
+		// _ で始まるファイルは各画面から使う共通の部品
+		t, err := template.New("layout.html").Funcs(s.funcs()).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", "templates/"+name)
 		if err != nil {
 			return fmt.Errorf("テンプレート %s の読み込みに失敗: %w", name, err)
 		}
@@ -320,7 +325,12 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /settings", s.handleSettings)
 	mux.HandleFunc("POST /settings", s.handleSettingsSave)
 
-	mux.HandleFunc("GET /{owner}/{repo}", s.withRepo(s.handleRepoHome))
+	mux.HandleFunc("GET /{owner}/{repo}", s.withRepo(s.handleCode))
+	mux.HandleFunc("GET /{owner}/{repo}/tree/{rest...}", s.withRepo(s.handleCode))
+	mux.HandleFunc("GET /{owner}/{repo}/blob/{rest...}", s.withRepo(s.handleBlob))
+	mux.HandleFunc("GET /{owner}/{repo}/raw/{rest...}", s.withRepo(s.handleRaw))
+	mux.HandleFunc("GET /{owner}/{repo}/commits/{rest...}", s.withRepo(s.handleCommits))
+	mux.HandleFunc("GET /{owner}/{repo}/commit/{sha}", s.withRepo(s.handleCommit))
 	mux.HandleFunc("GET /{owner}/{repo}/issues", s.withRepo(s.handleIssues))
 	mux.HandleFunc("GET /{owner}/{repo}/issues/new", s.withRepo(s.handleIssueNew))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/new", s.withRepo(s.handleIssueCreate))
