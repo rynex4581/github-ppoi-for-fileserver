@@ -92,6 +92,20 @@ func (s *Store) readRepoMeta(name string) Repo {
 	return r
 }
 
+// UpdateRepo は repo.json を書き換える。説明、既定ブランチ、承認必須、force push 禁止を持つ。
+func (s *Store) UpdateRepo(r Repo) error {
+	if _, err := s.GetRepo(r.Name); err != nil {
+		return err
+	}
+	if strings.TrimSpace(r.DefaultBranch) == "" {
+		r.DefaultBranch = s.config.DefaultBranch
+	}
+	if err := os.MkdirAll(s.repoMetaDir(r.Name), 0o755); err != nil {
+		return err
+	}
+	return writeJSONAtomic(filepath.Join(s.repoMetaDir(r.Name), "repo.json"), r)
+}
+
 // CreateRepo は repos\<名前>.git に git init --bare し、meta\<名前>\repo.json を作る。
 func (s *Store) CreateRepo(name, description string) (Repo, error) {
 	if err := ValidateRepoName(name); err != nil {

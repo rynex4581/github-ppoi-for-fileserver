@@ -1,0 +1,40 @@
+{{define "content"}}
+<div class="col-md-8 mx-auto">
+  <div class="Subhead">
+    <h2 class="Subhead-heading">{{tr "repo.settings.basic_settings"}}</h2>
+  </div>
+  {{if .Data.Saved}}<div class="flash flash-success mb-3">{{tr "repo.settings.update_settings_success"}}</div>{{end}}
+  <form method="post" action="/{{.Owner}}/{{.Repo.Name}}/settings">
+    <div class="form-group">
+      <div class="form-group-header"><label for="description">{{tr "repo.repo_desc"}}</label></div>
+      <div class="form-group-body">
+        <input class="form-control input-block" type="text" id="description" name="description" value="{{.Data.Repo.Description}}" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-group-header"><label for="default_branch">{{tr "repo.default_branch"}}</label></div>
+      <div class="form-group-body">
+        {{if .Data.Branches}}
+        <select class="form-select" id="default_branch" name="default_branch">
+          {{range .Data.Branches}}<option value="{{.Name}}"{{if eq .Name $.Data.Repo.DefaultBranch}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+        {{else}}
+        <input class="form-control" type="text" id="default_branch" name="default_branch" value="{{.Data.Repo.DefaultBranch}}" autocomplete="off">
+        {{end}}
+        <p class="note">{{tr "repo.settings.default_branch_desc"}}</p>
+      </div>
+    </div>
+    <hr>
+    <div class="form-checkbox">
+      <label><input type="checkbox" name="require_approval" value="1"{{if .Data.Repo.RequireApproval}} checked{{end}}> {{tr "ppoi.settings.require_approval"}}</label>
+      <p class="note">{{tr "ppoi.settings.require_approval_desc"}}</p>
+    </div>
+    <div class="form-checkbox">
+      <label><input type="checkbox" name="deny_force_push" value="1"{{if .Data.Repo.DenyForcePush}} checked{{end}}> {{tr "repo.settings.protect_disable_force_push"}}</label>
+      <p class="note">{{tr "ppoi.settings.deny_force_push_desc"}}</p>
+    </div>
+    <hr>
+    <button class="btn btn-primary" type="submit">{{tr "repo.settings.update_settings"}}</button>
+  </form>
+</div>
+{{end}}

@@ -352,6 +352,8 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/review_comments", s.withRepo(s.handlePullReviewComment))
 	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/merge", s.withRepo(s.handlePullMerge))
 	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/revert", s.withRepo(s.handlePullRevert))
+	mux.HandleFunc("GET /{owner}/{repo}/settings", s.withRepo(s.handleRepoSettings))
+	mux.HandleFunc("POST /{owner}/{repo}/settings", s.withRepo(s.handleRepoSettingsSave))
 	mux.HandleFunc("GET /{owner}/{repo}/labels", s.withRepo(s.handleLabels))
 	mux.HandleFunc("POST /{owner}/{repo}/labels", s.withRepo(s.handleLabelCreate))
 	mux.HandleFunc("POST /{owner}/{repo}/labels/{id}", s.withRepo(s.handleLabelUpdate))

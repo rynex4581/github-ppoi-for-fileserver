@@ -58,5 +58,9 @@
   "ppoi.pulls.line_comment": "Line comment",
   "ppoi.pulls.review_state": "Review result",
   "ppoi.pulls.needs_branches": "At least two branches are needed to open a pull request.",
-  "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> merged %[1]s"
+  "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> merged %[1]s",
+  "ppoi.settings.require_approval": "Require approval",
+  "ppoi.settings.require_approval_desc": "When on, a pull request cannot be merged until it has at least one approval.",
+  "ppoi.settings.deny_force_push_desc": "When on, receive.denyNonFastForwards is set on the bare repository and pushes that rewrite history are rejected. This applies to all branches.",
+  "ppoi.settings.invalid_branch": "Invalid branch name."
 }

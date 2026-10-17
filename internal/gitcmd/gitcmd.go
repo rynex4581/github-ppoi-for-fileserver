@@ -322,3 +322,20 @@ func (r Repo) HasConflict(base, head string) (bool, error) {
 	}
 	return false, err
 }
+
+// SetDenyNonFastForwards は receive.denyNonFastForwards を設定する。
+// true にすると、履歴を書き換える push（force push）をベアリポジトリ側で弾く。
+func (r Repo) SetDenyNonFastForwards(deny bool) error {
+	value := "false"
+	if deny {
+		value = "true"
+	}
+	_, err := r.run("config", "receive.denyNonFastForwards", value)
+	return err
+}
+
+// SetHead はベアリポジトリの HEAD が指すブランチを変える。clone したときの既定のブランチになる。
+func (r Repo) SetHead(branch string) error {
+	_, err := r.run("symbolic-ref", "HEAD", "refs/heads/"+branch)
+	return err
+}

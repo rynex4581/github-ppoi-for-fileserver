@@ -58,5 +58,9 @@
   "ppoi.pulls.line_comment": "行コメント",
   "ppoi.pulls.review_state": "レビューの結果",
   "ppoi.pulls.needs_branches": "ブランチが2つ以上無いとプルリクエストは作れません。",
-  "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> が %[1]s にマージ"
+  "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> が %[1]s にマージ",
+  "ppoi.settings.require_approval": "承認必須",
+  "ppoi.settings.require_approval_desc": "オンにすると、承認が1つ以上無い限りプルリクエストをマージできません。",
+  "ppoi.settings.deny_force_push_desc": "オンにすると、ベアリポジトリに receive.denyNonFastForwards を設定し、履歴を書き換える push を弾きます。ブランチ単位の制御はしません。",
+  "ppoi.settings.invalid_branch": "ブランチ名が正しくありません。"
 }
