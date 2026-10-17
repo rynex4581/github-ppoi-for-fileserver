@@ -16,7 +16,7 @@
 <div class="col-lg-9 app-timeline">
   {{with .Data.Issue}}
   <div class="TimelineItem pt-0">
-    <div class="TimelineItem-avatar app-avatar">{{icon "person"}}</div>
+    <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
     <div class="TimelineItem-body">
       <div class="Box app-comment">
         <div class="Box-header color-bg-subtle">
@@ -33,7 +33,7 @@
   {{range .Data.Timeline}}
     {{if eq .Kind "comment"}}
     <div class="TimelineItem">
-      <div class="TimelineItem-avatar app-avatar">{{icon "person"}}</div>
+      <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
       <div class="TimelineItem-body">
         <div class="Box app-comment">
           <div class="Box-header color-bg-subtle">
