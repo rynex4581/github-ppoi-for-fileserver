@@ -73,6 +73,39 @@ func (s *Store) AttachmentPath(repo string, number int, name string) (string, er
 	return p, nil
 }
 
+// Attachment は添付ファイル1つの情報。
+type Attachment struct {
+	Name    string
+	Size    int64
+	ModTime time.Time
+}
+
+// ListAttachments は Issue の添付ファイルを名前順で返す。無ければ空。
+func (s *Store) ListAttachments(repo string, number int) ([]Attachment, error) {
+	if !isSafeName(repo) || number <= 0 {
+		return nil, ErrIssueNotFound
+	}
+	entries, err := os.ReadDir(s.attachmentsDir(repo, number))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []Attachment
+	for _, e := range entries {
+		if e.IsDir() || strings.HasSuffix(e.Name(), ".tmp") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		out = append(out, Attachment{Name: e.Name(), Size: info.Size(), ModTime: info.ModTime()})
+	}
+	return out, nil
+}
+
 // AttachmentMaxBytes は添付ファイルの上限を返す。
 func (s *Store) AttachmentMaxBytes() int64 {
 	return s.config.AttachmentMaxBytes

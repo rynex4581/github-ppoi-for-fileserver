@@ -670,42 +670,39 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 		return
 	}
 
-	var ev store.Event
 	switch action {
 	case "close":
-		if is.State == "closed" {
-			break
-		}
-		ev = store.Event{Type: store.EventClosed, User: s.login, Body: body}
+		err = s.setState(st, repo, is, "closed", body)
 	case "reopen":
-		if is.State == "open" {
-			break
-		}
-		ev = store.Event{Type: store.EventReopened, User: s.login, Body: body}
+		err = s.setState(st, repo, is, "open", body)
 	default:
-		if strings.TrimSpace(body) == "" {
-			if is.IsPull {
-				s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.tr("ppoi.error.comment_required"))
-				return
-			}
-			p, err := s.issuePage(st, repo, is)
-			if err != nil {
-				s.renderError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			p.Error = s.tr("ppoi.error.comment_required")
-			s.render(w, http.StatusUnprocessableEntity, "issue", p)
-			return
-		}
-		ev = store.Event{Type: store.EventComment, User: s.login, Body: body}
+		err = s.addComment(st, repo, is, body)
 	}
-	if ev.Type != "" {
-		if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
-			s.renderError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
+	if err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
 	}
 	s.redirectIssue(w, r, st, repo, is)
+}
+
+// renderIssueError は Issue か PR の詳細画面にエラーを出す。
+func (s *Server) renderIssueError(w http.ResponseWriter, st *store.Store, repo store.Repo, is store.Issue, err error) {
+	status := opStatus(err)
+	if status == 500 {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if is.IsPull {
+		s.renderPull(w, status, st, repo, is, "conversation", s.opMessage(err))
+		return
+	}
+	p, perr := s.issuePage(st, repo, is)
+	if perr != nil {
+		s.renderError(w, http.StatusInternalServerError, perr.Error())
+		return
+	}
+	p.Error = s.opMessage(err)
+	s.render(w, status, "issue", p)
 }
 
 func (s *Server) handleIssueLabels(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
@@ -713,20 +710,16 @@ func (s *Server) handleIssueLabels(w http.ResponseWriter, r *http.Request, st *s
 	if !ok {
 		return
 	}
-	labels, err := st.ListLabels(repo.Name)
-	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
 	r.ParseForm()
-	next := parseLabelIDs(r.Form["labels"], labels)
-	cur := append([]int(nil), is.Labels...)
-	sort.Ints(cur)
-	if !equalInts(cur, next) {
-		if err := st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventLabels, User: s.login, Labels: next}); err != nil {
-			s.renderError(w, http.StatusInternalServerError, err.Error())
-			return
+	var ids []int
+	for _, v := range r.Form["labels"] {
+		if id, err := strconv.Atoi(v); err == nil {
+			ids = append(ids, id)
 		}
+	}
+	if err := s.setLabels(st, repo, is, ids); err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
 	}
 	s.redirectIssue(w, r, st, repo, is)
 }
@@ -736,20 +729,10 @@ func (s *Server) handleIssueAssignees(w http.ResponseWriter, r *http.Request, st
 	if !ok {
 		return
 	}
-	users, err := st.ListUsers()
-	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
 	r.ParseForm()
-	next := parseAssignees(r.Form["assignees"], users)
-	cur := append([]string(nil), is.Assignees...)
-	sort.Strings(cur)
-	if strings.Join(cur, "\n") != strings.Join(next, "\n") {
-		if err := st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventAssigned, User: s.login, Assignees: next}); err != nil {
-			s.renderError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
+	if err := s.setAssignees(st, repo, is, r.Form["assignees"]); err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
 	}
 	s.redirectIssue(w, r, st, repo, is)
 }

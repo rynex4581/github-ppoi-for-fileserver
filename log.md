@@ -50,6 +50,14 @@
 - Issue と PR の作成、コメント、レビュー、行コメントの全部で使える。上限は各データルートの config.json の attachment_max_bytes（既定 10MB）
 - /licenses に同梱している OSS（Go、Primer CSS、Octicons、Gitea の言語ファイル、goldmark）のライセンス文を出す。フッターからたどれる
 
+### Gitea 互換 API
+
+- 画面のハンドラから保存の手順を ops.go に出し、画面と API の両方から同じ関数を呼ぶ形にした（HTTP を二重に通さない）
+- /api/v1 配下に user、repos、branches、commits、contents、compare、issues、comments、labels、assets、pulls、diff、files、merge、reviews を Gitea の JSON の形で用意した
+- tea v0.16.0 で確認。tea が必ず呼ぶ org のラベル、ブランチ保護、コミットの status、reactions などは空で返す
+- 認証はトークンが空でなければ通す。version だけ認証無し
+- バージョン表記の規則を設計メモ 3.13 の新しい文面に合わせ、CLAUDE.md と AGENTS.md を書き換えた
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
@@ -58,11 +66,13 @@
 - ツリーでファイルごとの最終コミットは出さない（SMB 越しの git log の回数を抑える）
 - 自分の PR は承認・変更要請できない。承認必須の判定は人ごとの最新状態
 - Revert は1回まで
+- API の数値 ID は Gitea のような連番を持たないため、Issue と PR は番号、コメントとレビューはイベントのファイル名、リポジトリと利用者は名前のハッシュで作る
+- API の PATCH で本文は書き換えられない（本文を書き換えるイベントが無い）。tea が空のタイトルを送ってきたときは変更なしとして扱う
+- レビューと行コメントは紐付けて保存していないので、reviews/{id}/comments は「前のレビュー以降そのレビューまでに付いた行コメント」を返す
 - 添付は貼った時点では送らず、フォーム送信時に一緒に送る（作成前の Issue に番号が無いため）。本文中の参照は Gitea と同じ /attachments/ で始め、その後ろに owner、リポジトリ名、番号、ファイル名を続ける
 
 ## 残作業
 
-- Gitea 互換 API（今は /api/v1/version のみ）
 - ローカルキャッシュ（SMB 検証の前までに入れる）
 - SMB 上の同時更新の検証
 - bin\ の exe の版の比較と更新通知

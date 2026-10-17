@@ -7,7 +7,6 @@ package web
 import (
 	"bytes"
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -47,12 +46,13 @@ type Server struct {
 	rootErrs map[string]string // 開けなかったデータルートのパス → 理由
 	loc      *i18n.Locale
 
-	login string
-	port  int
-	pages map[string]*template.Template
-	icons map[string]template.HTML
-	md    goldmark.Markdown
-	mux   *http.ServeMux
+	login  string
+	port   int
+	pages  map[string]*template.Template
+	icons  map[string]template.HTML
+	md     goldmark.Markdown
+	mux    *http.ServeMux
+	apiMux *http.ServeMux // /api/v1/ 配下。画面の /{owner}/{repo}/... と衝突するので別にする
 }
 
 // New はサーバを作る。登録されているデータルートをすべて開く。
@@ -170,6 +170,10 @@ func (s *Server) Handler() http.Handler {
 		// 添付も /{owner}/{repo}/... の形と衝突するので、ここで分ける
 		if strings.HasPrefix(r.URL.Path, "/attachments/") {
 			s.handleAttachment(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			s.apiMux.ServeHTTP(w, r)
 			return
 		}
 		s.mux.ServeHTTP(w, r)
@@ -361,7 +365,8 @@ func (s *Server) renderError(w http.ResponseWriter, status int, msg string) {
 func (s *Server) routes() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /api/v1/version", s.handleAPIVersion)
+	s.apiMux = http.NewServeMux()
+	s.apiRoutes(s.apiMux)
 
 	mux.HandleFunc("GET /{$}", s.handleIndex)
 	mux.HandleFunc("GET /new", s.handleRepoNew)
@@ -411,17 +416,6 @@ func (s *Server) routes() {
 		s.renderError(w, http.StatusNotFound, s.tr("ppoi.error.not_found"))
 	})
 	s.mux = mux
-}
-
-// handleAPIVersion は Gitea 互換の /api/v1/version。
-// version には Gitea の版を名乗る値を返し、本ツールの版は github_ppoi_version に返す。
-// 二重起動の検知にもこの応答を使う。
-func (s *Server) handleAPIVersion(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"version":             giteaVersion,
-		"github_ppoi_version": version.Number,
-	})
 }
 
 // requireStores はデータルートが1つ以上使える状態かを確かめ、無ければ設定画面へ送る。

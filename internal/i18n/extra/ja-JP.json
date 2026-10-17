@@ -83,5 +83,7 @@
   "ppoi.licenses.title": "使用している OSS とライセンス",
   "ppoi.licenses.desc": "本ツールの実行ファイルに同梱している第三者のソフトウェアと、そのライセンス文。",
   "ppoi.licenses.link": "ライセンス",
-  "ppoi.licenses.self": "本ツール自体は MIT License で公開している。"
+  "ppoi.licenses.self": "本ツール自体は MIT License で公開している。",
+  "ppoi.api.bad_state": "state の値が正しくありません。",
+  "ppoi.api.body_edit": "本文の書き換えには対応していません（本文を書き換えるイベントが無いため）。"
 }

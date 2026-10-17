@@ -48,6 +48,7 @@ Ver 0.10。開発中であり、職場で使える状態ではない。
 - ラベルの管理（作成、編集、削除）
 - 添付ファイル（本文の入力欄に Ctrl+V で画像を貼り付け。送信時に保存）
 - 使用している OSS とライセンス文の一覧ページ
+- Gitea 互換 API（下の節を参照）
 - Settings：説明、デフォルトブランチ（ベアリポジトリの HEAD にも反映）、承認必須、force push 禁止（receive.denyNonFastForwards）
 - Pull requests：一覧、新規（ブランチを選んで比較）、詳細（Conversation／Commits／Files changed）、レビュー（承認／変更要請／コメント）、差分への行コメント、--no-ff でのマージとマージ後の head ブランチ削除、Revert、コンフリクトと force push の表示、承認必須の設定への対応
 - 自分の設定：データルートの一覧（追加・登録解除。1つのデータルートが owner 1つに対応し、複数登録できる）、表示名、言語（日本語／英語）
@@ -58,7 +59,6 @@ epos\<owner>\<リポジトリ名>`。無ければ作り、使うたびにリモ�
 
 未実装
 
-- Gitea互換API（現在は `/api/v1/version` のみ）
 - ローカルキャッシュ
 - SMB上の同時更新の検証
 - GitHub Actionsによるリリース
@@ -78,6 +78,28 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 - `config.json` に `"port"` を書いてあれば、そのポートだけを使い、使えなければエラーで止まる
 - 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する
 - `--no-browser` を付けると起動時にブラウザを開かない
+
+## Gitea 互換 API
+
+`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントを持つ。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。トークンは空でなければ何でも通る（`Authorization: token x`）。`/api/v1/version` だけは認証無し。
+
+持っているもの
+
+- user、users/{login}、user/orgs、orgs/{org}、user/repos、repos/search、orgs/{org}/repos
+- repos/{owner}/{repo}：本体、branches、commits、git/commits/{sha}（`.diff` 付きで差分）、contents、raw、compare/{base}...{head}
+- issues：一覧（state、type、labels、q）、作成、取得、PATCH（title、state、assignees、labels。body の書き換えは無い）、comments、labels、assets
+- labels：一覧、作成、取得、PATCH、削除
+- pulls：一覧、作成、取得、PATCH、`.diff`、commits、files、merge（`Do` は merge のみ）、reviews（APPROVED／REQUEST_CHANGES／COMMENT と行コメント）
+- tea（Gitea 公式 CLI）の v0.16 で、ログイン、リポジトリ一覧、Issue の一覧・作成・表示・クローズ、コメント、ラベル、ブランチ、PR の一覧・作成・マージが通ることを確認した
+
+Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように書く。
+
+```
+Issue と Pull Request は localhost の Gitea 互換 API で扱う。
+ポートは %LOCALAPPDATA%\github-ppoi\port.txt に書いてある。
+URL は http://localhost:<ポート>/api/v1/repos/<owner>/<リポジトリ名>/... で、
+Authorization ヘッダは token dummy のように空でない値を付ける。
+```
 
 ## データルートの構成
 

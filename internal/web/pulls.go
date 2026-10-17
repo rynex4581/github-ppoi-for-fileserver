@@ -1,7 +1,6 @@
 package web
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -431,27 +430,13 @@ func (s *Server) handlePullReview(w http.ResponseWriter, r *http.Request, st *st
 	case "reject":
 		state = store.ReviewChangesRequested
 	}
-	if is.User == s.login && state == store.ReviewApproved {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", s.tr("repo.diff.review.self_approve"))
-		return
-	}
-	if is.User == s.login && state == store.ReviewChangesRequested {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", s.tr("repo.diff.review.self_reject"))
-		return
-	}
-	if state != store.ReviewApproved && strings.TrimSpace(body) == "" {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", s.tr("repo.issues.review.content.empty"))
-		return
-	}
 	body, err := s.saveAttachments(st, repo, is.Number, r, body)
 	if err != nil {
 		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", err.Error())
 		return
 	}
-	sha, _ := s.gitRepo(st, repo).ResolveCommit("refs/heads/" + is.Head)
-	ev := store.Event{Type: store.EventReview, User: s.login, State: state, Body: body, CommitSHA: sha}
-	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
+	if err := s.addReview(st, repo, is, state, body); err != nil {
+		s.renderPull(w, opStatus(err), st, repo, is, "files", s.opMessage(err))
 		return
 	}
 	http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
@@ -506,29 +491,13 @@ func (s *Server) handlePullReviewComment(w http.ResponseWriter, r *http.Request,
 	path := strings.TrimSpace(r.FormValue("path"))
 	side := r.FormValue("side")
 	line, _ := strconv.Atoi(r.FormValue("line"))
-	if side != "old" {
-		side = "new"
-	}
-	if strings.TrimSpace(body) == "" || path == "" || line <= 0 {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", s.tr("ppoi.error.comment_required"))
-		return
-	}
-	v, err := s.buildPullView(st, repo, is, "files")
-	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	body, err = s.saveAttachments(st, repo, is.Number, r, body)
+	body, err := s.saveAttachments(st, repo, is.Number, r, body)
 	if err != nil {
 		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", err.Error())
 		return
 	}
-	ev := store.Event{
-		Type: store.EventReviewComment, User: s.login, Body: body, CommitSHA: v.HeadSHA,
-		Path: path, Line: line, Side: side, DiffHunk: extractHunk(v.Diff.Files, path, side, line),
-	}
-	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
+	if err := s.addLineComment(st, repo, is, path, side, line, body); err != nil {
+		s.renderPull(w, opStatus(err), st, repo, is, "files", s.opMessage(err))
 		return
 	}
 	http.Redirect(w, r, s.pullURL(st, repo, is.Number)+"/files", http.StatusSeeOther)
@@ -541,43 +510,14 @@ func (s *Server) handlePullMerge(w http.ResponseWriter, r *http.Request, st *sto
 	if !ok {
 		return
 	}
-	v, err := s.buildPullView(st, repo, is, "conversation")
+	warn, err := s.mergePull(st, repo, is, r.FormValue("message"))
 	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
+		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.opMessage(err))
 		return
 	}
-	if !v.CanMerge {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.tr("repo.pulls.cannot_auto_merge_desc"))
-		return
-	}
-	message := normalizeNewlines(r.FormValue("message"))
-	if strings.TrimSpace(message) == "" {
-		message = v.MergeMessage
-	}
-	c, err := s.cloneFor(st, repo)
-	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	mergeSHA, err := c.Merge(is.Base, is.Head, message)
-	if err != nil {
-		msg := s.tr("ppoi.pulls.merge_failed", err.Error())
-		if errors.Is(err, gitcmd.ErrConflict) {
-			msg = s.tr("repo.pulls.cannot_auto_merge_desc")
-		} else if errors.Is(err, gitcmd.ErrPushRejected) {
-			msg = s.tr("ppoi.pulls.push_rejected")
-		}
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", msg)
-		return
-	}
-	ev := store.Event{Type: store.EventMerged, User: s.login, MergeSHA: mergeSHA, HeadSHA: v.HeadSHA}
-	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if err := c.DeleteRemoteBranch(is.Head); err != nil {
+	if warn != "" {
 		is, _ = st.GetIssue(repo.Name, is.Number)
-		s.renderPull(w, http.StatusOK, st, repo, is, "conversation", s.tr("ppoi.pulls.head_delete_failed", is.Head, err.Error()))
+		s.renderPull(w, http.StatusOK, st, repo, is, "conversation", warn)
 		return
 	}
 	http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
@@ -592,26 +532,8 @@ func (s *Server) handlePullRevert(w http.ResponseWriter, r *http.Request, st *st
 		http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
 		return
 	}
-	c, err := s.cloneFor(st, repo)
-	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	message := fmt.Sprintf("Revert \"Merge pull request #%d from %s\"\n\nThis reverts commit %s.", is.Number, is.Head, is.MergeSHA)
-	revertSHA, err := c.Revert(is.Base, is.MergeSHA, message)
-	if err != nil {
-		msg := s.tr("ppoi.pulls.revert_failed", err.Error())
-		if errors.Is(err, gitcmd.ErrConflict) {
-			msg = s.tr("ppoi.pulls.revert_failed", s.tr("repo.pulls.cannot_auto_merge_helper"))
-		} else if errors.Is(err, gitcmd.ErrPushRejected) {
-			msg = s.tr("ppoi.pulls.push_rejected")
-		}
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", msg)
-		return
-	}
-	ev := store.Event{Type: store.EventReverted, User: s.login, MergeSHA: is.MergeSHA, RevertSHA: revertSHA}
-	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
+	if err := s.revertPull(st, repo, is); err != nil {
+		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.opMessage(err))
 		return
 	}
 	http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)

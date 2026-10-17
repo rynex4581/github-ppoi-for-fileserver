@@ -83,5 +83,7 @@
   "ppoi.licenses.title": "Open source software and licenses",
   "ppoi.licenses.desc": "Third-party software bundled into the executable, with its license text.",
   "ppoi.licenses.link": "Licenses",
-  "ppoi.licenses.self": "This tool itself is released under the MIT License."
+  "ppoi.licenses.self": "This tool itself is released under the MIT License.",
+  "ppoi.api.bad_state": "Invalid state value.",
+  "ppoi.api.body_edit": "Editing the body is not supported (there is no event for rewriting the body)."
 }
