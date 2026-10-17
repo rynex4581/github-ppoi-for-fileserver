@@ -206,3 +206,9 @@ body {
 .app-merge-box .Box-row {
   padding: 12px 16px;
 }
+
+.app-license {
+  white-space: pre-wrap;
+  max-height: 24em;
+  overflow: auto;
+}

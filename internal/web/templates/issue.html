@@ -89,8 +89,8 @@
     <div class="Box app-comment">
       <div class="Box-header color-bg-subtle"><strong>{{tr "ppoi.issues.add_comment"}}</strong></div>
       <div class="Box-body">
-        <textarea class="form-control input-block app-textarea" name="body" rows="7" placeholder="{{tr "repo.diff.comment.placeholder"}}"></textarea>
-        <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+        <textarea data-max-bytes="{{$.MaxAttach}}" data-too-large="{{tr "ppoi.attach.too_large_js"}}" class="form-control input-block app-textarea" name="body" rows="7" placeholder="{{tr "repo.diff.comment.placeholder"}}"></textarea>
+        <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}} {{tr "ppoi.attach.hint"}}</p>
       </div>
       <div class="Box-footer d-flex flex-justify-end">
         {{if eq .State "open"}}

@@ -412,3 +412,50 @@ func TestPullRequestEvents(t *testing.T) {
 		t.Errorf("Issue に PR の項目が付いている: %+v", is)
 	}
 }
+
+func TestAttachments(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.CreateRepo("sample-tool", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SaveAttachment("sample-tool", 1, "a.png", []byte("x")); err != ErrIssueNotFound {
+		t.Errorf("無い Issue への添付が ErrIssueNotFound にならない: %v", err)
+	}
+	number, err := s.AllocateIssue("sample-tool")
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, err := s.SaveAttachment("sample-tool", number, "C:\\temp\\画面 キャプチャ.PNG", []byte("png data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(name, ".png") || strings.Contains(name, "\\") || strings.Contains(name, " ") {
+		t.Errorf("保存名の形式が違う: %s", name)
+	}
+	name2, err := s.SaveAttachment("sample-tool", number, "", []byte("y"))
+	if err != nil || !strings.Contains(name2, "_file") {
+		t.Errorf("名前の無いファイルの保存名が違う: %s %v", name2, err)
+	}
+	p, err := s.AttachmentPath("sample-tool", number, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(p)
+	if string(data) != "png data" {
+		t.Errorf("中身が違う: %q", data)
+	}
+	if _, err := s.AttachmentPath("sample-tool", number, "../"+name); err != ErrAttachmentNotFound {
+		t.Error("上位フォルダへの参照が通った")
+	}
+	if _, err := s.AttachmentPath("sample-tool", number, "nothing.png"); err != ErrAttachmentNotFound {
+		t.Error("無いファイルが ErrAttachmentNotFound にならない")
+	}
+	big := make([]byte, s.AttachmentMaxBytes()+1)
+	if _, err := s.SaveAttachment("sample-tool", number, "big.bin", big); err != ErrAttachmentTooLarge {
+		t.Errorf("上限超えが ErrAttachmentTooLarge にならない: %v", err)
+	}
+	is, err := s.WriteCreated("sample-tool", number, Event{User: "testuser1", Title: "添付あり", Body: "![image](/attachments/x)"}, nil, nil)
+	if err != nil || is.Number != number || is.Title != "添付あり" {
+		t.Fatalf("WriteCreated の結果が違う: %+v %v", is, err)
+	}
+}

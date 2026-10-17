@@ -458,7 +458,17 @@ func (s *Server) handleIssueCreate(w http.ResponseWriter, r *http.Request, st *s
 		s.render(w, http.StatusUnprocessableEntity, "issue_new", p)
 		return
 	}
-	is, err := st.CreateIssue(repo.Name, s.login, f.Title, f.Body, f.Labels, f.Assignees)
+	number, err := st.AllocateIssue(repo.Name)
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	body, err := s.saveAttachments(st, repo, number, r, f.Body)
+	if err != nil {
+		s.renderError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	is, err := st.WriteCreated(repo.Name, number, store.Event{User: s.login, Title: f.Title, Body: body}, f.Labels, f.Assignees)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -654,6 +664,11 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 	}
 	body := normalizeNewlines(r.FormValue("body"))
 	action := r.FormValue("action")
+	body, err := s.saveAttachments(st, repo, is.Number, r, body)
+	if err != nil {
+		s.renderError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 
 	var ev store.Event
 	switch action {

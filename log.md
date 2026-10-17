@@ -44,6 +44,12 @@
 - 専用 clone の置き場を %LOCALAPPDATA%\github-ppoi\repos\<owner>\<リポジトリ名> に変更
 - 旧形式の端末設定（data_root が1つ）は読み込み時に data_roots へ移す。データルート側の config.json に owner が無い場合は、手で足す
 
+### 添付ファイルとライセンス一覧ページ
+
+- 本文の入力欄に画像を Ctrl+V で貼ると、本文に `![image](attachment:1)` の印が入り、フォーム送信時に画像を一緒に送る。サーバ側で issues\<番号>ttachments\ に保存し、印を `/attachments/<owner>/<リポジトリ名>/<番号>/<ファイル名>` に置き換える
+- Issue と PR の作成、コメント、レビュー、行コメントの全部で使える。上限は各データルートの config.json の attachment_max_bytes（既定 10MB）
+- /licenses に同梱している OSS（Go、Primer CSS、Octicons、Gitea の言語ファイル、goldmark）のライセンス文を出す。フッターからたどれる
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
@@ -52,11 +58,10 @@
 - ツリーでファイルごとの最終コミットは出さない（SMB 越しの git log の回数を抑える）
 - 自分の PR は承認・変更要請できない。承認必須の判定は人ごとの最新状態
 - Revert は1回まで
+- 添付は貼った時点では送らず、フォーム送信時に一緒に送る（作成前の Issue に番号が無いため）。本文中の参照は Gitea と同じ /attachments/ で始め、その後ろに owner、リポジトリ名、番号、ファイル名を続ける
 
 ## 残作業
 
-- 添付ファイル（Ctrl+V 貼り付け）
-- 使用 OSS のライセンス一覧ページ
 - Gitea 互換 API（今は /api/v1/version のみ）
 - ローカルキャッシュ（SMB 検証の前までに入れる）
 - SMB 上の同時更新の検証

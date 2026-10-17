@@ -209,7 +209,18 @@ func (s *Server) handlePullCreate(w http.ResponseWriter, r *http.Request, st *st
 		fail(s.tr("ppoi.code.ref_not_found"))
 		return
 	}
-	pr, err := st.CreatePull(repo.Name, s.login, f.Title, f.Body, f.Head, f.Base, headSHA, f.Labels, f.Assignees)
+	number, err := st.AllocateIssue(repo.Name)
+	if err != nil {
+		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	body, err := s.saveAttachments(st, repo, number, r, f.Body)
+	if err != nil {
+		s.renderError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	ev := store.Event{User: s.login, Title: f.Title, Body: body, IsPull: true, Head: f.Head, Base: f.Base, HeadSHA: headSHA}
+	pr, err := st.WriteCreated(repo.Name, number, ev, f.Labels, f.Assignees)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -432,6 +443,11 @@ func (s *Server) handlePullReview(w http.ResponseWriter, r *http.Request, st *st
 		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", s.tr("repo.issues.review.content.empty"))
 		return
 	}
+	body, err := s.saveAttachments(st, repo, is.Number, r, body)
+	if err != nil {
+		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", err.Error())
+		return
+	}
 	sha, _ := s.gitRepo(st, repo).ResolveCommit("refs/heads/" + is.Head)
 	ev := store.Event{Type: store.EventReview, User: s.login, State: state, Body: body, CommitSHA: sha}
 	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
@@ -500,6 +516,11 @@ func (s *Server) handlePullReviewComment(w http.ResponseWriter, r *http.Request,
 	v, err := s.buildPullView(st, repo, is, "files")
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	body, err = s.saveAttachments(st, repo, is.Number, r, body)
+	if err != nil {
+		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "files", err.Error())
 		return
 	}
 	ev := store.Event{

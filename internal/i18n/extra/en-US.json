@@ -76,5 +76,12 @@
   "ppoi.settings.display_name": "Display name",
   "ppoi.settings.display_name_help": "If empty, your login name (%s) is shown. Written to every registered data root.",
   "ppoi.settings.name_write_failed": "The display name could not be written to some data roots: %s",
-  "ppoi.error.owner_not_found": "Owner not found"
+  "ppoi.error.owner_not_found": "Owner not found",
+  "ppoi.attach.hint": "Paste images with Ctrl+V (saved when you submit).",
+  "ppoi.attach.too_large": "The attachment is too large (limit %d MB).",
+  "ppoi.attach.too_large_js": "The attachment is too large.",
+  "ppoi.licenses.title": "Open source software and licenses",
+  "ppoi.licenses.desc": "Third-party software bundled into the executable, with its license text.",
+  "ppoi.licenses.link": "Licenses",
+  "ppoi.licenses.self": "This tool itself is released under the MIT License."
 }

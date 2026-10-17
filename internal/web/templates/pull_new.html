@@ -36,8 +36,8 @@
       <div class="Box">
         <div class="Box-body">
           <input class="form-control input-block input-lg mb-3" type="text" name="title" placeholder="{{tr "form.Title"}}" value="{{.Data.Title}}" required autofocus autocomplete="off">
-          <textarea class="form-control input-block app-textarea" name="body" rows="10" placeholder="{{tr "repo.diff.comment.placeholder"}}">{{.Data.Body}}</textarea>
-          <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+          <textarea data-max-bytes="{{.MaxAttach}}" data-too-large="{{tr "ppoi.attach.too_large_js"}}" class="form-control input-block app-textarea" name="body" rows="10" placeholder="{{tr "repo.diff.comment.placeholder"}}">{{.Data.Body}}</textarea>
+          <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}} {{tr "ppoi.attach.hint"}}</p>
         </div>
         <div class="Box-footer d-flex flex-justify-end">
           <button class="btn btn-primary" type="submit">{{tr "repo.pulls.create"}}</button>

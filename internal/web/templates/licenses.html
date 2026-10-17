@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="col-md-9 mx-auto">
+  <div class="Subhead">
+    <h2 class="Subhead-heading">{{tr "ppoi.licenses.title"}}</h2>
+    <div class="Subhead-description">{{tr "ppoi.licenses.desc"}}</div>
+  </div>
+  <div class="Box">
+    {{range .Data}}
+    <details class="Box-row details-reset">
+      <summary class="d-flex flex-items-center app-sidebar-summary">
+        <span class="flex-auto"><strong>{{.Name}}</strong> <span class="color-fg-muted">{{.Version}}</span> <span class="Label ml-2">{{.License}}</span><div class="color-fg-muted text-small mt-1">{{.Note}}</div></span>
+        <span class="color-fg-muted">{{icon "chevron-right"}}</span>
+      </summary>
+      <div class="mt-3">
+        <a class="text-small" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a>
+        <pre class="color-bg-subtle rounded-2 p-3 text-small mt-2 app-license">{{.Text}}</pre>
+      </div>
+    </details>
+    {{end}}
+  </div>
+  <p class="color-fg-muted text-small mt-3">{{tr "ppoi.licenses.self"}}</p>
+</div>
+{{end}}

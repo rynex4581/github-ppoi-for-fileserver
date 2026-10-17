@@ -221,35 +221,51 @@ func (s *Store) writeEvent(dir string, ev Event) error {
 	return writeJSONAtomic(filepath.Join(dir, s.eventFileName(ev.Time)), ev)
 }
 
-// CreateIssue は番号を採番し、created イベントを書いて、組み立てたIssueを返す。
-// labels と assignees が空でなければ、続けてそれぞれのイベントも書く。
-func (s *Store) CreateIssue(repo, user, title, body string, labels []int, assignees []string) (Issue, error) {
+// AllocateIssue は番号を採番してフォルダを作り、番号を返す。created イベントはまだ書かない。
+// 添付ファイルを先に保存して本文に参照を入れたいときに使う。続けて WriteCreated を呼ぶ。
+func (s *Store) AllocateIssue(repo string) (int, error) {
 	if _, err := s.GetRepo(repo); err != nil {
-		return Issue{}, err
+		return 0, err
 	}
 	number, err := s.allocateNumber(repo)
 	if err != nil {
-		return Issue{}, err
+		return 0, err
 	}
+	if err := os.MkdirAll(s.eventsDir(repo, number), 0o755); err != nil {
+		return 0, err
+	}
+	return number, nil
+}
+
+// WriteCreated は AllocateIssue で取った番号に created イベントを書き、組み立てた結果を返す。
+// labels と assignees が空でなければ、続けてそれぞれのイベントも書く。
+func (s *Store) WriteCreated(repo string, number int, ev Event, labels []int, assignees []string) (Issue, error) {
 	dir := s.eventsDir(repo, number)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return Issue{}, err
-	}
-	ev := Event{Type: EventCreated, User: user, Title: title, Body: body}
+	ev.Type = EventCreated
 	if err := s.writeEvent(dir, ev); err != nil {
 		return Issue{}, err
 	}
 	if len(labels) > 0 {
-		if err := s.writeEvent(dir, Event{Type: EventLabels, User: user, Labels: labels}); err != nil {
+		if err := s.writeEvent(dir, Event{Type: EventLabels, User: ev.User, Labels: labels}); err != nil {
 			return Issue{}, err
 		}
 	}
 	if len(assignees) > 0 {
-		if err := s.writeEvent(dir, Event{Type: EventAssigned, User: user, Assignees: assignees}); err != nil {
+		if err := s.writeEvent(dir, Event{Type: EventAssigned, User: ev.User, Assignees: assignees}); err != nil {
 			return Issue{}, err
 		}
 	}
 	return s.GetIssue(repo, number)
+}
+
+// CreateIssue は番号を採番し、created イベントを書いて、組み立てたIssueを返す。
+// labels と assignees が空でなければ、続けてそれぞれのイベントも書く。
+func (s *Store) CreateIssue(repo, user, title, body string, labels []int, assignees []string) (Issue, error) {
+	number, err := s.AllocateIssue(repo)
+	if err != nil {
+		return Issue{}, err
+	}
+	return s.WriteCreated(repo, number, Event{User: user, Title: title, Body: body}, labels, assignees)
 }
 
 // AppendEvent は既存のIssueにイベントを追記する。
@@ -367,32 +383,12 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 // CreatePull は番号を採番し、Pull Request の created イベントを書いて、組み立てた結果を返す。
 // 番号は Issue と共通の連番。
 func (s *Store) CreatePull(repo, user, title, body, head, base, headSHA string, labels []int, assignees []string) (Issue, error) {
-	if _, err := s.GetRepo(repo); err != nil {
-		return Issue{}, err
-	}
-	number, err := s.allocateNumber(repo)
+	number, err := s.AllocateIssue(repo)
 	if err != nil {
 		return Issue{}, err
 	}
-	dir := s.eventsDir(repo, number)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return Issue{}, err
-	}
-	ev := Event{Type: EventCreated, User: user, Title: title, Body: body, IsPull: true, Head: head, Base: base, HeadSHA: headSHA}
-	if err := s.writeEvent(dir, ev); err != nil {
-		return Issue{}, err
-	}
-	if len(labels) > 0 {
-		if err := s.writeEvent(dir, Event{Type: EventLabels, User: user, Labels: labels}); err != nil {
-			return Issue{}, err
-		}
-	}
-	if len(assignees) > 0 {
-		if err := s.writeEvent(dir, Event{Type: EventAssigned, User: user, Assignees: assignees}); err != nil {
-			return Issue{}, err
-		}
-	}
-	return s.GetIssue(repo, number)
+	ev := Event{User: user, Title: title, Body: body, IsPull: true, Head: head, Base: base, HeadSHA: headSHA}
+	return s.WriteCreated(repo, number, ev, labels, assignees)
 }
 
 // GetIssue は1件のIssueを読んで組み立てる。

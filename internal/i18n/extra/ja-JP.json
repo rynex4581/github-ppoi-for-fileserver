@@ -76,5 +76,12 @@
   "ppoi.settings.display_name": "表示名",
   "ppoi.settings.display_name_help": "空のままならログオン名（%s）で表示されます。登録されている全データルートに書き込みます。",
   "ppoi.settings.name_write_failed": "表示名を書けなかったデータルートがあります: %s",
-  "ppoi.error.owner_not_found": "owner が見つかりません"
+  "ppoi.error.owner_not_found": "owner が見つかりません",
+  "ppoi.attach.hint": "画像は Ctrl+V で貼り付けられます（送信時に保存されます）。",
+  "ppoi.attach.too_large": "添付ファイルが大きすぎます（上限 %d MB）。",
+  "ppoi.attach.too_large_js": "添付ファイルが大きすぎます。",
+  "ppoi.licenses.title": "使用している OSS とライセンス",
+  "ppoi.licenses.desc": "本ツールの実行ファイルに同梱している第三者のソフトウェアと、そのライセンス文。",
+  "ppoi.licenses.link": "ライセンス",
+  "ppoi.licenses.self": "本ツール自体は MIT License で公開している。"
 }

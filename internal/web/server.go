@@ -167,6 +167,11 @@ func (s *Server) Handler() http.Handler {
 			staticHandler.ServeHTTP(w, r)
 			return
 		}
+		// 添付も /{owner}/{repo}/... の形と衝突するので、ここで分ける
+		if strings.HasPrefix(r.URL.Path, "/attachments/") {
+			s.handleAttachment(w, r)
+			return
+		}
 		s.mux.ServeHTTP(w, r)
 	})
 }
@@ -319,6 +324,7 @@ type page struct {
 	Port      int
 	Lang      string
 	Owner     string
+	MaxAttach int64 // 添付ファイルの上限（バイト）。リポジトリの画面で入る
 	Repo      *store.Repo
 	Tab       string
 	Error     string
@@ -364,6 +370,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /settings", s.handleSettingsSave)
 	mux.HandleFunc("POST /settings/roots", s.handleRootAdd)
 	mux.HandleFunc("POST /settings/roots/remove", s.handleRootRemove)
+	mux.HandleFunc("GET /licenses", s.handleLicenses)
 	mux.HandleFunc("GET /issues", s.handleCrossIssues)
 	mux.HandleFunc("GET /pulls", s.handleCrossPulls)
 
@@ -457,6 +464,9 @@ func (s *Server) repoPage(title string, repo store.Repo, tab string) page {
 	p.Repo = &repo
 	p.Owner = repo.Owner
 	p.Tab = tab
+	if st := s.storeByOwner(repo.Owner); st != nil {
+		p.MaxAttach = st.AttachmentMaxBytes()
+	}
 	return p
 }
 
