@@ -165,6 +165,8 @@ type issueRow struct {
 }
 
 type issuesView struct {
+	IsPull         bool
+	ListURL        string
 	State          string
 	Issues         []issueRow
 	OpenCount      int
@@ -296,6 +298,11 @@ func resolveLabels(ids []int, byID map[int]store.Label) []store.Label {
 }
 
 func (s *Server) handleIssues(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	s.listIssues(w, r, st, repo, false)
+}
+
+// listIssues は Issue（isPull が false）または Pull Request（true）の一覧を出す。
+func (s *Server) listIssues(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, isPull bool) {
 	all, err := st.ListIssues(repo.Name)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
@@ -314,8 +321,15 @@ func (s *Server) handleIssues(w http.ResponseWriter, r *http.Request, st *store.
 	byID := labelsByID(labels)
 	f := parseIssueFilter(r.URL.Query())
 	base := s.repoURL(st, repo) + "/issues"
+	tab := "issues"
+	if isPull {
+		base = s.repoURL(st, repo) + "/pulls"
+		tab = "pulls"
+	}
 
 	v := issuesView{
+		IsPull:      isPull,
+		ListURL:     base,
 		State:       f.State,
 		LabelCount:  len(labels),
 		NewIssueURL: base + "/new",
@@ -323,6 +337,9 @@ func (s *Server) handleIssues(w http.ResponseWriter, r *http.Request, st *store.
 		Filtered:    len(f.Labels) > 0 || f.Assignee != "",
 	}
 	for _, is := range all {
+		if is.IsPull != isPull {
+			continue
+		}
 		// 件数は open/closed 以外の条件を掛けた上で数える（GitHubと同じ）
 		g := f
 		g.State = is.State
@@ -374,7 +391,11 @@ func (s *Server) handleIssues(w http.ResponseWriter, r *http.Request, st *store.
 		v.AssigneeItems = append(v.AssigneeItems, filterItem{Text: st.DisplayName(u.Login), URL: base + g.query(), Selected: f.Assignee == u.Login})
 	}
 
-	p := s.repoPage(s.tr("repo.issues"), repo, "issues")
+	title := s.tr("repo.issues")
+	if isPull {
+		title = s.tr("repo.pulls")
+	}
+	p := s.repoPage(title, repo, tab)
 	p.Data = v
 	s.render(w, http.StatusOK, "issues", p)
 }
@@ -501,6 +522,16 @@ type timelineItem struct {
 	Removed  []store.Label // labels
 	Assignee string        // assignee: 対象の人
 	Assigned bool          // assignee: true なら指名、false なら解除
+
+	// Pull Request 用
+	State     string // review: approved / changes_requested / comment
+	CommitSHA string // review_comment
+	Path      string
+	Line      int
+	Side      string
+	DiffHunk  string
+	Outdated  bool   // review_comment: 今の head に無い版へのコメント
+	SHA       string // merged: マージコミット。reverted: 取り消しのコミット
 }
 
 type issueView struct {
@@ -555,6 +586,14 @@ func buildTimeline(is store.Issue, byID map[int]store.Label) []timelineItem {
 			if len(it.Added)+len(it.Removed) > 0 {
 				items = append(items, it)
 			}
+		case store.EventReview:
+			items = append(items, timelineItem{Kind: "review", User: ev.User, Time: ev.Time, Body: ev.Body, State: ev.State, CommitSHA: ev.CommitSHA})
+		case store.EventReviewComment:
+			items = append(items, timelineItem{Kind: "review_comment", User: ev.User, Time: ev.Time, Body: ev.Body, CommitSHA: ev.CommitSHA, Path: ev.Path, Line: ev.Line, Side: ev.Side, DiffHunk: ev.DiffHunk})
+		case store.EventMerged:
+			items = append(items, timelineItem{Kind: "merged", User: ev.User, Time: ev.Time, SHA: ev.MergeSHA})
+		case store.EventReverted:
+			items = append(items, timelineItem{Kind: "reverted", User: ev.User, Time: ev.Time, SHA: ev.RevertSHA})
 		case store.EventAssigned:
 			for _, login := range ev.Assignees {
 				if !containsString(assignees, login) {
@@ -630,6 +669,10 @@ func (s *Server) handleIssue(w http.ResponseWriter, r *http.Request, st *store.S
 	if !ok {
 		return
 	}
+	if is.IsPull {
+		http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
+		return
+	}
 	p, err := s.issuePage(st, repo, is)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
@@ -638,8 +681,12 @@ func (s *Server) handleIssue(w http.ResponseWriter, r *http.Request, st *store.S
 	s.render(w, http.StatusOK, "issue", p)
 }
 
-func (s *Server) redirectIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, number int) {
-	http.Redirect(w, r, fmt.Sprintf("%s/issues/%d", s.repoURL(st, repo), number), http.StatusSeeOther)
+func (s *Server) redirectIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, is store.Issue) {
+	if is.IsPull {
+		http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("%s/issues/%d", s.repoURL(st, repo), is.Number), http.StatusSeeOther)
 }
 
 func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
@@ -664,6 +711,10 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 		ev = store.Event{Type: store.EventReopened, User: s.login, Body: body}
 	default:
 		if strings.TrimSpace(body) == "" {
+			if is.IsPull {
+				s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.tr("ppoi.error.comment_required"))
+				return
+			}
 			p, err := s.issuePage(st, repo, is)
 			if err != nil {
 				s.renderError(w, http.StatusInternalServerError, err.Error())
@@ -681,7 +732,7 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 			return
 		}
 	}
-	s.redirectIssue(w, r, st, repo, is.Number)
+	s.redirectIssue(w, r, st, repo, is)
 }
 
 func (s *Server) handleIssueLabels(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
@@ -704,7 +755,7 @@ func (s *Server) handleIssueLabels(w http.ResponseWriter, r *http.Request, st *s
 			return
 		}
 	}
-	s.redirectIssue(w, r, st, repo, is.Number)
+	s.redirectIssue(w, r, st, repo, is)
 }
 
 func (s *Server) handleIssueAssignees(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
@@ -727,7 +778,7 @@ func (s *Server) handleIssueAssignees(w http.ResponseWriter, r *http.Request, st
 			return
 		}
 	}
-	s.redirectIssue(w, r, st, repo, is.Number)
+	s.redirectIssue(w, r, st, repo, is)
 }
 
 func equalInts(a, b []int) bool {

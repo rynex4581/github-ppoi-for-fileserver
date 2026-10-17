@@ -1,0 +1,297 @@
+{{define "content"}}
+{{$v := .Data}}
+{{with $v.Issue}}
+<div class="pb-3 mb-3">
+  <h1 class="f1 text-normal lh-condensed mb-2 wb-break-word">{{.Title}} <span class="color-fg-muted">#{{.Number}}</span></h1>
+  <div class="d-flex flex-items-center flex-wrap">
+    {{if .Merged}}
+    <span class="State State--merged mr-2">{{icon "git-pull-request"}} {{tr "repo.pulls.merged"}}</span>
+    {{else if eq .State "open"}}
+    <span class="State State--open mr-2">{{icon "git-pull-request"}} {{tr "repo.issues.open_title"}}</span>
+    {{else}}
+    <span class="State State--closed mr-2">{{icon "git-pull-request"}} {{tr "repo.issues.closed_title"}}</span>
+    {{end}}
+    <span class="color-fg-muted">
+      <strong class="color-fg-default">{{if .Merged}}{{name .MergedBy}}{{else}}{{name .User}}{{end}}</strong>
+      {{if .Merged}}{{trh "repo.pulls.merged_title_desc" $v.CommitCount .Head .Base (datetime .MergedAt)}}{{else}}{{trh "repo.pulls.title_desc" $v.CommitCount .Head .Base}}{{end}}
+    </span>
+  </div>
+</div>
+{{end}}
+
+<nav class="UnderlineNav mb-4" aria-label="Pull request">
+  <div class="UnderlineNav-body">
+    <a class="UnderlineNav-item{{if eq $v.Tab "conversation"}} selected{{end}}" href="{{$v.PullURL}}">{{icon "comment"}}<span class="ml-1">{{tr "repo.pulls.tab_conversation"}}</span> <span class="Counter">{{$v.Issue.Comments}}</span></a>
+    <a class="UnderlineNav-item{{if eq $v.Tab "commits"}} selected{{end}}" href="{{$v.PullURL}}/commits">{{icon "git-commit"}}<span class="ml-1">{{tr "repo.pulls.tab_commits"}}</span> <span class="Counter">{{$v.CommitCount}}</span></a>
+    <a class="UnderlineNav-item{{if eq $v.Tab "files"}} selected{{end}}" href="{{$v.PullURL}}/files">{{icon "file"}}<span class="ml-1">{{tr "repo.pulls.tab_files"}}</span> <span class="Counter">{{$v.Stat.Files}}</span></a>
+  </div>
+</nav>
+
+{{if eq $v.Tab "commits"}}
+<div class="Box">
+  {{range $v.Commits}}
+  <div class="Box-row d-flex flex-items-center">
+    <div class="flex-auto min-width-0">
+      <a class="Link--primary text-bold wb-break-word" href="{{.URL}}">{{.Subject}}</a>
+      <div class="color-fg-muted text-small mt-1"><strong>{{.Author}}</strong> · {{datetime .Time}}</div>
+    </div>
+    <a class="btn btn-sm text-mono ml-3" href="{{.URL}}">{{.ShortSHA}}</a>
+  </div>
+  {{else}}
+  <div class="blankslate"><h3 class="blankslate-heading">{{tr "ppoi.code.no_commits"}}</h3></div>
+  {{end}}
+</div>
+
+{{else if eq $v.Tab "files"}}
+<div class="d-flex flex-items-center mb-3">
+  <span class="flex-auto">{{$v.StatsHTML}}</span>
+  {{if eq $v.Issue.State "open"}}
+  <details class="details-reset details-overlay position-relative">
+    <summary class="btn btn-primary">{{tr "repo.diff.review"}} <span class="dropdown-caret"></span></summary>
+    <div class="SelectMenu right-0 app-review-menu">
+      <div class="SelectMenu-modal">
+        <header class="SelectMenu-header"><h3 class="SelectMenu-title">{{tr "repo.diff.review.header"}}</h3></header>
+        <form method="post" action="{{$v.PullURL}}/reviews" class="p-3">
+          <textarea class="form-control input-block app-textarea mb-2" name="body" rows="5" placeholder="{{tr "repo.diff.review.placeholder"}}"></textarea>
+          <label class="d-block py-1"><input type="radio" name="state" value="comment" checked> {{tr "repo.diff.review.comment"}}</label>
+          <label class="d-block py-1"><input type="radio" name="state" value="approve"{{if $v.IsAuthor}} disabled{{end}}> {{tr "repo.diff.review.approve"}}</label>
+          <label class="d-block py-1"><input type="radio" name="state" value="reject"{{if $v.IsAuthor}} disabled{{end}}> {{tr "repo.diff.review.reject"}}</label>
+          {{if $v.IsAuthor}}<p class="color-fg-muted text-small mt-1">{{tr "repo.diff.review.self_approve"}}</p>{{end}}
+          <button class="btn btn-primary mt-2" type="submit">{{tr "repo.diff.review.header"}}</button>
+        </form>
+      </div>
+    </div>
+  </details>
+  {{end}}
+</div>
+{{if $v.ForcePushed}}<div class="flash flash-warn mb-3">{{trh "ppoi.pulls.force_pushed" $v.Issue.Head}}</div>{{end}}
+{{template "prdiff" $v.Diff}}
+<template id="app-line-comment-form">
+  <form method="post" action="{{$v.Diff.CommentURL}}" class="p-3 color-bg-subtle border-top">
+    <input type="hidden" name="path"><input type="hidden" name="side"><input type="hidden" name="line">
+    <textarea class="form-control input-block app-textarea mb-2" name="body" rows="4" placeholder="{{tr "repo.diff.comment.placeholder"}}" required></textarea>
+    <button class="btn btn-sm btn-primary" type="submit">{{tr "repo.diff.comment.add_single_comment"}}</button>
+    <button class="btn btn-sm ml-2 app-cancel-comment" type="button">{{tr "cancel"}}</button>
+  </form>
+</template>
+<script src="/static/app.js"></script>
+
+{{else}}
+<div class="d-flex flex-column flex-lg-row gutter-lg">
+<div class="col-lg-9">
+<div class="app-timeline">
+  {{if $v.ForcePushed}}<div class="flash flash-warn mb-3">{{trh "ppoi.pulls.force_pushed" $v.Issue.Head}}</div>{{end}}
+  {{if and (not $v.HeadExists) (not $v.Issue.Merged)}}<div class="flash mb-3">{{trh "ppoi.pulls.head_deleted" $v.Issue.Head}}</div>{{end}}
+
+  {{with $v.Issue}}
+  <div class="TimelineItem pt-0">
+    <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
+    <div class="TimelineItem-body">
+      <div class="Box app-comment">
+        <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span></div>
+        <div class="Box-body markdown-body">{{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>{{tr "repo.issues.no_content"}}</em></p>{{end}}</div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  {{range $v.Timeline}}
+    {{if eq .Kind "comment"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
+      <div class="TimelineItem-body">
+        <div class="Box app-comment">
+          <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .Time)}}</span></div>
+          <div class="Box-body markdown-body">{{markdown .Body}}</div>
+        </div>
+      </div>
+    </div>
+    {{else if eq .Kind "review"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge{{if eq .State "approved"}} color-bg-success-emphasis color-fg-on-emphasis{{else if eq .State "changes_requested"}} color-bg-danger-emphasis color-fg-on-emphasis{{end}}">{{if eq .State "approved"}}{{icon "check"}}{{else if eq .State "changes_requested"}}{{icon "x"}}{{else}}{{icon "comment"}}{{end}}</div>
+      <div class="TimelineItem-body">
+        <strong class="color-fg-default">{{name .User}}</strong>
+        {{if eq .State "approved"}}{{trh "repo.issues.review.approve" (datetime .Time)}}{{else if eq .State "changes_requested"}}{{trh "repo.issues.review.reject" (datetime .Time)}}{{else}}{{trh "repo.issues.review.comment" (datetime .Time)}}{{end}}
+        {{if .Body}}<div class="Box app-comment mt-2"><div class="Box-body markdown-body">{{markdown .Body}}</div></div>{{end}}
+      </div>
+    </div>
+    {{else if eq .Kind "review_comment"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "comment"}}</div>
+      <div class="TimelineItem-body">
+        <strong class="color-fg-default">{{name .User}}</strong> {{tr "repo.issues.review.left_comment"}} <span class="color-fg-muted">{{datetime .Time}}</span>
+        {{if .Outdated}}<span class="Label ml-1">{{tr "repo.issues.review.outdated"}}</span>{{end}}
+        <details class="Box mt-2"{{if not .Outdated}} open{{end}}>
+          <summary class="Box-header color-bg-subtle text-mono text-small">{{.Path}}{{if .Outdated}} <span class="color-fg-muted">({{slice .CommitSHA 0 7}})</span>{{end}}</summary>
+          {{if .DiffHunk}}<pre class="app-hunk-pre m-0 text-small">{{.DiffHunk}}</pre>{{end}}
+          <div class="Box-body markdown-body">{{markdown .Body}}</div>
+        </details>
+      </div>
+    </div>
+    {{else if eq .Kind "merged"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge color-bg-done-emphasis color-fg-on-emphasis">{{icon "git-pull-request"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.comment_pull_merged_at" (slice .SHA 0 7) $v.Issue.Base (datetime .Time)}}</div>
+    </div>
+    {{else if eq .Kind "reverted"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "skip"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "ppoi.pulls.reverted_at" (datetime .Time)}} <span class="text-mono text-small">{{slice .SHA 0 7}}</span></div>
+    </div>
+    {{else if eq .Kind "closed"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge color-bg-danger-emphasis color-fg-on-emphasis">{{icon "x"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.pulls.closed_at" "" (datetime .Time)}}</div>
+    </div>
+    {{else if eq .Kind "reopened"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge color-bg-success-emphasis color-fg-on-emphasis">{{icon "git-pull-request"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.pulls.reopened_at" "" (datetime .Time)}}</div>
+    </div>
+    {{else if eq .Kind "title"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "tag"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.change_title_at" .OldTitle .Title (datetime .Time)}}</div>
+    </div>
+    {{else if eq .Kind "labels"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "tag"}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{template "labelchange" .}}</div>
+    </div>
+    {{else if eq .Kind "assignee"}}
+    <div class="TimelineItem">
+      <div class="TimelineItem-badge">{{icon "person"}}</div>
+      <div class="TimelineItem-body">
+        {{if eq .Assignee .User}}<strong class="color-fg-default">{{name .User}}</strong> {{if .Assigned}}{{trh "repo.issues.self_assign_at" (datetime .Time)}}{{else}}{{trh "repo.issues.remove_self_assignment" (datetime .Time)}}{{end}}
+        {{else}}<strong class="color-fg-default">{{name .Assignee}}</strong> {{if .Assigned}}{{trh "repo.issues.add_assignee_at" (name .User) (datetime .Time)}}{{else}}{{trh "repo.issues.remove_assignee_at" (name .User) (datetime .Time)}}{{end}}{{end}}
+      </div>
+    </div>
+    {{end}}
+  {{end}}
+
+  {{/* マージの状態と操作 */}}
+  {{with $v.Issue}}
+  <div class="TimelineItem">
+    <div class="TimelineItem-badge{{if .Merged}} color-bg-done-emphasis color-fg-on-emphasis{{else if $v.CanMerge}} color-bg-success-emphasis color-fg-on-emphasis{{else if eq .State "open"}} color-bg-danger-emphasis color-fg-on-emphasis{{end}}">{{icon "git-pull-request"}}</div>
+    <div class="TimelineItem-body">
+      <div class="Box app-merge-box">
+        {{if .Merged}}
+        <div class="Box-row">
+          <strong>{{trh "ppoi.pulls.merged_into" .Head .Base}}</strong>
+          <div class="color-fg-muted text-small mt-1">{{tr "repo.pulls.merge_commit_id"}}: <a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.MergeSHA}}">{{slice .MergeSHA 0 7}}</a></div>
+          {{if .RevertSHA}}<div class="color-fg-muted text-small mt-1">{{tr "ppoi.pulls.reverted_desc" ""}}<a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.RevertSHA}}">{{slice .RevertSHA 0 7}}</a></div>{{end}}
+        </div>
+        {{if $v.CanRevert}}
+        <div class="Box-row">
+          <details class="details-reset">
+            <summary class="btn btn-danger">{{tr "repo.commit.revert"}}</summary>
+            <form method="post" action="{{$v.PullURL}}/revert" class="mt-3">
+              <p class="text-small">{{tr "ppoi.pulls.revert_confirm" .Base}}</p>
+              <button class="btn btn-danger" type="submit">{{tr "repo.commit.revert"}}</button>
+            </form>
+          </details>
+        </div>
+        {{end}}
+        {{else if ne .State "open"}}
+        <div class="Box-row color-fg-muted">{{tr "repo.pulls.is_closed"}}</div>
+        {{else}}
+        {{if or $v.ApproveCount $v.RejectCount}}
+        <div class="Box-row text-small">
+          {{if $v.ApproveCount}}<span class="color-fg-success mr-3">{{icon "check"}} {{if eq $v.ApproveCount 1}}{{tr "repo.pulls.approve_count_1" $v.ApproveCount}}{{else}}{{tr "repo.pulls.approve_count_n" $v.ApproveCount}}{{end}}</span>{{end}}
+          {{if $v.RejectCount}}<span class="color-fg-danger">{{icon "x"}} {{if eq $v.RejectCount 1}}{{tr "repo.pulls.reject_count_1" $v.RejectCount}}{{else}}{{tr "repo.pulls.reject_count_n" $v.RejectCount}}{{end}}</span>{{end}}
+        </div>
+        {{end}}
+        {{if not $v.HeadExists}}
+        <div class="Box-row">{{trh "ppoi.pulls.head_deleted" .Head}}</div>
+        {{else if $v.NothingToMerge}}
+        <div class="Box-row">{{tr "repo.pulls.is_ancestor"}}</div>
+        {{else if $v.Conflict}}
+        <div class="Box-row">
+          <strong class="color-fg-danger">{{tr "repo.pulls.files_conflicted"}}</strong>
+          <p class="text-small mb-0 mt-1">{{trh "ppoi.pulls.conflict_help" .Base .Head}}</p>
+        </div>
+        {{else if $v.NeedsApproval}}
+        <div class="Box-row"><strong class="color-fg-attention">{{tr "ppoi.pulls.approval_required"}}</strong></div>
+        {{else}}
+        <div class="Box-row"><strong class="color-fg-success">{{tr "repo.pulls.can_auto_merge_desc"}}</strong></div>
+        {{end}}
+        {{if $v.CanMerge}}
+        <div class="Box-row">
+          <details class="details-reset">
+            <summary class="btn btn-primary">{{tr "ppoi.pulls.merge"}}</summary>
+            <form method="post" action="{{$v.PullURL}}/merge" class="mt-3">
+              <label class="d-block text-small text-bold mb-1" for="merge-message">{{tr "ppoi.pulls.merge_message"}}</label>
+              <textarea class="form-control input-block app-textarea mb-2" id="merge-message" name="message" rows="4">{{$v.MergeMessage}}</textarea>
+              <button class="btn btn-primary" type="submit">{{tr "ppoi.pulls.confirm_merge"}}</button>
+            </form>
+          </details>
+        </div>
+        {{end}}
+        {{end}}
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  {{with $v.Issue}}
+  <form method="post" action="{{$v.PullURL}}/comments" class="mt-3 pt-3 border-top">
+    <div class="Box app-comment">
+      <div class="Box-header color-bg-subtle"><strong>{{tr "ppoi.issues.add_comment"}}</strong></div>
+      <div class="Box-body">
+        <textarea class="form-control input-block app-textarea" name="body" rows="6" placeholder="{{tr "repo.diff.comment.placeholder"}}"></textarea>
+        <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+      </div>
+      <div class="Box-footer d-flex flex-justify-end">
+        {{if .Merged}}
+        {{else if eq .State "open"}}
+        <button class="btn mr-2" type="submit" name="action" value="close">{{tr "repo.pulls.close"}}</button>
+        {{else if $v.HeadExists}}
+        <button class="btn mr-2" type="submit" name="action" value="reopen">{{tr "repo.issues.reopen_issue"}}</button>
+        {{end}}
+        <button class="btn btn-primary" type="submit" name="action" value="comment">{{tr "repo.issues.create_comment"}}</button>
+      </div>
+    </div>
+  </form>
+  {{end}}
+</div>
+</div>
+
+<div class="col-lg-3">
+  <div class="border-bottom py-3">
+    <div class="text-bold color-fg-muted text-small">{{tr "repo.issues.review.reviewers"}}</div>
+    <div class="mt-2">
+      {{range $v.Issue.Reviews}}
+      <div class="py-1 d-flex flex-items-center">{{if eq .State "approved"}}<span class="color-fg-success">{{icon "check"}}</span>{{else}}<span class="color-fg-danger">{{icon "x"}}</span>{{end}}<span class="ml-1 text-bold">{{name .User}}</span><span class="ml-2 color-fg-muted text-small">{{if eq .State "approved"}}{{tr "repo.issues.review.official"}}{{else}}{{tr "repo.issues.review.rejected"}}{{end}}</span></div>
+      {{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_reviewers"}}</span>{{end}}
+    </div>
+  </div>
+  <div class="border-bottom py-3">
+    <details class="details-reset">
+      <summary class="text-bold color-fg-muted text-small d-flex flex-items-center app-sidebar-summary"><span class="flex-auto">{{tr "repo.issues.new.assignees"}}</span>{{icon "gear"}}</summary>
+      <form method="post" action="{{$v.PullURL}}/assignees" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        {{range $v.AllUsers}}<label class="d-block py-1"><input type="checkbox" name="assignees" value="{{.Login}}"{{if $v.Issue.HasAssignee .Login}} checked{{end}}> {{name .Login}}</label>{{end}}
+        <button class="btn btn-sm btn-primary mt-2" type="submit">{{tr "ppoi.apply"}}</button>
+      </form>
+    </details>
+    <div class="mt-2">{{range $v.Assignees}}<div class="py-1 d-flex flex-items-center">{{icon "person"}}<span class="ml-1 text-bold">{{name .}}</span></div>{{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_assignees"}}</span>{{end}}</div>
+  </div>
+  <div class="border-bottom py-3">
+    <details class="details-reset">
+      <summary class="text-bold color-fg-muted text-small d-flex flex-items-center app-sidebar-summary"><span class="flex-auto">{{tr "repo.issues.new.labels"}}</span>{{icon "gear"}}</summary>
+      <form method="post" action="{{$v.PullURL}}/labels" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        {{range $v.AllLabels}}<label class="d-block py-1"><input type="checkbox" name="labels" value="{{.ID}}"{{if $v.Issue.HasLabel .ID}} checked{{end}}> <span class="IssueLabel" style="{{labelStyle .Color}}">{{.Name}}</span></label>{{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>{{end}}
+        <div class="mt-2"><button class="btn btn-sm btn-primary" type="submit">{{tr "ppoi.apply"}}</button></div>
+      </form>
+    </details>
+    <div class="mt-2">{{range $v.Labels}}<a class="IssueLabel mr-1 mb-1 d-inline-block" style="{{labelStyle .Color}}" href="/{{$.Owner}}/{{$.Repo.Name}}/pulls?labels={{.ID}}">{{.Name}}</a>{{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>{{end}}</div>
+  </div>
+  {{if $v.Outdated}}
+  <div class="border-bottom py-3">
+    <div class="text-bold color-fg-muted text-small">{{tr "repo.issues.review.outdated"}}</div>
+    <div class="color-fg-muted text-small mt-1">{{tr "repo.issues.review.outdated_description"}}</div>
+  </div>
+  {{end}}
+</div>
+</div>
+{{end}}
+{{end}}

@@ -197,6 +197,7 @@ func (s *Server) funcs() template.FuncMap {
 		"labelStyle": labelStyle,
 		"chips":      labelChips,
 		"inc":        func(i int) int { return i + 1 },
+		"lineKey":    lineKey,
 	}
 }
 
@@ -338,6 +339,19 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/comments", s.withRepo(s.handleIssueComment))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/labels", s.withRepo(s.handleIssueLabels))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/assignees", s.withRepo(s.handleIssueAssignees))
+	mux.HandleFunc("GET /{owner}/{repo}/pulls", s.withRepo(s.handlePulls))
+	mux.HandleFunc("GET /{owner}/{repo}/pulls/new", s.withRepo(s.handlePullNew))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/new", s.withRepo(s.handlePullCreate))
+	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}", s.withRepo(s.pullTab("conversation")))
+	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}/commits", s.withRepo(s.pullTab("commits")))
+	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}/files", s.withRepo(s.pullTab("files")))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/comments", s.withRepo(s.handleIssueComment))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/labels", s.withRepo(s.handleIssueLabels))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/assignees", s.withRepo(s.handleIssueAssignees))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/reviews", s.withRepo(s.handlePullReview))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/review_comments", s.withRepo(s.handlePullReviewComment))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/merge", s.withRepo(s.handlePullMerge))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/revert", s.withRepo(s.handlePullRevert))
 	mux.HandleFunc("GET /{owner}/{repo}/labels", s.withRepo(s.handleLabels))
 	mux.HandleFunc("POST /{owner}/{repo}/labels", s.withRepo(s.handleLabelCreate))
 	mux.HandleFunc("POST /{owner}/{repo}/labels/{id}", s.withRepo(s.handleLabelUpdate))

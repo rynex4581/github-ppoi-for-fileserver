@@ -147,18 +147,3 @@
 </div>
 </div>
 {{end}}
-
-{{define "labelchange"}}
-{{- $added := len .Added}}{{$removed := len .Removed -}}
-{{- if and $added $removed -}}
-  {{trh "repo.issues.add_remove_labels" (chips .Added) (chips .Removed) (datetime .Time)}}
-{{- else if gt $added 1 -}}
-  {{trh "repo.issues.add_labels" (chips .Added) (datetime .Time)}}
-{{- else if eq $added 1 -}}
-  {{trh "repo.issues.add_label" (chips .Added) (datetime .Time)}}
-{{- else if gt $removed 1 -}}
-  {{trh "repo.issues.remove_labels" (chips .Removed) (datetime .Time)}}
-{{- else -}}
-  {{trh "repo.issues.remove_label" (chips .Removed) (datetime .Time)}}
-{{- end -}}
-{{end}}

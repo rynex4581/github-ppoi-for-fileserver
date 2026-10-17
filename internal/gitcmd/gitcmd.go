@@ -23,19 +23,36 @@ var ErrNotFound = errors.New("見つからない")
 
 // run は git を実行して標準出力を返す。失敗時は標準エラーをメッセージに含める。
 func (r Repo) run(args ...string) ([]byte, error) {
-	full := append([]string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-C", r.Dir}, args...)
+	out, _, err := runGit(r.Dir, nil, args...)
+	return out, err
+}
+
+// runGit は dir で git を実行し、標準出力と終了コードを返す。extra は -c の追加設定。
+func runGit(dir string, extra []string, args ...string) ([]byte, int, error) {
+	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false"}
+	full = append(full, extra...)
+	full = append(full, "-C", dir)
+	full = append(full, args...)
 	cmd := exec.Command("git", full...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		code := -1
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			code = exitErr.ExitCode()
+		}
 		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = strings.TrimSpace(stdout.String())
+		}
 		if msg == "" {
 			msg = err.Error()
 		}
-		return nil, fmt.Errorf("git %s: %s", args[0], msg)
+		return stdout.Bytes(), code, fmt.Errorf("git %s: %s", args[0], msg)
 	}
-	return stdout.Bytes(), nil
+	return stdout.Bytes(), 0, nil
 }
 
 // Branch はブランチ名と先頭のコミット。
@@ -259,4 +276,49 @@ func (r Repo) CommitDiff(c Commit) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+// MergeBase は2つのコミットの共通の祖先を返す。
+func (r Repo) MergeBase(a, b string) (string, error) {
+	out, err := r.run("merge-base", a, b)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// IsAncestor は a が b の祖先（a が b に含まれている）かを返す。a が無くなっていれば false。
+func (r Repo) IsAncestor(a, b string) bool {
+	_, code, err := runGit(r.Dir, nil, "merge-base", "--is-ancestor", a, b)
+	return err == nil && code == 0
+}
+
+// RangeLog は base に無く head にあるコミット（base..head）を新しい順に返す。
+func (r Repo) RangeLog(base, head string, limit int) ([]Commit, error) {
+	out, err := r.run("log", logFormat, "-n", strconv.Itoa(limit), base+".."+head)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	return parseCommits(out), nil
+}
+
+// RangeDiff は base と head の共通の祖先から head までの差分（base...head）を返す。
+func (r Repo) RangeDiff(base, head string) (string, error) {
+	out, err := r.run("diff", "-M", "--no-color", base+"..."+head)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	return string(out), nil
+}
+
+// HasConflict は head を base にマージしたときにコンフリクトするかを、作業ツリー無しで調べる。
+func (r Repo) HasConflict(base, head string) (bool, error) {
+	_, code, err := runGit(r.Dir, nil, "merge-tree", "--write-tree", "--no-messages", base, head)
+	if err == nil {
+		return false, nil
+	}
+	if code == 1 {
+		return true, nil
+	}
+	return false, err
 }

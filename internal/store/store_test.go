@@ -315,3 +315,59 @@ func TestUsers(t *testing.T) {
 		t.Errorf("利用者一覧が違う: %+v", users)
 	}
 }
+
+func TestPullRequestEvents(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.CreateRepo("sample-tool", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateIssue("sample-tool", "testuser1", "先にIssue", "", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	pr, err := s.CreatePull("sample-tool", "testuser1", "機能追加", "本文", "feature/x", "main", "abc1234", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pr.Number != 2 || !pr.IsPull || pr.Head != "feature/x" || pr.Base != "main" || pr.HeadSHA != "abc1234" {
+		t.Fatalf("PR の作成結果が違う: %+v", pr)
+	}
+	for _, ev := range []Event{
+		{Type: EventReview, User: "testuser2", State: ReviewChangesRequested, Body: "直して", CommitSHA: "abc1234"},
+		{Type: EventReviewComment, User: "testuser2", Body: "ここ", CommitSHA: "abc1234", Path: "src/main.go", Line: 3, Side: "new", DiffHunk: "@@ -1,3 +1,3 @@"},
+		{Type: EventReview, User: "testuser2", State: ReviewApproved, CommitSHA: "def5678"},
+		{Type: EventReview, User: "testuser3", State: ReviewComment, Body: "見た"},
+	} {
+		if err := s.AppendEvent("sample-tool", 2, ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pr, _ = s.GetIssue("sample-tool", 2)
+	if len(pr.Reviews) != 1 || pr.Reviews[0].User != "testuser2" || pr.Reviews[0].State != ReviewApproved || !pr.Approved() {
+		t.Errorf("承認状態の集計が違う: %+v", pr.Reviews)
+	}
+	if pr.Comments != 3 {
+		t.Errorf("コメント数が違う（本文ありのレビュー2 + 行コメント1）: %d", pr.Comments)
+	}
+	if pr.State != "open" || pr.Merged {
+		t.Errorf("マージ前の状態が違う: %+v", pr)
+	}
+	if err := s.AppendEvent("sample-tool", 2, Event{Type: EventMerged, User: "testuser1", MergeSHA: "m1", HeadSHA: "def5678"}); err != nil {
+		t.Fatal(err)
+	}
+	pr, _ = s.GetIssue("sample-tool", 2)
+	if !pr.Merged || pr.State != "closed" || pr.MergeSHA != "m1" || pr.MergedBy != "testuser1" || pr.MergedHeadSHA != "def5678" || pr.ClosedAt.IsZero() {
+		t.Errorf("マージ後の状態が違う: %+v", pr)
+	}
+	if err := s.AppendEvent("sample-tool", 2, Event{Type: EventReverted, User: "testuser3", MergeSHA: "m1", RevertSHA: "r1"}); err != nil {
+		t.Fatal(err)
+	}
+	pr, _ = s.GetIssue("sample-tool", 2)
+	if pr.RevertSHA != "r1" || pr.RevertedBy != "testuser3" {
+		t.Errorf("Revert の状態が違う: %+v", pr)
+	}
+	// Issue 側には PR の項目が付かない
+	is, _ := s.GetIssue("sample-tool", 1)
+	if is.IsPull || is.Head != "" {
+		t.Errorf("Issue に PR の項目が付いている: %+v", is)
+	}
+}

@@ -1,0 +1,79 @@
+{{define "content"}}
+<div class="Subhead">
+  <h2 class="Subhead-heading">{{tr "repo.pulls.compare_changes"}}</h2>
+  <div class="Subhead-description">{{tr "repo.pulls.new.description"}}</div>
+</div>
+
+{{if .Data.TooFew}}
+<div class="flash mb-3">{{tr "ppoi.pulls.needs_branches"}}</div>
+{{else}}
+<form method="get" action="/{{.Owner}}/{{.Repo.Name}}/pulls/new" class="Box color-bg-subtle p-3 mb-3 d-flex flex-items-center flex-wrap">
+  <label class="mr-2 text-small text-bold" for="base">{{tr "repo.pulls.compare_base"}}</label>
+  <select class="form-select mr-3" id="base" name="base">
+    {{range .Data.Branches}}<option value="{{.Name}}"{{if eq .Name $.Data.Base}} selected{{end}}>{{.Name}}</option>{{end}}
+  </select>
+  <span class="color-fg-muted mr-3">{{icon "arrow-left"}}</span>
+  <label class="mr-2 text-small text-bold" for="head">{{tr "repo.pulls.compare_compare"}}</label>
+  <select class="form-select mr-3" id="head" name="head">
+    {{range .Data.Branches}}<option value="{{.Name}}"{{if eq .Name $.Data.Head}} selected{{end}}>{{.Name}}</option>{{end}}
+  </select>
+  <button class="btn" type="submit">{{tr "repo.issues.force_push_compare"}}</button>
+</form>
+
+{{if .Data.Same}}
+<div class="flash flash-warn mb-3">{{tr "ppoi.pulls.same_branch"}}</div>
+{{else if .Data.Nothing}}
+<div class="flash flash-warn mb-3">{{tr "repo.pulls.nothing_to_compare"}}</div>
+{{else}}
+{{if .Data.Existing}}
+<div class="flash flash-warn mb-3">{{trh "repo.pulls.has_pull_request" (print "/" .Owner "/" .Repo.Name "/pulls/" .Data.Existing.Number) .Repo.Name .Data.Existing.Number}}</div>
+{{end}}
+<form method="post" action="/{{.Owner}}/{{.Repo.Name}}/pulls/new">
+  <input type="hidden" name="base" value="{{.Data.Base}}">
+  <input type="hidden" name="head" value="{{.Data.Head}}">
+  <div class="d-flex flex-column flex-lg-row gutter-lg">
+    <div class="col-lg-9">
+      <div class="Box">
+        <div class="Box-body">
+          <input class="form-control input-block input-lg mb-3" type="text" name="title" placeholder="{{tr "form.Title"}}" value="{{.Data.Title}}" required autofocus autocomplete="off">
+          <textarea class="form-control input-block app-textarea" name="body" rows="10" placeholder="{{tr "repo.diff.comment.placeholder"}}">{{.Data.Body}}</textarea>
+          <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+        </div>
+        <div class="Box-footer d-flex flex-justify-end">
+          <button class="btn btn-primary" type="submit">{{tr "repo.pulls.create"}}</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3">
+      <div class="border-bottom py-3">
+        <div class="text-bold color-fg-muted text-small mb-2">{{tr "repo.issues.new.assignees"}}</div>
+        {{range .Data.AllUsers}}
+        <label class="d-block py-1"><input type="checkbox" name="assignees" value="{{.Login}}"{{if $.Data.HasAssignee .Login}} checked{{end}}> {{name .Login}}</label>
+        {{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_assignees"}}</span>{{end}}
+      </div>
+      <div class="border-bottom py-3">
+        <div class="text-bold color-fg-muted text-small mb-2">{{tr "repo.issues.new.labels"}}</div>
+        {{range .Data.AllLabels}}
+        <label class="d-block py-1"><input type="checkbox" name="labels" value="{{.ID}}"{{if $.Data.HasLabel .ID}} checked{{end}}> <span class="IssueLabel" style="{{labelStyle .Color}}">{{.Name}}</span></label>
+        {{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>{{end}}
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="mt-4 mb-2 d-flex flex-items-center">
+  <strong class="mr-3">{{tr "ppoi.pulls.commits_n" (len .Data.Commits)}}</strong>
+  <span>{{.Data.StatsHTML}}</span>
+</div>
+<div class="Box mb-3">
+  {{range .Data.Commits}}
+  <div class="Box-row py-2 d-flex flex-items-center">
+    <span class="flex-auto min-width-0"><a class="Link--primary" href="{{.URL}}">{{.Subject}}</a> <span class="color-fg-muted text-small ml-2">{{.Author}} · {{datetime .Time}}</span></span>
+    <a class="text-mono text-small" href="{{.URL}}">{{.ShortSHA}}</a>
+  </div>
+  {{end}}
+</div>
+{{template "difffiles" .Data.Files}}
+{{end}}
+{{end}}
+{{end}}

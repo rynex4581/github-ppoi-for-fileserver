@@ -21,6 +21,19 @@ const (
 	EventTitle    = "title"     // タイトルの変更。title を持つ
 	EventLabels   = "labels"    // ラベルの変更。変更後のラベルID全体を labels に持つ
 	EventAssigned = "assignees" // 担当者の変更。変更後のログオン名全体を assignees に持つ
+
+	// 以下は Pull Request 用
+	EventReview        = "review"         // レビュー。state（approved / changes_requested / comment）、body、commit_sha を持つ
+	EventReviewComment = "review_comment" // 行コメント。body、commit_sha、path、line、side、diff_hunk を持つ
+	EventMerged        = "merged"         // マージ。merge_sha と、マージした時点の head_sha を持つ
+	EventReverted      = "reverted"       // マージの取り消し。revert_sha と merge_sha を持つ
+)
+
+// レビューの状態。
+const (
+	ReviewApproved         = "approved"
+	ReviewChangesRequested = "changes_requested"
+	ReviewComment          = "comment"
 )
 
 // Event はIssueに対する操作1件。events フォルダの1ファイルに対応する。
@@ -32,6 +45,20 @@ type Event struct {
 	Body      string    `json:"body,omitempty"`
 	Labels    []int     `json:"labels,omitempty"`    // type が labels のとき、変更後のラベルID全体（空なら全解除）
 	Assignees []string  `json:"assignees,omitempty"` // type が assignees のとき、変更後の担当者全体（空なら全解除）
+
+	// Pull Request 用。created で is_pull が true のものが Pull Request
+	IsPull    bool   `json:"is_pull,omitempty"`
+	Head      string `json:"head,omitempty"`       // created: 取り込む側のブランチ
+	Base      string `json:"base,omitempty"`       // created: 取り込まれる側のブランチ
+	HeadSHA   string `json:"head_sha,omitempty"`   // created: 作成時の head の先頭。merged: マージした head の先頭
+	CommitSHA string `json:"commit_sha,omitempty"` // review / review_comment: 対象にした head のコミット
+	State     string `json:"state,omitempty"`      // review: approved / changes_requested / comment
+	Path      string `json:"path,omitempty"`       // review_comment: ファイルのパス
+	Line      int    `json:"line,omitempty"`       // review_comment: 行番号
+	Side      string `json:"side,omitempty"`       // review_comment: new（追加・文脈の行）か old（削除の行）
+	DiffHunk  string `json:"diff_hunk,omitempty"`  // review_comment: 当該行の前後の差分の断片
+	MergeSHA  string `json:"merge_sha,omitempty"`  // merged / reverted: マージコミット
+	RevertSHA string `json:"revert_sha,omitempty"` // reverted: 取り消しのコミット
 
 	// File は読み込み元のファイル名。書き込み時は空でよい。
 	File string `json:"-"`
@@ -51,6 +78,39 @@ type Issue struct {
 	Labels    []int     // 付いているラベルのID（削除済みのラベルのIDが残ることがある）
 	Assignees []string  // 担当者のログオン名
 	Events    []Event
+
+	// Pull Request 用
+	IsPull        bool
+	Head          string
+	Base          string
+	HeadSHA       string // 作成時の head の先頭
+	Merged        bool
+	MergeSHA      string
+	MergedHeadSHA string // マージした時点の head の先頭
+	MergedBy      string
+	MergedAt      time.Time
+	RevertSHA     string
+	RevertedBy    string
+	RevertedAt    time.Time
+	Reviews       []Review // 利用者ごとの最新の承認状態（approved / changes_requested のみ）
+}
+
+// Review は利用者1人の最新の承認状態。
+type Review struct {
+	User      string
+	State     string
+	Time      time.Time
+	CommitSHA string
+}
+
+// Approved は承認（最新の状態が approved）が1つ以上あるかを返す。
+func (is Issue) Approved() bool {
+	for _, r := range is.Reviews {
+		if r.State == ReviewApproved {
+			return true
+		}
+	}
+	return false
 }
 
 // HasLabel はラベルが付いているかを返す。
@@ -235,6 +295,7 @@ func (s *Store) ReadEvents(repo string, number int) ([]Event, error) {
 func BuildIssue(number int, events []Event) (Issue, bool) {
 	is := Issue{Number: number, State: "open", Events: events}
 	created := false
+	reviews := map[string]Review{}
 	for _, ev := range events {
 		switch ev.Type {
 		case EventCreated:
@@ -246,6 +307,10 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 			is.Body = ev.Body
 			is.User = ev.User
 			is.CreatedAt = ev.Time
+			is.IsPull = ev.IsPull
+			is.Head = ev.Head
+			is.Base = ev.Base
+			is.HeadSHA = ev.HeadSHA
 		case EventComment:
 			is.Comments++
 		case EventClosed:
@@ -266,12 +331,68 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 			is.Labels = append([]int(nil), ev.Labels...)
 		case EventAssigned:
 			is.Assignees = append([]string(nil), ev.Assignees...)
+		case EventReview:
+			if ev.Body != "" {
+				is.Comments++
+			}
+			if ev.State == ReviewApproved || ev.State == ReviewChangesRequested {
+				reviews[ev.User] = Review{User: ev.User, State: ev.State, Time: ev.Time, CommitSHA: ev.CommitSHA}
+			}
+		case EventReviewComment:
+			is.Comments++
+		case EventMerged:
+			is.Merged = true
+			is.MergeSHA = ev.MergeSHA
+			is.MergedHeadSHA = ev.HeadSHA
+			is.MergedBy = ev.User
+			is.MergedAt = ev.Time
+			is.State = "closed"
+			is.ClosedAt = ev.Time
+		case EventReverted:
+			is.RevertSHA = ev.RevertSHA
+			is.RevertedBy = ev.User
+			is.RevertedAt = ev.Time
 		}
 		if ev.Time.After(is.UpdatedAt) {
 			is.UpdatedAt = ev.Time
 		}
 	}
+	for _, r := range reviews {
+		is.Reviews = append(is.Reviews, r)
+	}
+	sort.Slice(is.Reviews, func(i, j int) bool { return is.Reviews[i].User < is.Reviews[j].User })
 	return is, created
+}
+
+// CreatePull は番号を採番し、Pull Request の created イベントを書いて、組み立てた結果を返す。
+// 番号は Issue と共通の連番。
+func (s *Store) CreatePull(repo, user, title, body, head, base, headSHA string, labels []int, assignees []string) (Issue, error) {
+	if _, err := s.GetRepo(repo); err != nil {
+		return Issue{}, err
+	}
+	number, err := s.allocateNumber(repo)
+	if err != nil {
+		return Issue{}, err
+	}
+	dir := s.eventsDir(repo, number)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return Issue{}, err
+	}
+	ev := Event{Type: EventCreated, User: user, Title: title, Body: body, IsPull: true, Head: head, Base: base, HeadSHA: headSHA}
+	if err := s.writeEvent(dir, ev); err != nil {
+		return Issue{}, err
+	}
+	if len(labels) > 0 {
+		if err := s.writeEvent(dir, Event{Type: EventLabels, User: user, Labels: labels}); err != nil {
+			return Issue{}, err
+		}
+	}
+	if len(assignees) > 0 {
+		if err := s.writeEvent(dir, Event{Type: EventAssigned, User: user, Assignees: assignees}); err != nil {
+			return Issue{}, err
+		}
+	}
+	return s.GetIssue(repo, number)
 }
 
 // GetIssue は1件のIssueを読んで組み立てる。

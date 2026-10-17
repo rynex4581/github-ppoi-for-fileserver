@@ -39,6 +39,7 @@
       <div class="UnderlineNav-body">
         <a class="UnderlineNav-item{{if eq .Tab "code"}} selected{{end}}" {{if eq .Tab "code"}}aria-current="page"{{end}} href="/{{.Owner}}/{{.Repo.Name}}">{{icon "code"}}<span class="ml-1">{{tr "repo.code"}}</span></a>
         <a class="UnderlineNav-item{{if eq .Tab "issues"}} selected{{end}}" {{if eq .Tab "issues"}}aria-current="page"{{end}} href="/{{.Owner}}/{{.Repo.Name}}/issues">{{icon "issue-opened"}}<span class="ml-1">{{tr "repo.issues"}}</span></a>
+        <a class="UnderlineNav-item{{if eq .Tab "pulls"}} selected{{end}}" {{if eq .Tab "pulls"}}aria-current="page"{{end}} href="/{{.Owner}}/{{.Repo.Name}}/pulls">{{icon "git-pull-request"}}<span class="ml-1">{{tr "repo.pulls"}}</span></a>
       </div>
     </nav>
   </div>
