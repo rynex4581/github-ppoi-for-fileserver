@@ -10,9 +10,9 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -39,7 +39,7 @@ jobs:
           "FileVersion=$($v.FileVersion) ProductVersion=$($v.ProductVersion)"
           if (-not $v.FileVersion) { Write-Error "VERSIONINFO が入っていない"; exit 1 }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: github-ppoi
           path: github-ppoi.exe
