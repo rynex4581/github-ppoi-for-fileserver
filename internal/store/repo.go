@@ -15,6 +15,7 @@ import (
 // Repo はリポジトリの情報。meta\<名前>\repo.json に対応する。
 type Repo struct {
 	Name            string `json:"-"`
+	Owner           string `json:"-"` // データルートの owner 名
 	Description     string `json:"description"`
 	DefaultBranch   string `json:"default_branch"`
 	RequireApproval bool   `json:"require_approval"`
@@ -83,9 +84,10 @@ func (s *Store) GetRepo(name string) (Repo, error) {
 
 // readRepoMeta は repo.json を読む。無い、または読めないときは既定値で返す。
 func (s *Store) readRepoMeta(name string) Repo {
-	r := Repo{Name: name, DefaultBranch: s.config.DefaultBranch}
+	r := Repo{Name: name, Owner: s.config.Owner, DefaultBranch: s.config.DefaultBranch}
 	_ = readJSON(filepath.Join(s.repoMetaDir(name), "repo.json"), &r)
 	r.Name = name
+	r.Owner = s.config.Owner
 	if r.DefaultBranch == "" {
 		r.DefaultBranch = s.config.DefaultBranch
 	}
@@ -126,7 +128,7 @@ func (s *Store) CreateRepo(name, description string) (Repo, error) {
 		return Repo{}, fmt.Errorf("git init --bare に失敗: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 
-	r := Repo{Name: name, Description: description, DefaultBranch: s.config.DefaultBranch}
+	r := Repo{Name: name, Owner: s.config.Owner, Description: description, DefaultBranch: s.config.DefaultBranch}
 	if err := os.MkdirAll(s.repoMetaDir(name), 0o755); err != nil {
 		return Repo{}, err
 	}

@@ -55,6 +55,14 @@ func (s *Store) ListUsers() ([]User, error) {
 	return users, nil
 }
 
+// SetUserName は利用者の表示名を書く。自分のファイルだけを書くので他の端末と競合しない。
+func (s *Store) SetUserName(login, name string) error {
+	if !isSafeName(login) {
+		return errors.New("ログオン名に使えない文字が含まれている")
+	}
+	return writeJSONAtomic(s.userPath(login), User{Name: strings.TrimSpace(name)})
+}
+
 // EnsureUser は利用者のファイルが無ければ表示名なしで作る。
 // これにより、一度でもツールを起動した人が担当者の候補に出る。
 func (s *Store) EnsureUser(login string) error {

@@ -12,21 +12,43 @@ import (
 
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
-	s, err := Open(t.TempDir())
+	s, err := Create(t.TempDir(), Config{Owner: "team-a", OwnerName: "試験チーム"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return s
 }
 
-func TestOpenCreatesConfigAndDirs(t *testing.T) {
+func TestCreateAndOpen(t *testing.T) {
 	root := t.TempDir()
-	s, err := Open(root)
+	if _, err := Open(root); err == nil {
+		t.Fatal("config.json の無いフォルダが開けてしまう")
+	}
+	if _, err := Create(root, Config{Owner: "日本語"}); err == nil {
+		t.Fatal("ASCII でない owner 名が通った")
+	}
+	if _, err := Create(root, Config{Owner: ""}); err == nil {
+		t.Fatal("空の owner 名が通った")
+	}
+	s, err := Create(root, Config{Owner: "team-a", OwnerName: "試験チーム"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Config().Owner == "" || s.Config().DefaultBranch == "" {
-		t.Fatalf("config の既定値が入っていない: %+v", s.Config())
+	if s.Config().Owner != "team-a" || s.Config().DisplayOwner() != "試験チーム" || s.Config().DefaultBranch != "main" {
+		t.Fatalf("config の内容が違う: %+v", s.Config())
+	}
+	if _, err := Create(root, Config{Owner: "team-b"}); err != ErrConfigExists {
+		t.Errorf("二重の初期化が ErrConfigExists にならない: %v", err)
+	}
+	again, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Config().Owner != "team-a" {
+		t.Errorf("開き直した config が違う: %+v", again.Config())
+	}
+	if (Config{Owner: "x"}).DisplayOwner() != "x" {
+		t.Error("表示名が無いときに owner 名で代用していない")
 	}
 	for _, p := range []string{"config.json", "repos", filepath.Join("meta", "users")} {
 		if _, err := os.Stat(filepath.Join(root, p)); err != nil {
@@ -41,6 +63,25 @@ func TestOpenCreatesConfigAndDirs(t *testing.T) {
 func TestOpenRejectsMissingRoot(t *testing.T) {
 	if _, err := Open(filepath.Join(t.TempDir(), "nothing")); err == nil {
 		t.Fatal("存在しないデータルートでエラーにならない")
+	}
+	if _, err := Create(filepath.Join(t.TempDir(), "nothing"), Config{Owner: "x"}); err == nil {
+		t.Fatal("存在しないフォルダを初期化できてしまう")
+	}
+}
+
+func TestSetUserName(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.SetUserName("testuser1", " 試験 太郎 "); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.DisplayName("testuser1"); got != "試験 太郎" {
+		t.Errorf("表示名が違う: %q", got)
+	}
+	if err := s.SetUserName("testuser1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.DisplayName("testuser1"); got != "testuser1" {
+		t.Errorf("空にした後はログオン名に戻るはず: %q", got)
 	}
 }
 

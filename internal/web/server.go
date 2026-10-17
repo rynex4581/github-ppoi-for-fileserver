@@ -41,11 +41,11 @@ const giteaVersion = "28.1.0"
 
 // Server はWeb画面の状態を持つ。
 type Server struct {
-	mu      sync.RWMutex
-	cfg     localconfig.Config
-	st      *store.Store // データルート未設定、または開けなかったときは nil
-	openErr error        // データルートを開けなかったときの理由
-	loc     *i18n.Locale
+	mu       sync.RWMutex
+	cfg      localconfig.Config
+	stores   []*store.Store    // 開けたデータルート。1つが owner 1つに対応する
+	rootErrs map[string]string // 開けなかったデータルートのパス → 理由
+	loc      *i18n.Locale
 
 	login string
 	port  int
@@ -55,9 +55,10 @@ type Server struct {
 	mux   *http.ServeMux
 }
 
-// New はサーバを作る。データルートが設定済みなら開く。開けなくても起動はし、設定画面で知らせる。
+// New はサーバを作る。登録されているデータルートをすべて開く。
+// 開けないものがあっても起動はし、設定画面で知らせる。同じ owner 名が2つあればエラーで止める。
 func New(cfg localconfig.Config, login string, port int) (*Server, error) {
-	s := &Server{cfg: cfg, login: login, port: port}
+	s := &Server{cfg: cfg, login: login, port: port, rootErrs: map[string]string{}}
 	s.md = goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithRendererOptions(goldmarkhtml.WithHardWraps()),
@@ -73,14 +74,68 @@ func New(cfg localconfig.Config, login string, port int) (*Server, error) {
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
-	if cfg.DataRoot != "" {
-		s.st, s.openErr = s.openStore(cfg.DataRoot)
-		if s.openErr != nil {
-			log.Printf("データルートを開けない: %v", s.openErr)
+	owners := map[string]string{}
+	for _, root := range cfg.DataRoots {
+		st, err := s.openStore(root)
+		if err != nil {
+			log.Printf("データルートを開けない: %v", err)
+			s.rootErrs[root] = err.Error()
+			continue
 		}
+		owner := st.Config().Owner
+		if other, dup := owners[owner]; dup {
+			return nil, fmt.Errorf("owner 名 %q のデータルートが2つ登録されている: %s と %s。端末側の config.json を直す", owner, other, root)
+		}
+		owners[owner] = root
+		s.stores = append(s.stores, st)
 	}
 	s.routes()
 	return s, nil
+}
+
+// allStores は開けているデータルートを登録順で返す。
+func (s *Server) allStores() []*store.Store {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return append([]*store.Store(nil), s.stores...)
+}
+
+// storeByOwner は owner 名からデータルートを引く。無ければ nil。
+func (s *Server) storeByOwner(owner string) *store.Store {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, st := range s.stores {
+		if st.Config().Owner == owner {
+			return st
+		}
+	}
+	return nil
+}
+
+// storeByRootLocked はパスからデータルートを引く。呼ぶ側でロックを取る。
+func (s *Server) storeByRootLocked(root string) *store.Store {
+	for _, st := range s.stores {
+		if st.Root() == root {
+			return st
+		}
+	}
+	return nil
+}
+
+// displayName はログオン名の表示名を返す。全データルートを順に見て、登録が見つかった最初のものを使う。
+func (s *Server) displayName(login string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.displayNameLocked(login)
+}
+
+func (s *Server) displayNameLocked(login string) string {
+	for _, st := range s.stores {
+		if name := st.DisplayName(login); name != login {
+			return name
+		}
+	}
+	return login
 }
 
 // openStore はデータルートを開き、自分の利用者ファイルが無ければ作る。
@@ -122,12 +177,6 @@ func isLocalHost(host string) bool {
 		host = h
 	}
 	return host == "localhost" || host == "127.0.0.1"
-}
-
-func (s *Server) store() *store.Store {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.st
 }
 
 func (s *Server) locale() *i18n.Locale {
@@ -184,16 +233,11 @@ func (s *Server) funcs() template.FuncMap {
 			}
 			return template.HTML("")
 		},
-		"tr":       s.tr,
-		"trh":      s.trh,
-		"markdown": s.renderMarkdown,
-		"datetime": formatTime,
-		"name": func(login string) string {
-			if st := s.store(); st != nil {
-				return st.DisplayName(login)
-			}
-			return login
-		},
+		"tr":         s.tr,
+		"trh":        s.trh,
+		"markdown":   s.renderMarkdown,
+		"datetime":   formatTime,
+		"name":       s.displayName,
 		"labelStyle": labelStyle,
 		"chips":      labelChips,
 		"inc":        func(i int) int { return i + 1 },
@@ -274,7 +318,6 @@ type page struct {
 	Version   string
 	Port      int
 	Lang      string
-	DataRoot  string
 	Owner     string
 	Repo      *store.Repo
 	Tab       string
@@ -283,13 +326,7 @@ type page struct {
 }
 
 func (s *Server) newPage(title string) page {
-	p := page{Title: title, Login: s.login, LoginName: s.login, Version: version.Display, Port: s.port, Lang: s.locale().Lang()}
-	if st := s.store(); st != nil {
-		p.LoginName = st.DisplayName(s.login)
-		p.DataRoot = st.Root()
-		p.Owner = st.Config().Owner
-	}
-	return p
+	return page{Title: title, Login: s.login, LoginName: s.displayName(s.login), Version: version.Display, Port: s.port, Lang: s.locale().Lang()}
 }
 
 func (s *Server) render(w http.ResponseWriter, status int, name string, p page) {
@@ -325,6 +362,10 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /new", s.handleRepoCreate)
 	mux.HandleFunc("GET /settings", s.handleSettings)
 	mux.HandleFunc("POST /settings", s.handleSettingsSave)
+	mux.HandleFunc("POST /settings/roots", s.handleRootAdd)
+	mux.HandleFunc("POST /settings/roots/remove", s.handleRootRemove)
+	mux.HandleFunc("GET /issues", s.handleCrossIssues)
+	mux.HandleFunc("GET /pulls", s.handleCrossPulls)
 
 	mux.HandleFunc("GET /{owner}/{repo}", s.withRepo(s.handleCode))
 	mux.HandleFunc("GET /{owner}/{repo}/tree/{rest...}", s.withRepo(s.handleCode))
@@ -376,14 +417,13 @@ func (s *Server) handleAPIVersion(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// requireStore はデータルートが使える状態かを確かめ、使えなければ設定画面へ送る。
-func (s *Server) requireStore(w http.ResponseWriter, r *http.Request) *store.Store {
-	st := s.store()
-	if st == nil {
+// requireStores はデータルートが1つ以上使える状態かを確かめ、無ければ設定画面へ送る。
+func (s *Server) requireStores(w http.ResponseWriter, r *http.Request) bool {
+	if len(s.allStores()) == 0 {
 		http.Redirect(w, r, "/settings", http.StatusSeeOther)
-		return nil
+		return false
 	}
-	return st
+	return true
 }
 
 type repoHandler func(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo)
@@ -391,11 +431,11 @@ type repoHandler func(w http.ResponseWriter, r *http.Request, st *store.Store, r
 // withRepo はURLの owner と repo を確かめてからハンドラに渡す。
 func (s *Server) withRepo(h repoHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		st := s.requireStore(w, r)
-		if st == nil {
+		if !s.requireStores(w, r) {
 			return
 		}
-		if r.PathValue("owner") != st.Config().Owner {
+		st := s.storeByOwner(r.PathValue("owner"))
+		if st == nil {
 			s.renderError(w, http.StatusNotFound, s.tr("ppoi.error.repo_not_found"))
 			return
 		}
@@ -415,6 +455,7 @@ func (s *Server) withRepo(h repoHandler) http.HandlerFunc {
 func (s *Server) repoPage(title string, repo store.Repo, tab string) page {
 	p := s.newPage(title + " · " + repo.Name)
 	p.Repo = &repo
+	p.Owner = repo.Owner
 	p.Tab = tab
 	return p
 }

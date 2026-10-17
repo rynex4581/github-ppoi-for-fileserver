@@ -26,13 +26,27 @@ const DefaultLang = "ja-JP"
 
 // Config は端末側の設定。
 type Config struct {
-	// DataRoot はデータルート（ファイルサーバ上の共有フォルダ）のパス。空なら未設定。
-	DataRoot string `json:"data_root"`
+	// DataRoots はデータルート（ファイルサーバ上の共有フォルダ）のパスの一覧。空なら未設定。
+	// 1つのデータルートが owner 1つに対応する。
+	DataRoots []string `json:"data_roots"`
 	// Port は待ち受けポート。0 なら既定の範囲から空きを探す。
 	// 明示してある場合は空きを探さず、使えなければエラーで止める。
 	Port int `json:"port,omitempty"`
 	// Lang は画面の言語（ja-JP または en-US）。空なら DefaultLang。
 	Lang string `json:"lang,omitempty"`
+
+	// LegacyDataRoot はデータルートが1つだった頃の項目。読み込み時に DataRoots へ移す。
+	LegacyDataRoot string `json:"data_root,omitempty"`
+}
+
+// HasRoot はデータルートが登録済みかを返す。
+func (c Config) HasRoot(root string) bool {
+	for _, r := range c.DataRoots {
+		if strings.EqualFold(filepath.Clean(r), filepath.Clean(root)) {
+			return true
+		}
+	}
+	return false
 }
 
 // Dir は設定ファイルを置くフォルダ（%LOCALAPPDATA%\github-ppoi）を返す。
@@ -83,6 +97,12 @@ func Load() (Config, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return c, fmt.Errorf("%s の読み込みに失敗: %w", path, err)
 	}
+	if c.LegacyDataRoot != "" {
+		if !c.HasRoot(c.LegacyDataRoot) {
+			c.DataRoots = append(c.DataRoots, c.LegacyDataRoot)
+		}
+		c.LegacyDataRoot = ""
+	}
 	return c, nil
 }
 
@@ -94,6 +114,10 @@ func Save(c Config) error {
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
+	}
+	c.LegacyDataRoot = ""
+	if c.DataRoots == nil {
+		c.DataRoots = []string{}
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {

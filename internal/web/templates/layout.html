@@ -19,6 +19,12 @@
   {{end}}
   <div class="Header-item Header-item--full"></div>
   <div class="Header-item">
+    <a class="Header-link{{if eq .Tab "/issues"}} text-bold{{end}}" href="/issues">{{tr "repo.issues"}}</a>
+  </div>
+  <div class="Header-item">
+    <a class="Header-link{{if eq .Tab "/pulls"}} text-bold{{end}}" href="/pulls">{{tr "repo.pulls"}}</a>
+  </div>
+  <div class="Header-item">
     <a class="Header-link" href="/settings" title="{{tr "your_settings"}}">{{icon "gear"}}</a>
   </div>
   <div class="Header-item mr-0">
@@ -53,8 +59,8 @@
 </main>
 
 <footer class="container-lg px-3 py-3 border-top color-fg-muted text-small d-flex">
-  <span class="flex-auto flex-shrink-0 mr-4">{{tr "ppoi.app_name"}} {{.Version}} · localhost:{{.Port}}</span>
-  {{if .DataRoot}}<span class="text-right wb-break-all">{{.DataRoot}}</span>{{end}}
+  <span class="flex-auto">{{tr "ppoi.app_name"}} {{.Version}} · localhost:{{.Port}}</span>
+  <a class="Link--muted ml-3" href="/settings">{{tr "your_settings"}}</a>
 </footer>
 </body>
 </html>

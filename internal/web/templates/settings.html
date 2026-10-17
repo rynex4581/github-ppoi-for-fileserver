@@ -1,19 +1,70 @@
 {{define "content"}}
-<div class="col-md-8 mx-auto">
+<div class="col-md-9 mx-auto">
   <div class="Subhead">
     <h2 class="Subhead-heading">{{tr "ppoi.settings.title"}}</h2>
   </div>
   {{if .Data.Saved}}<div class="flash flash-success mb-3">{{tr "ppoi.settings.saved"}}</div>{{end}}
-  {{if .Data.OpenError}}<div class="flash flash-error mb-3">{{.Data.OpenError}}</div>{{end}}
-  {{if not .DataRoot}}
+  {{if not .Data.Roots}}
   <div class="flash mb-3">{{tr "ppoi.settings.first_time"}}</div>
   {{end}}
+
+  <h3 class="f4 mb-2">{{tr "ppoi.settings.data_roots"}}</h3>
+  <div class="Box mb-3">
+    {{range .Data.Roots}}
+    <div class="Box-row d-flex flex-items-center">
+      <div class="flex-auto min-width-0">
+        {{if .Error}}
+        <span class="color-fg-danger">{{icon "alert"}}</span> <span class="text-mono text-small wb-break-all">{{.Path}}</span>
+        <div class="color-fg-danger text-small mt-1">{{.Error}}</div>
+        {{else}}
+        <strong>{{if .OwnerName}}{{.OwnerName}}{{else}}{{.Owner}}{{end}}</strong> <span class="color-fg-muted text-mono">{{.Owner}}</span>
+        <div class="color-fg-muted text-small text-mono wb-break-all mt-1">{{.Path}}</div>
+        {{end}}
+      </div>
+      <form method="post" action="/settings/roots/remove" class="ml-3" onsubmit="return confirm({{tr "ppoi.settings.remove_confirm"}})">
+        <input type="hidden" name="path" value="{{.Path}}">
+        <button class="btn btn-sm btn-danger" type="submit">{{tr "ppoi.settings.remove"}}</button>
+      </form>
+    </div>
+    {{else}}
+    <div class="Box-row color-fg-muted">{{tr "ppoi.settings.no_roots"}}</div>
+    {{end}}
+    {{if .Data.ShowAddForm}}
+    <form method="post" action="/settings/roots" class="Box-row color-bg-subtle">
+      <div class="text-bold text-small mb-2">{{tr "ppoi.settings.add_root"}}</div>
+      <p class="color-fg-muted text-small">{{tr "ppoi.settings.root_help"}}</p>
+      <div class="form-group mt-2">
+        <div class="form-group-header"><label for="root-path">{{tr "ppoi.settings.root_path"}}</label></div>
+        <div class="form-group-body"><input class="form-control input-block text-mono" type="text" id="root-path" name="path" value="{{.Data.NewPath}}" placeholder="\\fileserver\share\github-ppoi" required autocomplete="off"></div>
+      </div>
+      <div class="d-flex flex-wrap gutter-condensed">
+        <div class="col-12 col-md-5">
+          <div class="form-group">
+            <div class="form-group-header"><label for="root-owner">{{tr "ppoi.settings.owner"}}</label></div>
+            <div class="form-group-body"><input class="form-control input-block" type="text" id="root-owner" name="owner" value="{{.Data.NewOwner}}" placeholder="team-a" autocomplete="off"></div>
+          </div>
+        </div>
+        <div class="col-12 col-md-7">
+          <div class="form-group">
+            <div class="form-group-header"><label for="root-owner-name">{{tr "ppoi.settings.owner_name"}}</label></div>
+            <div class="form-group-body"><input class="form-control input-block" type="text" id="root-owner-name" name="owner_name" value="{{.Data.NewOwnerNm}}" autocomplete="off"></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit">{{tr "ppoi.settings.add_root"}}</button>
+      {{if .Data.Roots}}<a class="btn ml-2" href="/settings">{{tr "cancel"}}</a>{{end}}
+    </form>
+    {{else}}
+    <div class="Box-row"><a class="btn btn-sm" href="/settings?add=1">{{icon "plus"}} {{tr "ppoi.settings.add_root"}}</a></div>
+    {{end}}
+  </div>
+
   <form method="post" action="/settings">
     <div class="form-group">
-      <div class="form-group-header"><label for="data_root">{{tr "ppoi.settings.data_root"}}</label></div>
+      <div class="form-group-header"><label for="name">{{tr "ppoi.settings.display_name"}}</label></div>
       <div class="form-group-body">
-        <input class="form-control input-block text-mono" type="text" id="data_root" name="data_root" value="{{.Data.DataRoot}}" placeholder="\\fileserver\share\github-ppoi" required autofocus autocomplete="off">
-        <p class="note">{{tr "ppoi.settings.data_root_help"}}</p>
+        <input class="form-control" type="text" id="name" name="name" value="{{.Data.Name}}" placeholder="{{.Login}}" autocomplete="off">
+        <p class="note">{{tr "ppoi.settings.display_name_help" .Login}}</p>
       </div>
     </div>
     <div class="form-group">

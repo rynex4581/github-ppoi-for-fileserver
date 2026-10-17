@@ -42,19 +42,20 @@ Ver 0.10。開発中であり、職場で使える状態ではない。
 できていること
 
 - 手元のディスク上のデータルートでの動作
-- トップ画面：リポジトリ一覧、新規リポジトリの作成（ベアリポジトリの作成を含む）
+- トップ画面：全データルートのリポジトリを owner ごとに一覧、新規リポジトリの作成（作成先の owner を選ぶ。ベアリポジトリの作成を含む）
 - Code：ファイルツリー、ファイル表示（Markdown の描画、画像）、ブランチ切替、コミット履歴、コミットの差分、clone コマンドの表示、空リポジトリへの push 手順の表示
 - Issues：一覧（open／closed、ラベル、担当者で絞り込み）、詳細、新規作成、コメント、クローズと再オープン、ラベルと担当者の変更
 - ラベルの管理（作成、編集、削除）
 - Settings：説明、デフォルトブランチ（ベアリポジトリの HEAD にも反映）、承認必須、force push 禁止（receive.denyNonFastForwards）
 - Pull requests：一覧、新規（ブランチを選んで比較）、詳細（Conversation／Commits／Files changed）、レビュー（承認／変更要請／コメント）、差分への行コメント、--no-ff でのマージとマージ後の head ブランチ削除、Revert、コンフリクトと force push の表示、承認必須の設定への対応
-- 自分の設定：データルート、言語（日本語／英語）
+- 自分の設定：データルートの一覧（追加・登録解除。1つのデータルートが owner 1つに対応し、複数登録できる）、表示名、言語（日本語／英語）
+- 横断ページ：全 owner をまたいだ Issue 一覧と Pull Request 一覧（すべて／自分に割り当て／自分が作成、open／closed）
 - 待ち受けポートの自動選択（9418〜9427）、二重起動の検知、`%LOCALAPPDATA%\github-ppoi\port.txt` へのポートの書き出し
-- マージと Revert に使うツール専用 clone（`%LOCALAPPDATA%\github-ppoi\clones\<リポジトリ名>`。無ければ作り、使うたびにリモートに合わせる）
+- マージと Revert に使うツール専用 clone（`%LOCALAPPDATA%\github-ppoiepos\<owner>\<リポジトリ名>`。無ければ作り、使うたびにリモートに合わせる）
 
 これからのもの
 
-- 添付ファイル、表示名の登録、ライセンス一覧ページ
+- 添付ファイル、ライセンス一覧ページ
 - Gitea互換API（現在は `/api/v1/version` のみ）
 - ローカルキャッシュ
 - SMB上の同時更新の検証
@@ -69,7 +70,7 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 .\github-ppoi.exe
 ```
 
-初回はブラウザに設定画面が開くので、データルートにするフォルダのパスを入れる。設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される。
+初回はブラウザに設定画面が開くので、データルートにするフォルダのパスと owner 名（URL に使う半角英数）を入れて登録する。データルートは複数登録できる。設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される。
 
 - 待ち受けポートは 9418 から順に空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に出る
 - `config.json` に `"port"` を書いてあれば、そのポートだけを使い、使えなければエラーで止まる
@@ -80,7 +81,7 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 
 ```
 <データルート>\
-  config.json                  全体設定（ownerの名前、既定のブランチ名など）
+  config.json                  このデータルートの設定（owner 名、owner の表示名、既定のブランチ名など）
   repos\
     <リポジトリ名>.git\        ベアリポジトリ
   meta\

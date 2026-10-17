@@ -3,25 +3,28 @@
   <h2 class="f2 text-normal flex-auto">{{tr "home.my_repos"}}</h2>
   <a class="btn btn-primary" href="/new">{{icon "repo"}} {{tr "new_repo"}}</a>
 </div>
-{{if .Data.Repos}}
-<div class="Box">
-  {{range .Data.Repos}}
+{{range .Data.Groups}}
+<div class="Box mb-4">
+  <div class="Box-header d-flex flex-items-center">
+    <h3 class="Box-title flex-auto">{{.Name}} <span class="color-fg-muted text-normal text-mono text-small ml-1">{{.Owner}}</span></h3>
+    <a class="btn btn-sm" href="/new?owner={{.Owner}}">{{icon "plus"}} {{tr "new_repo"}}</a>
+  </div>
+  {{range .Repos}}
   <div class="Box-row">
-    <a class="f4 text-bold Link--primary d-inline-flex flex-items-center" href="/{{$.Owner}}/{{.Name}}">
+    <a class="f4 text-bold Link--primary d-inline-flex flex-items-center" href="/{{.Owner}}/{{.Name}}">
       <span class="color-fg-muted mr-2">{{icon "repo"}}</span>{{.Name}}
     </a>
     {{if .Description}}<p class="color-fg-muted mb-0 mt-1">{{.Description}}</p>{{end}}
   </div>
+  {{else}}
+  <div class="Box-row color-fg-muted">{{tr "ppoi.no_repos"}}</div>
   {{end}}
 </div>
 {{else}}
 <div class="blankslate border rounded-2">
   <span class="color-fg-muted">{{icon "repo"}}</span>
-  <h3 class="blankslate-heading">{{tr "ppoi.no_repos"}}</h3>
-  <p>{{tr "ppoi.no_repos_desc"}}</p>
-  <div class="blankslate-action">
-    <a class="btn btn-primary" href="/new">{{tr "new_repo"}}</a>
-  </div>
+  <h3 class="blankslate-heading">{{tr "ppoi.settings.no_roots"}}</h3>
+  <div class="blankslate-action"><a class="btn btn-primary" href="/settings">{{tr "your_settings"}}</a></div>
 </div>
 {{end}}
 {{end}}

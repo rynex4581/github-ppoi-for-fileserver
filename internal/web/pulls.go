@@ -18,14 +18,14 @@ import (
 // 行コメントに保存する差分の断片の、前後の行数。
 const hunkContext = 3
 
-// cloneFor はツール専用 clone を返す。置き場所は %LOCALAPPDATA%\github-ppoi\clones\<リポジトリ名>。
+// cloneFor はツール専用 clone を返す。置き場所は %LOCALAPPDATA%\github-ppoi\repos\<owner>\<リポジトリ名>。
 func (s *Server) cloneFor(st *store.Store, repo store.Repo) (gitcmd.Clone, error) {
 	dir, err := localconfig.Dir()
 	if err != nil {
 		return gitcmd.Clone{}, err
 	}
 	return gitcmd.Clone{
-		Dir:       filepath.Join(dir, "clones", repo.Name),
+		Dir:       filepath.Join(dir, "repos", st.Config().Owner, repo.Name),
 		Remote:    s.gitRepo(st, repo).Dir,
 		UserName:  st.DisplayName(s.login),
 		UserEmail: s.login + "@github-ppoi.invalid",

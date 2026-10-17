@@ -11,141 +11,99 @@ import (
 	"strings"
 	"time"
 
-	"github-ppoi-for-fileserver/internal/i18n"
-	"github-ppoi-for-fileserver/internal/localconfig"
 	"github-ppoi-for-fileserver/internal/store"
 )
 
 // ---- トップ ----
 
+// ownerGroup はトップ画面の owner 1つ分。
+type ownerGroup struct {
+	Owner string
+	Name  string
+	Root  string
+	Repos []store.Repo
+}
+
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	st := s.requireStore(w, r)
-	if st == nil {
+	if !s.requireStores(w, r) {
 		return
 	}
-	repos, err := st.ListRepos()
-	if err != nil {
-		s.renderError(w, http.StatusInternalServerError, err.Error())
-		return
+	var groups []ownerGroup
+	for _, st := range s.allStores() {
+		repos, err := st.ListRepos()
+		if err != nil {
+			s.renderError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		groups = append(groups, ownerGroup{Owner: st.Config().Owner, Name: st.Config().DisplayOwner(), Root: st.Root(), Repos: repos})
 	}
 	p := s.newPage(s.tr("home.my_repos"))
-	p.Data = map[string]any{"Repos": repos}
+	p.Data = map[string]any{"Groups": groups}
 	s.render(w, http.StatusOK, "index", p)
 }
 
 // ---- 新規リポジトリ ----
 
+type ownerChoice struct {
+	Owner string
+	Name  string
+}
+
 type repoForm struct {
+	Owner       string
 	Name        string
 	Description string
+	Owners      []ownerChoice
+}
+
+func (s *Server) ownerChoices() []ownerChoice {
+	var out []ownerChoice
+	for _, st := range s.allStores() {
+		out = append(out, ownerChoice{Owner: st.Config().Owner, Name: st.Config().DisplayOwner()})
+	}
+	return out
 }
 
 func (s *Server) handleRepoNew(w http.ResponseWriter, r *http.Request) {
-	if s.requireStore(w, r) == nil {
+	if !s.requireStores(w, r) {
 		return
 	}
+	f := repoForm{Owner: r.URL.Query().Get("owner"), Owners: s.ownerChoices()}
+	if f.Owner == "" && len(f.Owners) > 0 {
+		f.Owner = f.Owners[0].Owner
+	}
 	p := s.newPage(s.tr("new_repo"))
-	p.Data = repoForm{}
+	p.Data = f
 	s.render(w, http.StatusOK, "repo_new", p)
 }
 
 func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
-	st := s.requireStore(w, r)
-	if st == nil {
+	if !s.requireStores(w, r) {
 		return
 	}
 	form := repoForm{
+		Owner:       strings.TrimSpace(r.FormValue("owner")),
 		Name:        strings.TrimSpace(r.FormValue("name")),
 		Description: strings.TrimSpace(r.FormValue("description")),
+		Owners:      s.ownerChoices(),
+	}
+	fail := func(msg string) {
+		p := s.newPage(s.tr("new_repo"))
+		p.Error = msg
+		p.Data = form
+		s.render(w, http.StatusUnprocessableEntity, "repo_new", p)
+	}
+	st := s.storeByOwner(form.Owner)
+	if st == nil {
+		fail(s.tr("ppoi.error.owner_not_found"))
+		return
 	}
 	repo, err := st.CreateRepo(form.Name, form.Description)
 	if err != nil {
-		p := s.newPage(s.tr("new_repo"))
-		p.Error = err.Error()
-		p.Data = form
-		s.render(w, http.StatusUnprocessableEntity, "repo_new", p)
+		fail(err.Error())
 		return
 	}
-	http.Redirect(w, r, s.repoURL(st, repo)+"/issues", http.StatusSeeOther)
-}
-
-// ---- 自分の設定 ----
-
-type settingsForm struct {
-	DataRoot   string
-	Lang       string
-	Langs      []string
-	ConfigPath string
-	OpenError  string
-	Saved      bool
-}
-
-func (s *Server) settingsData() settingsForm {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	f := settingsForm{DataRoot: s.cfg.DataRoot, Lang: s.loc.Lang(), Langs: i18n.Langs}
-	if s.openErr != nil {
-		f.OpenError = s.openErr.Error()
-	}
-	f.ConfigPath, _ = localconfig.Path()
-	return f
-}
-
-func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	p := s.newPage(s.tr("ppoi.settings.title"))
-	f := s.settingsData()
-	f.Saved = r.URL.Query().Get("saved") == "1"
-	p.Data = f
-	s.render(w, http.StatusOK, "settings", p)
-}
-
-func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
-	root := strings.TrimSpace(r.FormValue("data_root"))
-	lang := r.FormValue("lang")
-	if !i18n.IsSupported(lang) {
-		lang = localconfig.DefaultLang
-	}
-
-	p := s.newPage(s.tr("ppoi.settings.title"))
-	f := s.settingsData()
-	f.DataRoot = root
-	f.Lang = lang
-	f.OpenError = ""
-
-	fail := func(status int, msg string) {
-		p.Error = msg
-		p.Data = f
-		s.render(w, status, "settings", p)
-	}
-	if root == "" {
-		fail(http.StatusUnprocessableEntity, s.tr("ppoi.error.data_root_required"))
-		return
-	}
-	st, err := s.openStore(root)
-	if err != nil {
-		fail(http.StatusUnprocessableEntity, err.Error())
-		return
-	}
-	loc, err := i18n.Load(lang)
-	if err != nil {
-		fail(http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	s.mu.Lock()
-	s.cfg.DataRoot = root
-	s.cfg.Lang = lang
-	s.st = st
-	s.openErr = nil
-	s.loc = loc
-	cfg := s.cfg
-	s.mu.Unlock()
-
-	if err := localconfig.Save(cfg); err != nil {
-		fail(http.StatusInternalServerError, s.tr("ppoi.error.save_failed", err.Error()))
-		return
-	}
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	http.Redirect(w, r, s.repoURL(st, repo), http.StatusSeeOther)
 }
 
 // ---- Issues 一覧 ----

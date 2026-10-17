@@ -1,0 +1,43 @@
+{{define "content"}}
+{{$v := .Data}}
+<div class="d-flex flex-items-center mb-3">
+  <h2 class="f2 text-normal flex-auto">{{if $v.IsPull}}{{tr "repo.pulls"}}{{else}}{{tr "repo.issues"}}{{end}}</h2>
+</div>
+<div class="d-flex flex-column flex-md-row gutter-md">
+  <div class="col-md-3 mb-3">
+    <nav class="menu" aria-label="Filter">
+      <a class="menu-item{{if eq $v.Type "all"}} selected{{end}}" href="{{$v.URLFor "all" ""}}">{{if $v.IsPull}}{{tr "repo.issues.filter_type.all_pull_requests"}}{{else}}{{tr "repo.issues.filter_type.all_issues"}}{{end}}</a>
+      <a class="menu-item{{if eq $v.Type "assigned"}} selected{{end}}" href="{{$v.URLFor "assigned" ""}}">{{tr "repo.issues.filter_type.assigned_to_you"}}</a>
+      <a class="menu-item{{if eq $v.Type "created"}} selected{{end}}" href="{{$v.URLFor "created" ""}}">{{tr "repo.issues.filter_type.created_by_you"}}</a>
+    </nav>
+  </div>
+  <div class="col-md-9">
+    <div class="Box">
+      <div class="Box-header d-flex flex-items-center">
+        <a class="btn-link mr-3{{if eq $v.State "open"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="{{$v.URLFor "" "open"}}">{{if $v.IsPull}}{{icon "git-pull-request"}}{{else}}{{icon "issue-opened"}}{{end}} {{$v.OpenCount}} {{tr "repo.issues.open_title"}}</a>
+        <a class="btn-link{{if eq $v.State "closed"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="{{$v.URLFor "" "closed"}}">{{icon "check"}} {{$v.ClosedCount}} {{tr "repo.issues.closed_title"}}</a>
+      </div>
+      {{range $v.Rows}}
+      <div class="Box-row d-flex">
+        <div class="mr-2 pt-1">
+          {{if .IsPull}}{{if .Merged}}<span class="color-fg-done">{{icon "git-pull-request"}}</span>{{else if eq .State "open"}}<span class="color-fg-success">{{icon "git-pull-request"}}</span>{{else}}<span class="color-fg-danger">{{icon "git-pull-request"}}</span>{{end}}{{else if eq .State "open"}}<span class="color-fg-success">{{icon "issue-opened"}}</span>{{else}}<span class="color-fg-done">{{icon "issue-closed"}}</span>{{end}}
+        </div>
+        <div class="flex-auto min-width-0">
+          <a class="Link--muted text-small" href="/{{.Owner}}/{{.RepoName}}">{{.Owner}}/{{.RepoName}}</a>
+          <a class="Link--primary text-bold f4 lh-condensed wb-break-word d-block" href="{{.URL}}">{{.Title}}</a>
+          {{range .Labels}}<span class="IssueLabel mr-1" style="{{labelStyle .Color}}">{{.Name}}</span>{{end}}
+          <div class="color-fg-muted text-small mt-1">#{{.Number}} {{name .User}} · {{datetime .UpdatedAt}}</div>
+        </div>
+        {{if .Assignees}}<span class="color-fg-muted text-small mr-3 d-flex flex-items-center">{{icon "person"}}<span class="ml-1">{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{name $a}}{{end}}</span></span>{{end}}
+        {{if .Comments}}<a class="Link--muted text-small d-flex flex-items-center" href="{{.URL}}">{{icon "comment"}}<span class="ml-1">{{.Comments}}</span></a>{{end}}
+      </div>
+      {{else}}
+      <div class="blankslate">
+        <span class="color-fg-muted">{{if $v.IsPull}}{{icon "git-pull-request"}}{{else}}{{icon "issue-opened"}}{{end}}</span>
+        <h3 class="blankslate-heading">{{tr "repo.issues.filter_no_results"}}</h3>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
