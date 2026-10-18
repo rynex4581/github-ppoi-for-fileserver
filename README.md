@@ -52,10 +52,10 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 
 ## <img src="docs/images/icon-rocket.svg" width="24" height="24" align="top" alt=""> Getting started
 
-### exe の配置
+### インストール
 
-`github-ppoi.exe` は端末のどこに置いてもよい。データルートの `bin\` に置くと、古い exe を使っている端末に更新の通知が出力される（確認は起動時に1回）。<br>
-要 Git for Windows 2.38 以上。
+要 Git for Windows 2.38 以上。事前にインストールしておくこと。
+`github-ppoi.exe` を端末の任意のフォルダに配置する。レジストリは使っていない。データルートの `bin\` に置くと、古い exe を使っている端末に更新の通知が出力される（確認は起動時に1回）。<br>
 
 > [!IMPORTANT]
 > 共有フォルダへの書き込み権限は、信頼できるメンバーに限定すること。
@@ -64,7 +64,7 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 >
 > 詳細は [docs/運用.md](docs/運用.md) を参照。
 
-### 初回の起動
+### 初回起動
 
 起動するとブラウザに設定画面が開く。データルートにするフォルダ（共有フォルダのパス）と owner 名を入れて登録する。
 
