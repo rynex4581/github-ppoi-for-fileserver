@@ -148,7 +148,7 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 
 - 外部レビュー 2 回の対応、Releases、検索、新着の印、ファイル添付、reserve／check、import／export／export-github、低9、README の整理を含めて Ver 0.20 とした。タグ v0.20 で release を通す
 - Releases には exe を直接置かず、`github-ppoi-<タグ>.7z`（github-ppoi.exe と LICENSE）を置く。smbtest.exe は同梱せず、`go build ./cmd/smbtest` で作る
-- ロゴ（logo-wordmark.png）を正方形にした favicon.ico を internal/web/static に置き、画面の favicon と exe のアイコン（versioninfo.json の IconPath）の両方に使う
+- アイコンは docs/logo/icon.svg（ロゴの黄色いフォルダを正方形いっぱいに広げ、文字は「っぽい」だけ）。Edge の headless で 512px に描画して favicon.ico（256／48／32／16）にし、internal/web/static に置く。画面の favicon と exe のアイコン（versioninfo.json の IconPath）の両方に使う。横長のロゴをそのまま縮めると 16px で何も見えないため
 
 ## 設計メモに無い判断
 

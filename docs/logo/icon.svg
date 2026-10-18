@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 128 128">
+  <!-- exe と画面のアイコン。ロゴ（logo-wordmark）の黄色いフォルダを正方形いっぱいに広げ、文字は「っぽい」だけにしたもの -->
+  <path d="M6 12h42l12 12h58a8 8 0 0 1 8 8v84a8 8 0 0 1-8 8H14a8 8 0 0 1-8-8V20a8 8 0 0 1 8-8z" fill="#d9a63a"/>
+  <path d="M2 42h116a8 8 0 0 1 8 8v66a8 8 0 0 1-8 8H14a8 8 0 0 1-8-8z" fill="#f6cd55"/>
+  <text transform="translate(63 100) rotate(-14)" text-anchor="middle" font-family="'Noto Sans JP Black','Noto Sans JP',sans-serif" font-weight="900" font-size="40" fill="#cf222e" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke fill">っぽい</text>
+</svg>
