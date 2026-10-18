@@ -73,7 +73,7 @@
   "ppoi.settings.display_name_help": "空のままならログオン名（%s）で表示されます。登録されている全データルートに書き込みます。",
   "ppoi.settings.name_write_failed": "表示名を書けなかったデータルートがあります: %s",
   "ppoi.error.owner_not_found": "owner が見つかりません",
-  "ppoi.attach.hint": "画像は Ctrl+V で貼り付けられます（送信時に保存されます）。",
+  "ppoi.attach.hint": "画像は Ctrl+V で貼り付け、画像以外のファイルは「ファイルを添付」から選べます（送信時に保存されます）。",
   "ppoi.attach.too_large": "添付ファイルが大きすぎます（上限 %d MB）。",
   "ppoi.attach.too_large_js": "添付ファイルが大きすぎます。",
   "ppoi.licenses.title": "使用している OSS とライセンス",
@@ -97,5 +97,6 @@
   "ppoi.error.comment_not_found": "そのコメントはありません。",
   "ppoi.settings.trust_note": "データルートに書ける人は全員、互いの端末で git のコマンドを実行できる関係にあります（共有フォルダ上のリポジトリを safe.directory=* で開くため）。信頼できるメンバーだけが書ける共有フォルダを使ってください。ログオン名（%s）は環境変数 USERNAME の自己申告で、ツールは検証しません。",
   "ppoi.error.not_author": "編集と削除は自分が書いたものだけできます。",
-  "ppoi.cross.delay_note": "他の端末が書いたものがここに出るまで、10秒程度かかることがあります。"
+  "ppoi.cross.delay_note": "他の端末が書いたものがここに出るまで、10秒程度かかることがあります。",
+  "ppoi.attach.select": "ファイルを添付"
 }

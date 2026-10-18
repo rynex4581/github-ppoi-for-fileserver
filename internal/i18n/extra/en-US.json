@@ -73,7 +73,7 @@
   "ppoi.settings.display_name_help": "If empty, your login name (%s) is shown. Written to every registered data root.",
   "ppoi.settings.name_write_failed": "The display name could not be written to some data roots: %s",
   "ppoi.error.owner_not_found": "Owner not found",
-  "ppoi.attach.hint": "Paste images with Ctrl+V (saved when you submit).",
+  "ppoi.attach.hint": "Paste images with Ctrl+V, or pick any file with \"Attach files\" (saved when you submit).",
   "ppoi.attach.too_large": "The attachment is too large (limit %d MB).",
   "ppoi.attach.too_large_js": "The attachment is too large.",
   "ppoi.licenses.title": "Open source software and licenses",
@@ -97,5 +97,6 @@
   "ppoi.error.comment_not_found": "Comment not found.",
   "ppoi.settings.trust_note": "Everyone who can write to a data root can run git commands on each other's PC (repositories on the share are opened with safe.directory=*). Use a share that only trusted members can write to. The login name (%s) comes from the USERNAME environment variable and is not verified.",
   "ppoi.error.not_author": "You can only edit or delete what you wrote.",
-  "ppoi.cross.delay_note": "Changes made on other PCs can take about 10 seconds to show up here."
+  "ppoi.cross.delay_note": "Changes made on other PCs can take about 10 seconds to show up here.",
+  "ppoi.attach.select": "Attach files"
 }

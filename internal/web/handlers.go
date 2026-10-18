@@ -806,6 +806,12 @@ func (s *Server) handleIssueEditSave(w http.ResponseWriter, r *http.Request, st 
 			return
 		}
 	}
+	// 編集画面で貼った・選んだ添付も、新規と同じく送信時に保存して印を置き換える
+	v.Body, err = s.saveAttachments(st, repo, is.Number, r, v.Body)
+	if err != nil {
+		s.renderIssueEdit(w, http.StatusUnprocessableEntity, repo, v, s.opMessage(err))
+		return
+	}
 	// 本文を先に書く。題名を先に書くと、本文の書き込みに失敗したとき題名だけ変わった状態で画面に戻る
 	if v.Body != bodyOf(is, v) {
 		if err := s.editBody(st, repo, is, v.Target, v.Body); err != nil {

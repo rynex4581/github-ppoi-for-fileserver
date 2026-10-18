@@ -1,7 +1,8 @@
 // 画面で使う JS はこのファイルだけ（インラインのスクリプトは CSP で禁じている）。
 // 1. 差分の行コメント：行の「+」を押すと、その行の下にコメントの入力欄を出す
-// 2. 添付ファイル：本文の入力欄に画像を Ctrl+V で貼ると、本文に ![image](attachment:N) の印を入れ、
-//    画像はフォームの送信時に一緒に送る。保存と印の置き換えはサーバ側で行う
+// 2. 添付ファイル：本文の入力欄に画像を Ctrl+V で貼るか「ファイルを添付」で選ぶと、本文に
+//    ![名前](attachment:N)（画像以外は [名前](attachment:N)）の印を入れ、ファイルはフォームの送信時に
+//    一緒に送る。保存と印の置き換えはサーバ側で行う
 // 3. Markdown のプレビュー：本文の入力欄（textarea.app-textarea）の上に「書き込み／プレビュー」の
 //    タブを付け、プレビューはサーバの POST /markdown で描画したものを出す
 // 4. 細かいもの：クリックで全選択する入力欄（.app-select-on-click）、送信前の確認（form の data-confirm）
@@ -29,6 +30,25 @@
     preview.hidden = true;
     textarea.parentNode.insertBefore(tabs, textarea);
     textarea.parentNode.insertBefore(preview, textarea.nextSibling);
+    if (!textarea.hasAttribute('data-no-attach') && textarea.closest('form')) {
+      var bar = document.createElement('div');
+      bar.className = 'app-attach-bar text-small mt-1';
+      var pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'btn-link';
+      pick.textContent = labels.lAttach || 'Attach files';
+      pick.addEventListener('click', function () {
+        var chooser = document.createElement('input');
+        chooser.type = 'file';
+        chooser.multiple = true;
+        chooser.addEventListener('change', function () {
+          addFiles(textarea, Array.prototype.slice.call(chooser.files), false);
+        });
+        chooser.click();
+      });
+      bar.appendChild(pick);
+      preview.parentNode.insertBefore(bar, preview.nextSibling);
+    }
     nav.addEventListener('click', function (e) {
       var btn = e.target.closest('.tabnav-tab');
       if (!btn) return;
@@ -58,6 +78,16 @@
         img.src = URL.createObjectURL(f);
       } else {
         img.remove();
+      }
+    });
+    preview.querySelectorAll('a[href^="attachment:"]').forEach(function (a) {
+      var n = Number(a.getAttribute('href').slice('attachment:'.length));
+      var f = files[n - 1];
+      if (f) {
+        a.href = URL.createObjectURL(f);
+        a.download = f.name;
+      } else {
+        a.removeAttribute('href');
       }
     });
   }
@@ -143,13 +173,40 @@
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
+  // addFiles はファイルをフォームの添付に足し、本文に印を入れる。
+  // pasted が真なら貼り付け（名前が無いので image<N>.<拡張子> にする）、偽ならファイル選択（元の名前のまま）。
+  // 画像は ![名前](attachment:N)、それ以外は [名前](attachment:N) にする
+  function addFiles(textarea, files, pasted) {
+    var form = textarea.closest('form');
+    if (!form || files.length === 0) return;
+    var input = fileInputFor(form);
+    var limit = Number(textarea.dataset.maxBytes || 0);
+    var marks = [];
+    files.forEach(function (f) {
+      if (limit && f.size > limit) {
+        alert(textarea.dataset.tooLarge || 'too large');
+        return;
+      }
+      var n = form._attachments.files.length + 1;
+      var isImage = f.type.indexOf('image/') === 0;
+      var named = f;
+      if (pasted) {
+        var ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+        named = new File([f], 'image' + n + '.' + ext, { type: f.type });
+      }
+      form._attachments.items.add(named);
+      input.files = form._attachments.files;
+      var label = named.name.replace(/[\[\]]/g, '');
+      marks.push((isImage ? '![' : '[') + label + '](attachment:' + n + ')');
+    });
+    if (marks.length) insertAtCursor(textarea, marks.join('\n'));
+  }
+
   document.addEventListener('paste', function (e) {
     var textarea = e.target.closest('textarea.app-textarea');
     // マージメッセージの欄などは添付を受けない（コミットメッセージに印だけ残るため）
     if (textarea && textarea.hasAttribute('data-no-attach')) return;
     if (!textarea || !e.clipboardData) return;
-    var form = textarea.closest('form');
-    if (!form) return;
     var items = e.clipboardData.items || [];
     var files = [];
     for (var i = 0; i < items.length; i++) {
@@ -160,19 +217,6 @@
     }
     if (files.length === 0) return;
     e.preventDefault();
-    var input = fileInputFor(form);
-    var limit = Number(textarea.dataset.maxBytes || 0);
-    files.forEach(function (f) {
-      if (limit && f.size > limit) {
-        alert(textarea.dataset.tooLarge || 'too large');
-        return;
-      }
-      var ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
-      var n = form._attachments.files.length + 1;
-      var named = new File([f], 'image' + n + '.' + ext, { type: f.type });
-      form._attachments.items.add(named);
-      input.files = form._attachments.files;
-      insertAtCursor(textarea, '![image](attachment:' + n + ')');
-    });
+    addFiles(textarea, files, true);
   });
 })();
