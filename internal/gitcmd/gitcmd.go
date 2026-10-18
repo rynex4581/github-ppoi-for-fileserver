@@ -1,5 +1,6 @@
 // Package gitcmd は各端末の Git for Windows を呼んで、ベアリポジトリを読む。
-// 読み取り専用で、リポジトリの中身は変更しない。
+// ほとんどは読み取りだが、HasConflict の merge-tree は結果のツリーを共有のベアリポジトリに書く。
+// 設定を変えるのは SetDenyNonFastForwards、SetHead、Maintenance だけ。
 // ファイルサーバ上のリポジトリは所有者が自分と違うため、常に safe.directory=* を付けて呼ぶ。
 // そのため、データルートに書ける人はリポジトリの設定（diff.external 等）を通じて他の端末で
 // コマンドを動かせる関係にある。緩和として diff.external と log.showSignature を無効にし、
@@ -248,7 +249,16 @@ func (r Repo) Log(ref, path string, skip, limit int) ([]Commit, error) {
 
 // CountCommits は ref から遡れるコミットの数を返す。
 func (r Repo) CountCommits(ref string) (int, error) {
-	out, err := r.run("rev-list", "--count", "--end-of-options", ref)
+	return r.CountCommitsPath(ref, "")
+}
+
+// CountCommitsPath は ref から遡れるコミットのうち、path に触れたものの数を返す。path が空なら全部。
+func (r Repo) CountCommitsPath(ref, path string) (int, error) {
+	args := []string{"rev-list", "--count", "--end-of-options", ref}
+	if path != "" {
+		args = append(args, "--", path)
+	}
+	out, err := r.run(args...)
 	if err != nil {
 		return 0, ErrNotFound
 	}
@@ -365,6 +375,16 @@ func (r Repo) SetDenyNonFastForwards(deny bool) error {
 		value = "true"
 	}
 	_, err := r.run("config", "receive.denyNonFastForwards", value)
+	return err
+}
+
+// Maintenance はベアリポジトリの git gc を実行する。push のたびに各自の端末で自動実行されないよう
+// receive.autogc は無効にしてあるので、たまに Settings からこれを呼ぶ。
+func (r Repo) Maintenance() error {
+	if _, err := r.run("config", "receive.autogc", "false"); err != nil {
+		return err
+	}
+	_, err := r.run("gc", "--quiet")
 	return err
 }
 

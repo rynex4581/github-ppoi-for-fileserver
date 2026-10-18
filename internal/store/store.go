@@ -55,7 +55,27 @@ func ValidateOwner(owner string) error {
 	if !ownerPattern.MatchString(owner) || strings.Contains(owner, "..") {
 		return errors.New("owner 名は英数字で始まり、英数字と . _ - だけを使う（50文字以内）")
 	}
+	if isWindowsReserved(owner) {
+		return errors.New("その名前は Windows で使えない（CON、NUL、COM1 など）")
+	}
 	return nil
+}
+
+// isWindowsReserved は Windows でファイル名に使えない予約名（CON、PRN、AUX、NUL、COM1〜9、LPT1〜9。
+// 拡張子が付いていても同じ）かを返す。
+func isWindowsReserved(name string) bool {
+	stem := strings.ToUpper(name)
+	if i := strings.IndexByte(stem, '.'); i >= 0 {
+		stem = stem[:i]
+	}
+	switch stem {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	if len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '1' && stem[3] <= '9' {
+		return true
+	}
+	return false
 }
 
 // ErrConfigExists は既に config.json のあるフォルダをデータルートとして新規作成しようとしたときのエラー。

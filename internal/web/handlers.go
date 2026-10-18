@@ -380,7 +380,7 @@ func (f issueForm) HasLabel(id int) bool {
 
 func (f issueForm) HasAssignee(login string) bool {
 	for _, x := range f.Assignees {
-		if x == login {
+		if strings.EqualFold(x, login) {
 			return true
 		}
 	}
@@ -465,6 +465,7 @@ func (s *Server) handleIssueCreate(w http.ResponseWriter, r *http.Request, st *s
 	}
 	body, err := s.saveAttachments(st, repo, number, r, f.Body)
 	if err != nil {
+		st.DiscardIssue(repo.Name, number)
 		s.renderError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}

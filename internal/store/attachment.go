@@ -71,6 +71,15 @@ func (s *Store) SaveAttachment(repo string, number int, original string, data []
 // attachmentExtPattern は添付ファイルの拡張子として採用する形。
 var attachmentExtPattern = regexp.MustCompile(`^\.[A-Za-z0-9]{1,10}$`)
 
+// RemoveAttachment は保存した添付ファイルを消す。同じ送信の別のファイルで失敗したときの後始末に使う。
+func (s *Store) RemoveAttachment(repo string, number int, name string) error {
+	p, err := s.AttachmentPath(repo, number, name)
+	if err != nil {
+		return err
+	}
+	return os.Remove(p)
+}
+
 // AttachmentPath は添付ファイルのパスを返す。名前が不正、またはファイルが無ければ ErrAttachmentNotFound。
 func (s *Store) AttachmentPath(repo string, number int, name string) (string, error) {
 	if !isSafeName(repo) || number <= 0 || !isSafeName(name) || strings.HasSuffix(name, ".tmp") {

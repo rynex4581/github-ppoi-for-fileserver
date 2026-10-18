@@ -59,7 +59,7 @@
   "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> merged %[1]s",
   "ppoi.settings.require_approval": "Require approval",
   "ppoi.settings.require_approval_desc": "When on, a pull request cannot be merged until it has at least one approval.",
-  "ppoi.settings.deny_force_push_desc": "When on, receive.denyNonFastForwards is set on the bare repository and pushes that rewrite history are rejected. This applies to all branches.",
+  "ppoi.settings.deny_force_push_desc": "When on, receive.denyNonFastForwards is set on the bare repository and pushes that rewrite history are rejected. This is a safeguard against mistakes: the person pushing can bypass it with -c receive.denyNonFastForwards=false. It applies to all branches.",
   "ppoi.settings.invalid_branch": "Invalid branch name.",
   "ppoi.settings.data_roots": "Data roots",
   "ppoi.settings.add_root": "Add data root",
@@ -92,5 +92,8 @@
   "ppoi.pulls.merged_but_not_recorded": "The merge was pushed, but recording it failed: %s. Press merge again to record it.",
   "ppoi.pulls.reverted_but_not_recorded": "The revert was pushed, but recording it failed: %s. Press revert again to record it.",
   "ppoi.settings.dismiss_stale_approval": "Dismiss approvals on new pushes",
-  "ppoi.settings.dismiss_stale_approval_desc": "Only matters when approval is required. When on, an approval counts only if the approved commit is the current head or an ancestor of it. Approvals replaced by a force push do not count."
+  "ppoi.settings.dismiss_stale_approval_desc": "Only matters when approval is required. When on, an approval counts only if the approved commit is the current head or an ancestor of it. Approvals replaced by a force push do not count.",
+  "ppoi.pulls.head_kept": "Branch %s was kept because another pull request uses it as base.",
+  "ppoi.settings.maintenance": "Run maintenance",
+  "ppoi.settings.maintenance_desc": "Runs git gc on the bare repository. Automatic gc on push (receive.autogc) is disabled so that no client stalls on it over SMB; run it here from time to time."
 }

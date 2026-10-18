@@ -64,6 +64,7 @@ Git for Windows が入っていること（`git` がコマンドラインから�
 
 > [!IMPORTANT]
 > データルートに書ける人は全員、互いの端末で git のコマンドを実行できる関係にあることが前提になる。本ツールは共有フォルダ上のリポジトリを `safe.directory=*` 付きで開き、各自の clone でも同じ設定を勧めるためで、リポジトリの設定ファイルに書かれたコマンドは開いた人の端末で動く。緩和として、本ツールが読み取りに使う git は `diff.external` と `log.showSignature` を無効にして呼ぶ。信頼できるメンバーだけが書ける共有フォルダに置くこと。
+> ログオン名は環境変数 `USERNAME` の自己申告で、ツールは検証しない。
 
 ### 初回の起動
 
@@ -188,7 +189,9 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 | `default_branch` | 新規リポジトリの既定ブランチ名 | `main` |
 | `attachment_max_bytes` | 添付ファイルのサイズ上限 | 10485760（10 MB） |
 
-どちらも設定画面から変更可能。端末側のファイルは削除しても、exe を起動してデータルートを登録し直せば元に戻る。
+端末側の `data_roots` と `lang` は設定画面から変更可能。`port` とデータルート側の項目はファイルを直接編集する。端末側のファイルは削除しても、exe を起動してデータルートを登録し直せば元に戻る。
+
+リポジトリの Settings にある「force push 禁止」はうっかり防止。receive-pack は push する本人の端末で動くので、本人が `-c receive.denyNonFastForwards=false` を付ければ通る。
 
 ## Troubleshooting
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Clone はツール専用の clone。%LOCALAPPDATA%\github-ppoi\clones\<リポジトリ名> に置き、
+// Clone はツール専用の clone。%LOCALAPPDATA%\github-ppoi\repos\<owner>\<リポジトリ名> に置き、
 // マージと Revert のときだけ使う。無ければ作り、使うたびにリモートに強制的に合わせる。
 // 各自の作業 clone とは別物で、消えてよい。
 type Clone struct {
@@ -61,7 +61,7 @@ func (c Clone) sync(branch string) error {
 
 // push は branch を push する。弾かれたら ErrPushRejected を返す。
 func (c Clone) push(branch string) error {
-	_, err := c.git("push", "--quiet", "origin", branch)
+	_, err := c.git("push", "--quiet", "origin", "refs/heads/"+branch+":refs/heads/"+branch)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "rejected") || strings.Contains(msg, "failed to push") || strings.Contains(msg, "fetch first") {
@@ -112,7 +112,7 @@ func (c Clone) Merge(base, head, message string) (string, error) {
 
 // DeleteRemoteBranch はリモートのブランチを消す。
 func (c Clone) DeleteRemoteBranch(name string) error {
-	_, err := c.git("push", "--quiet", "origin", "--delete", name)
+	_, err := c.git("push", "--quiet", "origin", ":refs/heads/"+name)
 	return err
 }
 

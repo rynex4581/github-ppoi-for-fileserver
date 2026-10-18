@@ -30,7 +30,7 @@ func (e attachmentError) Error() string { return e.msg }
 // saveAttachments はフォームで一緒に送られた添付ファイルを Issue の配下に保存し、
 // 本文の (attachment:N) を /attachments/<owner>/<repo>/<番号>/<ファイル名> に置き換えて返す。
 // N はフォームの attachments の順番（1 から）。対応するファイルが無い印はそのまま残す。
-func (s *Server) saveAttachments(st *store.Store, repo store.Repo, number int, r *http.Request, body string) (string, error) {
+func (s *Server) saveAttachments(st *store.Store, repo store.Repo, number int, r *http.Request, body string) (result string, err error) {
 	if r.MultipartForm == nil {
 		if err := r.ParseMultipartForm(multipartMemory); err != nil {
 			var tooBig *http.MaxBytesError
@@ -51,6 +51,15 @@ func (s *Server) saveAttachments(st *store.Store, repo store.Repo, number int, r
 		return body, nil
 	}
 	urls := map[string]string{}
+	var saved []string
+	// 途中のファイルで失敗したら、その送信で保存した分は消す
+	defer func() {
+		if err != nil {
+			for _, name := range saved {
+				st.RemoveAttachment(repo.Name, number, name)
+			}
+		}
+	}()
 	for i, fh := range files {
 		if fh.Size > st.AttachmentMaxBytes() {
 			return body, attachmentError{s.tr("ppoi.attach.too_large", st.AttachmentMaxBytes()/(1024*1024))}
@@ -71,6 +80,7 @@ func (s *Server) saveAttachments(st *store.Store, repo store.Repo, number int, r
 		if err != nil {
 			return body, err
 		}
+		saved = append(saved, name)
 		urls[strconv.Itoa(i+1)] = fmt.Sprintf("/attachments/%s/%s/%d/%s", url.PathEscape(repo.Owner), url.PathEscape(repo.Name), number, url.PathEscape(name))
 	}
 	return attachmentMark.ReplaceAllStringFunc(body, func(m string) string {

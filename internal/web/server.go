@@ -86,10 +86,10 @@ func New(cfg localconfig.Config, login string, port int) (*Server, error) {
 			continue
 		}
 		owner := st.Config().Owner
-		if other, dup := owners[owner]; dup {
+		if other, dup := owners[strings.ToLower(owner)]; dup {
 			return nil, fmt.Errorf("owner 名 %q のデータルートが2つ登録されている: %s と %s。端末側の config.json を直す", owner, other, root)
 		}
-		owners[owner] = root
+		owners[strings.ToLower(owner)] = root
 		s.stores = append(s.stores, st)
 	}
 	s.newer = s.findNewerVersion()
@@ -138,7 +138,7 @@ func (s *Server) storeByOwner(owner string) *store.Store {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, st := range s.stores {
-		if st.Config().Owner == owner {
+		if strings.EqualFold(st.Config().Owner, owner) {
 			return st
 		}
 	}
@@ -456,6 +456,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/revert", s.withRepo(s.handlePullRevert))
 	mux.HandleFunc("GET /{owner}/{repo}/settings", s.withRepo(s.handleRepoSettings))
 	mux.HandleFunc("POST /{owner}/{repo}/settings", s.withRepo(s.handleRepoSettingsSave))
+	mux.HandleFunc("POST /{owner}/{repo}/settings/maintenance", s.withRepo(s.handleRepoMaintenance))
 	mux.HandleFunc("GET /{owner}/{repo}/labels", s.withRepo(s.handleLabels))
 	mux.HandleFunc("POST /{owner}/{repo}/labels", s.withRepo(s.handleLabelCreate))
 	mux.HandleFunc("POST /{owner}/{repo}/labels/{id}", s.withRepo(s.handleLabelUpdate))

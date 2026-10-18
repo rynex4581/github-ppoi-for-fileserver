@@ -47,7 +47,7 @@ func (s *Server) settingsData() settingsForm {
 		}
 		f.Roots = append(f.Roots, row)
 	}
-	if f.Name == s.login {
+	if strings.EqualFold(f.Name, s.login) {
 		f.Name = ""
 	}
 	return f

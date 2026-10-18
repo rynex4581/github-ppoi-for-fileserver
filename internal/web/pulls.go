@@ -74,7 +74,7 @@ func (f pullNewForm) HasLabel(id int) bool {
 
 func (f pullNewForm) HasAssignee(login string) bool {
 	for _, x := range f.Assignees {
-		if x == login {
+		if strings.EqualFold(x, login) {
 			return true
 		}
 	}
@@ -213,6 +213,7 @@ func (s *Server) handlePullCreate(w http.ResponseWriter, r *http.Request, st *st
 	}
 	body, err := s.saveAttachments(st, repo, number, r, f.Body)
 	if err != nil {
+		st.DiscardIssue(repo.Name, number)
 		s.renderError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
@@ -287,7 +288,7 @@ type pullView struct {
 func (s *Server) buildPullView(st *store.Store, repo store.Repo, is store.Issue, tab string) (pullView, error) {
 	g := s.gitRepo(st, repo)
 	base := s.repoURL(st, repo)
-	v := pullView{Issue: is, Tab: tab, PullURL: s.pullURL(st, repo, is.Number), Assignees: is.Assignees, IsAuthor: is.User == s.login}
+	v := pullView{Issue: is, Tab: tab, PullURL: s.pullURL(st, repo, is.Number), Assignees: is.Assignees, IsAuthor: strings.EqualFold(is.User, s.login)}
 	var err error
 	if v.AllLabels, err = st.ListLabels(repo.Name); err != nil {
 		return v, err

@@ -23,13 +23,13 @@ func (s *Server) apiGetUser(w http.ResponseWriter, r *http.Request) {
 	for _, st := range s.allStores() {
 		users, _ := st.ListUsers()
 		for _, u := range users {
-			if u.Login == login {
+			if strings.EqualFold(u.Login, login) {
 				writeJSON(w, http.StatusOK, s.toUser(login))
 				return
 			}
 		}
 	}
-	if login == s.login {
+	if strings.EqualFold(login, s.login) {
 		writeJSON(w, http.StatusOK, s.toUser(login))
 		return
 	}
@@ -187,7 +187,7 @@ func (s *Server) apiCommits(w http.ResponseWriter, r *http.Request, st *store.St
 		s.apiFail(w, err)
 		return
 	}
-	if total, err := g.CountCommits(ref); err == nil {
+	if total, err := g.CountCommitsPath(ref, r.URL.Query().Get("path")); err == nil {
 		w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	}
 	out := []apiCommit{}
@@ -340,6 +340,10 @@ func (s *Server) apiRaw(w http.ResponseWriter, r *http.Request, st *store.Store,
 	ref := r.URL.Query().Get("ref")
 	if ref == "" {
 		ref = s.defaultBranch(g, repo)
+	}
+	if _, err := g.ResolveCommit(ref); err != nil {
+		s.apiError(w, http.StatusNotFound, "ref not found")
+		return
 	}
 	p, ok := cleanTreePath(r.PathValue("path"))
 	if !ok || p == "" {

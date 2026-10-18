@@ -43,6 +43,21 @@ func main() {
 		}
 		return
 	}
+	// 起動中の相手がまだ応答できない間に2つ目が上がらないよう、ロックファイルを握る。
+	// 握っている間は他のプロセスが開けず、プロセスが終わればロックも外れる
+	release, err := acquireInstanceLock()
+	if err != nil {
+		log.Printf("別の github-ppoi が起動中: %v", err)
+		if port := waitForRunning(15 * time.Second); port > 0 {
+			url := fmt.Sprintf("http://localhost:%d/", port)
+			if !*noBrowser {
+				openBrowser(url)
+			}
+			return
+		}
+		log.Fatal("別の github-ppoi が起動中のようだが、応答が無い。少し待ってからやり直す")
+	}
+	defer release()
 
 	ln, port, err := listen(cfg.Port)
 	if err != nil {
@@ -86,6 +101,18 @@ func listen(fixed int) (net.Listener, int, error) {
 		}
 	}
 	return nil, 0, fmt.Errorf("ポート %d〜%d がすべて使用中で待ち受けできない", localconfig.PortRangeStart, localconfig.PortRangeEnd)
+}
+
+// waitForRunning は port.txt のポートで本ツールが応答するまで待ち、応答したポートを返す。時間切れなら 0。
+func waitForRunning(limit time.Duration) int {
+	deadline := time.Now().Add(limit)
+	for time.Now().Before(deadline) {
+		if port := localconfig.ReadPortFile(); port > 0 && isRunning(port) {
+			return port
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return 0
 }
 
 // isRunning は指定ポートで本ツールが動いているかを、バージョン応答の独自の欄で確かめる。

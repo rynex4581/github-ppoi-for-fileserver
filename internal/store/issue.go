@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -125,7 +126,7 @@ func (is Issue) HasLabel(id int) bool {
 // HasAssignee は担当者に含まれるかを返す。
 func (is Issue) HasAssignee(login string) bool {
 	for _, x := range is.Assignees {
-		if x == login {
+		if strings.EqualFold(x, login) {
 			return true
 		}
 	}
@@ -246,6 +247,21 @@ func (s *Store) AllocateIssue(repo string) (int, error) {
 		return 0, err
 	}
 	return number, nil
+}
+
+// DiscardIssue は AllocateIssue で取ったがまだイベントを書いていない番号のフォルダを消す。
+// 添付の保存に失敗したときの後始末で、イベントが1つでもあれば何もしない。
+func (s *Store) DiscardIssue(repo string, number int) error {
+	entries, err := os.ReadDir(s.eventsDir(repo, number))
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".json" {
+			return nil
+		}
+	}
+	return os.RemoveAll(s.issueDir(repo, number))
 }
 
 // WriteCreated は AllocateIssue で取った番号に created イベントを書き、組み立てた結果を返す。

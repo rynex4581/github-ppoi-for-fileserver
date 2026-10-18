@@ -204,14 +204,14 @@ func (s *Server) validateReview(is store.Issue, state, body string) error {
 		if is.State != "open" {
 			return opErr(405, "ppoi.pulls.not_open")
 		}
-		if is.User == s.login {
+		if strings.EqualFold(is.User, s.login) {
 			return opErr(422, "repo.diff.review.self_approve")
 		}
 	case store.ReviewChangesRequested:
 		if is.State != "open" {
 			return opErr(405, "ppoi.pulls.not_open")
 		}
-		if is.User == s.login {
+		if strings.EqualFold(is.User, s.login) {
 			return opErr(422, "repo.diff.review.self_reject")
 		}
 		if strings.TrimSpace(body) == "" {
@@ -321,6 +321,9 @@ func (s *Server) recordMerge(st *store.Store, repo store.Repo, is store.Issue, m
 	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
 		return "", opErr(500, "ppoi.pulls.merged_but_not_recorded", err.Error())
 	}
+	if s.headUsedByOtherPull(st, repo, is) {
+		return s.tr("ppoi.pulls.head_kept", is.Head), nil
+	}
 	c, err := s.cloneFor(st, repo)
 	if err != nil {
 		return s.tr("ppoi.pulls.head_delete_failed", is.Head, err.Error()), nil
@@ -329,6 +332,21 @@ func (s *Server) recordMerge(st *store.Store, repo store.Repo, is store.Issue, m
 		return s.tr("ppoi.pulls.head_delete_failed", is.Head, err.Error()), nil
 	}
 	return "", nil
+}
+
+// headUsedByOtherPull は、この PR の head ブランチが他の open な PR の base になっているかを返す。
+// なっていればマージ後も消さない。
+func (s *Server) headUsedByOtherPull(st *store.Store, repo store.Repo, is store.Issue) bool {
+	all, err := st.ListIssues(repo.Name)
+	if err != nil {
+		return false
+	}
+	for _, other := range all {
+		if other.IsPull && other.Number != is.Number && other.State == "open" && other.Base == is.Head {
+			return true
+		}
+	}
+	return false
 }
 
 // revertPull はマージ済みの PR のマージコミットを打ち消す。1回だけ。

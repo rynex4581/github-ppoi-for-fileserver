@@ -34,10 +34,13 @@ var ErrRepoExists = errors.New("同じ名前のリポジトリが既にある")
 var repoNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
 
 // ValidateRepoName はリポジトリ名として使えるかを確かめる。
-// 英数字で始まり、英数字と . _ - だけからなる100文字以内。末尾の .git は認めない。
+// 英数字で始まり、英数字と . _ - だけからなる100文字以内。末尾の .git と Windows の予約名は認めない。
 func ValidateRepoName(name string) error {
 	if !repoNamePattern.MatchString(name) {
 		return errors.New("リポジトリ名は英数字で始まり、英数字と . _ - だけを使う")
+	}
+	if isWindowsReserved(name) {
+		return errors.New("その名前は Windows で使えない（CON、NUL、COM1 など）")
 	}
 	if strings.HasSuffix(strings.ToLower(name), ".git") || strings.Contains(name, "..") {
 		return errors.New("リポジトリ名の末尾に .git は付けられない")
@@ -129,6 +132,11 @@ func (s *Store) CreateRepo(name, description string) (Repo, error) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		os.RemoveAll(bare)
 		return Repo{}, fmt.Errorf("git init --bare に失敗: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	// push を受けた端末が SMB 越しに gc を走らせて固まらないよう、自動 gc は切る。gc は Settings から手で実行する
+	if out, err := exec.Command("git", "-C", bare, "config", "receive.autogc", "false").CombinedOutput(); err != nil {
+		os.RemoveAll(bare)
+		return Repo{}, fmt.Errorf("git config に失敗: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	r := Repo{Name: name, Owner: s.config.Owner, Description: description, DefaultBranch: s.config.DefaultBranch}

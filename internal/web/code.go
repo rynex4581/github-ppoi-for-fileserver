@@ -19,6 +19,9 @@ import (
 // 画面に出すファイルの大きさの上限。超えたら Raw へのリンクだけ出す。
 const maxBlobBytes = 1024 * 1024
 
+// maxRawBytes は raw で返すファイルの上限。これより大きいものは返さない。
+const maxRawBytes = 64 * 1024 * 1024
+
 // 履歴の1ページの件数。
 const commitsPerPage = 30
 
@@ -322,6 +325,10 @@ func isMarkdownPath(p string) bool {
 }
 
 func looksBinary(data []byte) bool {
+	// UTF-16 のテキストは NUL を含むので、BOM があればテキストとして扱う
+	if len(data) >= 2 && ((data[0] == 0xFF && data[1] == 0xFE) || (data[0] == 0xFE && data[1] == 0xFF)) {
+		return false
+	}
 	n := len(data)
 	if n > 8000 {
 		n = 8000
@@ -404,6 +411,10 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request, st *store.Sto
 	c, err := s.buildRefContext(g, s.repoURL(st, repo), s.defaultBranch(g, repo), r.PathValue("rest"), "tree")
 	if err != nil || c.Path == "" {
 		http.NotFound(w, r)
+		return
+	}
+	if size, err := g.BlobSize(c.Ref, c.Path); err == nil && size > maxRawBytes {
+		http.Error(w, "file too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 	data, err := g.Blob(c.Ref, c.Path)

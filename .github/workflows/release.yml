@@ -21,8 +21,10 @@ jobs:
           go-version-file: go.mod
 
       - name: タグと Number の一致を確かめる
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:TAG
           $number = (Select-String -Path internal/version/version.go -Pattern 'const Number = "([^"]+)"').Matches[0].Groups[1].Value
           "tag=$tag number=$number"
           if ($tag -ne "v$number") { Write-Error "タグ $tag と version.Number $number が一致しない"; exit 1 }

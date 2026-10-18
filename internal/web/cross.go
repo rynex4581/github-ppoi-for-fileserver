@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github-ppoi-for-fileserver/internal/store"
 )
@@ -88,7 +89,7 @@ func (s *Server) listCross(w http.ResponseWriter, r *http.Request, isPull bool) 
 						continue
 					}
 				case "created":
-					if is.User != s.login {
+					if !strings.EqualFold(is.User, s.login) {
 						continue
 					}
 				}

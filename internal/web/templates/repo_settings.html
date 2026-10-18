@@ -40,5 +40,10 @@
     <hr>
     <button class="btn btn-primary" type="submit">{{tr "repo.settings.update_settings"}}</button>
   </form>
+  <hr>
+  <form method="post" action="{{.Data.BaseURL}}/maintenance">
+    <button class="btn" type="submit">{{tr "ppoi.settings.maintenance"}}</button>
+    <p class="note">{{tr "ppoi.settings.maintenance_desc"}}</p>
+  </form>
 </div>
 {{end}}

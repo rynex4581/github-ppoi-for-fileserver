@@ -14,6 +14,7 @@ type repoSettingsView struct {
 	Repo     store.Repo
 	Branches []gitcmd.Branch
 	Saved    bool
+	BaseURL  string // /{owner}/{repo}/settings
 }
 
 var branchNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$`)
@@ -26,12 +27,21 @@ func (s *Server) renderRepoSettings(w http.ResponseWriter, status int, st *store
 	}
 	p := s.repoPage(s.tr("repo.settings"), repo, "settings")
 	p.Error = errMsg
-	p.Data = repoSettingsView{Repo: repo, Branches: branches, Saved: saved}
+	p.Data = repoSettingsView{Repo: repo, Branches: branches, Saved: saved, BaseURL: s.repoURL(st, repo) + "/settings"}
 	s.render(w, status, "repo_settings", p)
 }
 
 func (s *Server) handleRepoSettings(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
 	s.renderRepoSettings(w, http.StatusOK, st, repo, r.URL.Query().Get("saved") == "1", "")
+}
+
+// handleRepoMaintenance はベアリポジトリの gc を実行する。
+func (s *Server) handleRepoMaintenance(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	if err := s.gitRepo(st, repo).Maintenance(); err != nil {
+		s.renderRepoSettings(w, http.StatusInternalServerError, st, repo, false, err.Error())
+		return
+	}
+	http.Redirect(w, r, s.repoURL(st, repo)+"/settings?saved=1", http.StatusSeeOther)
 }
 
 // handleRepoSettingsSave は repo.json を書き換え、ベアリポジトリ側の設定も合わせる。
@@ -57,6 +67,11 @@ func (s *Server) handleRepoSettingsSave(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 	if next.DefaultBranch != repo.DefaultBranch {
+		// ブランチが1つでもあるリポジトリでは、存在するブランチしか既定にしない（clone 直後の checkout が失敗する）
+		if branches, err := g.Branches(); err == nil && len(branches) > 0 && !branchExists(branches, next.DefaultBranch) {
+			s.renderRepoSettings(w, http.StatusUnprocessableEntity, st, next, false, s.tr("ppoi.code.ref_not_found"))
+			return
+		}
 		if err := g.SetHead(next.DefaultBranch); err != nil {
 			s.renderRepoSettings(w, http.StatusInternalServerError, st, next, false, err.Error())
 			return

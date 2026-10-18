@@ -59,7 +59,7 @@
   "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> が %[1]s にマージ",
   "ppoi.settings.require_approval": "承認必須",
   "ppoi.settings.require_approval_desc": "オンにすると、承認が1つ以上無い限りプルリクエストをマージできません。",
-  "ppoi.settings.deny_force_push_desc": "オンにすると、ベアリポジトリに receive.denyNonFastForwards を設定し、履歴を書き換える push を弾きます。ブランチ単位の制御はしません。",
+  "ppoi.settings.deny_force_push_desc": "オンにすると、ベアリポジトリに receive.denyNonFastForwards を設定し、履歴を書き換える push を弾きます。うっかり防止の設定で、push する本人が -c receive.denyNonFastForwards=false を付ければ通ります。ブランチ単位の制御はしません。",
   "ppoi.settings.invalid_branch": "ブランチ名が正しくありません。",
   "ppoi.settings.data_roots": "データルート",
   "ppoi.settings.add_root": "データルートを追加",
@@ -92,5 +92,8 @@
   "ppoi.pulls.merged_but_not_recorded": "マージの push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度マージを押すと記録だけをやり直します。",
   "ppoi.pulls.reverted_but_not_recorded": "Revert の push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度 Revert を押すと記録だけをやり直します。",
   "ppoi.settings.dismiss_stale_approval": "新しいpushで承認を無効にする",
-  "ppoi.settings.dismiss_stale_approval_desc": "承認必須がオンのときだけ意味を持ちます。オンにすると、承認した時点の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数えます。force push で差し替わった承認は数えません。"
+  "ppoi.settings.dismiss_stale_approval_desc": "承認必須がオンのときだけ意味を持ちます。オンにすると、承認した時点の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数えます。force push で差し替わった承認は数えません。",
+  "ppoi.pulls.head_kept": "ブランチ %s は他のプルリクエストの base になっているので残しました。",
+  "ppoi.settings.maintenance": "メンテナンス実行",
+  "ppoi.settings.maintenance_desc": "ベアリポジトリの git gc を実行します。push のたびに各自の端末で自動実行されないよう receive.autogc は無効にしてあるので、たまにここから実行してください。"
 }
