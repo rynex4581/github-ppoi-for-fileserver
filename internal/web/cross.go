@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -22,6 +23,7 @@ type crossView struct {
 	IsPull      bool
 	Type        string // all / assigned / created
 	State       string
+	Query       string // 検索語。空なら絞り込まない
 	Rows        []crossRow
 	OpenCount   int
 	ClosedCount int
@@ -29,7 +31,35 @@ type crossView struct {
 }
 
 func (v crossView) url(typ, state string) string {
-	return fmt.Sprintf("%s?type=%s&state=%s", v.BaseURL, typ, state)
+	u := fmt.Sprintf("%s?type=%s&state=%s", v.BaseURL, typ, state)
+	if v.Query != "" {
+		u += "&q=" + url.QueryEscape(v.Query)
+	}
+	return u
+}
+
+// issueMatches は検索語がタイトル、本文、コメント（レビューと行コメントを含む）のどれかに
+// 含まれるかを返す。大文字小文字は区別しない。削除したコメントは見ない。
+func issueMatches(is store.Issue, q string) bool {
+	if q == "" {
+		return true
+	}
+	q = strings.ToLower(q)
+	if strings.Contains(strings.ToLower(is.Title), q) || strings.Contains(strings.ToLower(is.Body), q) {
+		return true
+	}
+	for _, ev := range is.Events {
+		if ev.Deleted || ev.Body == "" {
+			continue
+		}
+		switch ev.Type {
+		case store.EventComment, store.EventReview, store.EventReviewComment:
+			if strings.Contains(strings.ToLower(ev.Body), q) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // URLFor はテンプレート用。種類と状態を差し替えたURLを返す。
@@ -56,7 +86,7 @@ func (s *Server) listCross(w http.ResponseWriter, r *http.Request, isPull bool) 
 	if !s.requireStores(w, r) {
 		return
 	}
-	v := crossView{IsPull: isPull, Type: r.URL.Query().Get("type"), State: r.URL.Query().Get("state"), BaseURL: "/issues"}
+	v := crossView{IsPull: isPull, Type: r.URL.Query().Get("type"), State: r.URL.Query().Get("state"), Query: strings.TrimSpace(r.URL.Query().Get("q")), BaseURL: "/issues"}
 	if isPull {
 		v.BaseURL = "/pulls"
 	}
@@ -92,6 +122,9 @@ func (s *Server) listCross(w http.ResponseWriter, r *http.Request, isPull bool) 
 					if !strings.EqualFold(is.User, s.login) {
 						continue
 					}
+				}
+				if !issueMatches(is, v.Query) {
+					continue
 				}
 				if is.State == "open" {
 					v.OpenCount++

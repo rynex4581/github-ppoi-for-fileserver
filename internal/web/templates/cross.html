@@ -13,6 +13,11 @@
     </nav>
   </div>
   <div class="col-md-9">
+    <form method="get" action="{{$v.BaseURL}}" class="mb-3">
+      <input type="hidden" name="type" value="{{$v.Type}}">
+      <input type="hidden" name="state" value="{{$v.State}}">
+      <input class="form-control input-block" type="search" name="q" value="{{$v.Query}}" placeholder="{{tr "search.search"}}" aria-label="{{tr "search.search"}}">
+    </form>
     <div class="Box">
       <div class="Box-header d-flex flex-items-center">
         <a class="btn-link mr-3{{if eq $v.State "open"}} text-bold color-fg-default{{else}} color-fg-muted{{end}}" href="{{$v.URLFor "" "open"}}">{{if $v.IsPull}}{{icon "git-pull-request"}}{{else}}{{icon "issue-opened"}}{{end}} {{$v.OpenCount}} {{tr "repo.issues.open_title"}}</a>
