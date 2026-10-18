@@ -276,6 +276,7 @@
     <details class="details-reset">
       <summary class="text-bold color-fg-muted text-small d-flex flex-items-center app-sidebar-summary"><span class="flex-auto">{{tr "repo.issues.new.assignees"}}</span>{{icon "gear"}}</summary>
       <form method="post" action="{{$v.PullURL}}/assignees" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        <input type="hidden" name="seen" value="{{$v.AssigneesSeen}}">
         {{range $v.AllUsers}}<label class="d-block py-1"><input type="checkbox" name="assignees" value="{{.Login}}"{{if $v.Issue.HasAssignee .Login}} checked{{end}}> {{name .Login}}</label>{{end}}
         <button class="btn btn-sm btn-primary mt-2" type="submit">{{tr "ppoi.apply"}}</button>
       </form>
@@ -286,6 +287,7 @@
     <details class="details-reset">
       <summary class="text-bold color-fg-muted text-small d-flex flex-items-center app-sidebar-summary"><span class="flex-auto">{{tr "repo.issues.new.labels"}}</span>{{icon "gear"}}</summary>
       <form method="post" action="{{$v.PullURL}}/labels" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        <input type="hidden" name="seen" value="{{$v.LabelsSeen}}">
         {{range $v.AllLabels}}<label class="d-block py-1"><input type="checkbox" name="labels" value="{{.ID}}"{{if $v.Issue.HasLabel .ID}} checked{{end}}> <span class="IssueLabel" style="{{labelStyle .Color}}">{{.Name}}</span></label>{{else}}<span class="color-fg-muted text-small">{{tr "repo.issues.new.no_labels"}}</span>{{end}}
         <div class="mt-2"><button class="btn btn-sm btn-primary" type="submit">{{tr "ppoi.apply"}}</button></div>
       </form>

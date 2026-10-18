@@ -535,6 +535,31 @@ type issueView struct {
 	Timeline  []timelineItem
 	AllLabels []store.Label
 	AllUsers  []store.User
+
+	// 画面を開いた時点の、ラベルと担当者それぞれの最後の変更イベント名（低9）。
+	// フォームの hidden で返し、保存時にずれていれば 409 で読み直させる
+	LabelsSeen    string
+	AssigneesSeen string
+}
+
+// lastEventFile は指定した種類のイベントのうち、一番新しいファイル名を返す。無ければ空。
+func lastEventFile(is store.Issue, typ string) string {
+	last := ""
+	for _, ev := range is.Events {
+		if ev.Type == typ && ev.File > last {
+			last = ev.File
+		}
+	}
+	return last
+}
+
+// checkSeen はフォームが持ってきた「開いたときの最後の変更イベント名」と今のものを比べる。
+// 違えば、他の人が先に変えている（低9）。フォームに無ければ古い画面として扱い、同じく弾く。
+func checkSeen(r *http.Request, is store.Issue, typ string) error {
+	if r.FormValue("seen") != lastEventFile(is, typ) {
+		return opErr(http.StatusConflict, "ppoi.error.stale")
+	}
+	return nil
 }
 
 func buildTimeline(is store.Issue, byID map[int]store.Label) []timelineItem {
@@ -648,7 +673,8 @@ func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request, st *store.Sto
 }
 
 func (s *Server) issuePage(st *store.Store, repo store.Repo, is store.Issue) (page, error) {
-	v := issueView{Issue: is, Assignees: is.Assignees, BodyEdit: bodyEditInfo(is)}
+	v := issueView{Issue: is, Assignees: is.Assignees, BodyEdit: bodyEditInfo(is),
+		LabelsSeen: lastEventFile(is, store.EventLabels), AssigneesSeen: lastEventFile(is, store.EventAssigned)}
 	var err error
 	if v.AllLabels, err = st.ListLabels(repo.Name); err != nil {
 		return page{}, err
@@ -888,6 +914,10 @@ func (s *Server) handleIssueLabels(w http.ResponseWriter, r *http.Request, st *s
 		return
 	}
 	r.ParseForm()
+	if err := checkSeen(r, is, store.EventLabels); err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
+	}
 	var ids []int
 	for _, v := range r.Form["labels"] {
 		if id, err := strconv.Atoi(v); err == nil {
@@ -907,6 +937,10 @@ func (s *Server) handleIssueAssignees(w http.ResponseWriter, r *http.Request, st
 		return
 	}
 	r.ParseForm()
+	if err := checkSeen(r, is, store.EventAssigned); err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
+	}
 	if err := s.setAssignees(st, repo, is, r.Form["assignees"]); err != nil {
 		s.renderIssueError(w, st, repo, is, err)
 		return

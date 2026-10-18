@@ -118,6 +118,7 @@
         <span class="flex-auto">{{tr "repo.issues.new.assignees"}}</span>{{icon "gear"}}
       </summary>
       <form method="post" action="/{{.Owner}}/{{.Repo.Name}}/issues/{{.Data.Issue.Number}}/assignees" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        <input type="hidden" name="seen" value="{{.Data.AssigneesSeen}}">
         {{range .Data.AllUsers}}
         <label class="d-block py-1"><input type="checkbox" name="assignees" value="{{.Login}}"{{if $.Data.Issue.HasAssignee .Login}} checked{{end}}> {{name .Login}}</label>
         {{end}}
@@ -134,6 +135,7 @@
         <span class="flex-auto">{{tr "repo.issues.new.labels"}}</span>{{icon "gear"}}
       </summary>
       <form method="post" action="/{{.Owner}}/{{.Repo.Name}}/issues/{{.Data.Issue.Number}}/labels" class="mt-2 p-2 border rounded-2 color-bg-subtle">
+        <input type="hidden" name="seen" value="{{.Data.LabelsSeen}}">
         {{range .Data.AllLabels}}
         <label class="d-block py-1"><input type="checkbox" name="labels" value="{{.ID}}"{{if $.Data.Issue.HasLabel .ID}} checked{{end}}> <span class="IssueLabel" style="{{labelStyle .Color}}">{{.Name}}</span></label>
         {{else}}

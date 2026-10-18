@@ -263,6 +263,9 @@ type pullView struct {
 	Timeline  []timelineItem
 	AllLabels []store.Label
 	AllUsers  []store.User
+	// 低9。issueView と同じ
+	LabelsSeen    string
+	AssigneesSeen string
 
 	HeadExists  bool
 	HeadSHA     string // 今の head の先頭（head が消えていればマージ時か作成時の先頭）
@@ -289,7 +292,8 @@ type pullView struct {
 func (s *Server) buildPullView(st *store.Store, repo store.Repo, is store.Issue, tab string) (pullView, error) {
 	g := s.gitRepo(st, repo)
 	base := s.repoURL(st, repo)
-	v := pullView{Issue: is, Tab: tab, PullURL: s.pullURL(st, repo, is.Number), Assignees: is.Assignees, IsAuthor: strings.EqualFold(is.User, s.login), BodyEdit: bodyEditInfo(is)}
+	v := pullView{Issue: is, Tab: tab, PullURL: s.pullURL(st, repo, is.Number), Assignees: is.Assignees, IsAuthor: strings.EqualFold(is.User, s.login), BodyEdit: bodyEditInfo(is),
+		LabelsSeen: lastEventFile(is, store.EventLabels), AssigneesSeen: lastEventFile(is, store.EventAssigned)}
 	var err error
 	if v.AllLabels, err = st.ListLabels(repo.Name); err != nil {
 		return v, err
