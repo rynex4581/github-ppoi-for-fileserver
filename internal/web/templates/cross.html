@@ -2,6 +2,7 @@
 {{$v := .Data}}
 <div class="d-flex flex-items-center mb-3">
   <h2 class="f2 text-normal flex-auto">{{if $v.IsPull}}{{tr "repo.pulls"}}{{else}}{{tr "repo.issues"}}{{end}}</h2>
+  <span class="color-fg-muted text-small">{{tr "ppoi.cross.delay_note"}}</span>
 </div>
 <div class="d-flex flex-column flex-md-row gutter-md">
   <div class="col-md-3 mb-3">

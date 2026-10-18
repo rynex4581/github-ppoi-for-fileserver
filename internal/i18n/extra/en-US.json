@@ -96,5 +96,6 @@
   "ppoi.readonly.write": "This data root is opened read-only (unknown data format). Update to a newer exe.",
   "ppoi.error.comment_not_found": "Comment not found.",
   "ppoi.settings.trust_note": "Everyone who can write to a data root can run git commands on each other's PC (repositories on the share are opened with safe.directory=*). Use a share that only trusted members can write to. The login name (%s) comes from the USERNAME environment variable and is not verified.",
-  "ppoi.error.not_author": "You can only edit or delete what you wrote."
+  "ppoi.error.not_author": "You can only edit or delete what you wrote.",
+  "ppoi.cross.delay_note": "Changes made on other PCs can take about 10 seconds to show up here."
 }
