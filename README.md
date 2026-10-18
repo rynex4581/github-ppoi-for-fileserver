@@ -15,7 +15,8 @@
   <a href="https://github.com/rynex4581/github-ppoi-for-fileserver/stargazers"><img src="https://img.shields.io/github/stars/rynex4581/github-ppoi-for-fileserver?style=social" alt="GitHub stars"></a>
 </p>
 
-Githubっぽいのをファイルサーバでやるやつ。
+Githubっぽいのをファイルサーバでやるやつ。<br>
+本ツールは GitHub, Inc. とは無関係。名前に GitHub を含むのは見た目を真似たことを表すためで、それ以上の意味は無い。
 
 ## インストール
 
