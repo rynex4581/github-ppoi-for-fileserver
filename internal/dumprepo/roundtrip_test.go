@@ -227,4 +227,35 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if _, err := Import(st2, out, "", &log); err == nil {
 		t.Error("同じ名前のリポジトリに二重に取り込めてしまう")
 	}
+
+	// 新27：途中で失敗したら作りかけの repos と meta を消し、直して再実行できる
+	broken := filepath.Join(t.TempDir(), "broken")
+	if err := os.CopyFS(broken, os.DirFS(out)); err != nil {
+		t.Fatal(err)
+	}
+	brokenDir, _ := FindDumpDir(broken)
+	badComments := filepath.Join(brokenDir, "comments", "1.yml")
+	good, _ := os.ReadFile(badComments)
+	os.WriteFile(badComments, []byte("- {broken: ["), 0o644)
+	st3, err := store.Create(t.TempDir(), store.Config{Owner: "third"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Reset()
+	if _, err := Import(st3, broken, "", &log); err == nil {
+		t.Fatal("壊れた comments で import が通ってしまう")
+	}
+	if _, err := os.Stat(filepath.Join(st3.Root(), "repos", "tool.git")); !os.IsNotExist(err) {
+		t.Errorf("失敗した import の bare が残っている: %v", err)
+	}
+	if _, err := os.Stat(filepath.Dir(st3.IssuesDir("tool"))); !os.IsNotExist(err) {
+		t.Errorf("失敗した import の meta が残っている: %v", err)
+	}
+	if !strings.Contains(log.String(), "元に戻した") {
+		t.Errorf("後始末の表示が無い: %s", log.String())
+	}
+	os.WriteFile(badComments, good, 0o644)
+	if _, err := Import(st3, broken, "", &log); err != nil {
+		t.Fatalf("直した後の再実行が通らない: %v", err)
+	}
 }

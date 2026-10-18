@@ -60,7 +60,24 @@ func FindDumpDir(dir string) (string, error) {
 
 // Import は dump-repo 形式のフォルダをデータルートに取り込む。repoName が空なら repo.yml の name を使う。
 // Issue と PR の番号は元のまま保つ。マイルストーンと wiki は読み飛ばす。
+// 途中で失敗したら、作った repos\<名前>.git と meta\<名前>\ を消して元に戻す（新27。残すと再実行が
+// 「同じ名前のリポジトリが既にある」で止まる）。
 func Import(st *store.Store, dir, repoName string, log io.Writer) (Result, error) {
+	created := false
+	res, err := importRepo(st, dir, repoName, log, &created)
+	if err != nil && created {
+		bare := filepath.Join(st.Root(), "repos", res.Repo+".git")
+		meta := filepath.Dir(st.IssuesDir(res.Repo))
+		if e1, e2 := os.RemoveAll(bare), os.RemoveAll(meta); e1 != nil || e2 != nil {
+			fmt.Fprintf(log, "作りかけのリポジトリを消せなかった。%s と %s を消してから再実行すること\n", bare, meta)
+		} else {
+			fmt.Fprintln(log, "作りかけのリポジトリを消して元に戻した")
+		}
+	}
+	return res, err
+}
+
+func importRepo(st *store.Store, dir, repoName string, log io.Writer, created *bool) (Result, error) {
 	var res Result
 	dir, err := FindDumpDir(dir)
 	if err != nil {
@@ -82,6 +99,7 @@ func Import(st *store.Store, dir, repoName string, log io.Writer) (Result, error
 	if err != nil {
 		return res, err
 	}
+	*created = true
 	fmt.Fprintf(log, "リポジトリ %s を作った\n", repoName)
 	bare := filepath.Join(st.Root(), "repos", repoName+".git")
 	g := gitcmd.Repo{Dir: bare}
