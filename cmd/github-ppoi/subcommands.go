@@ -18,7 +18,7 @@ import (
 //   github-ppoi check   -root <データルート> [-repo <リポジトリ名>]
 //   github-ppoi export  -root <データルート> -repo <リポジトリ名> -out <出力先>
 //   github-ppoi import  -root <データルート> -dir <dump-repo のフォルダ> [-repo <リポジトリ名>]
-//   github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> -token <PAT>
+//   github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> [-resume]（トークンは環境変数 GITHUB_TOKEN か -token）
 // いずれも画面は上げず、結果を標準出力に出して終わる。
 
 // runSubcommand は os.Args[1] がサブコマンドなら実行して真を返す。終了コードは code に入る。
@@ -157,12 +157,13 @@ func runExportGitHub(args []string) int {
 	token := fs.String("token", os.Getenv("GITHUB_TOKEN"), "Personal Access Token（repo 権限）。省略時は環境変数 GITHUB_TOKEN")
 	api := fs.String("api", "https://api.github.com", "GitHub API の URL（GitHub Enterprise なら変える）")
 	wait := fs.Duration("wait", time.Second, "書き込みの API を呼ぶ間隔（二次的な制限に掛からないため）")
+	resume := fs.Bool("resume", false, "途中で止まった続きから。GitHub 側にある最大番号の次から書き出す")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	owner, name, ok := strings.Cut(*to, "/")
 	if *root == "" || *repo == "" || !ok || owner == "" || name == "" || *token == "" {
-		fmt.Fprintln(os.Stderr, "使い方: github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> -token <PAT>")
+		fmt.Fprintln(os.Stderr, "使い方: github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> [-resume]（トークンは環境変数 GITHUB_TOKEN に入れるか -token で渡す）")
 		return 2
 	}
 	st, err := store.Open(*root)
@@ -170,7 +171,7 @@ func runExportGitHub(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	if _, err := ghexport.Export(st, *repo, ghexport.Options{Owner: owner, Repo: name, Token: *token, APIBase: *api, Wait: *wait, Log: os.Stdout}); err != nil {
+	if _, err := ghexport.Export(st, *repo, ghexport.Options{Owner: owner, Repo: name, Token: *token, APIBase: *api, Wait: *wait, Resume: *resume, Log: os.Stdout}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}

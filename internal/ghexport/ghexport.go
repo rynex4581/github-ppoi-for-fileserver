@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ type Options struct {
 	GitRemote string // 既定は https://github.com/<owner>/<repo>.git。テストではローカルのパス
 	Wait      time.Duration
 	Log       io.Writer
+	Resume    bool // 途中で止まった続きから。GitHub 側の最大番号の次から書き出す（新23）
 }
 
 // Result は作った件数。
@@ -47,6 +49,38 @@ type client struct {
 	token string
 	http  *http.Client
 	wait  time.Duration
+	log   io.Writer
+}
+
+// 制限に掛かったときの再試行の上限と、ヘッダに待ち時間が無いときの待ち。
+const (
+	rateLimitRetries = 8
+	rateLimitDefault = 60 * time.Second
+	rateLimitMaxWait = time.Hour
+)
+
+// retryWait は 403／429 の応答から待つ時間を決める。Retry-After、無ければ x-ratelimit-reset、
+// それも無ければ本文が制限の話なら既定の 60 秒。制限と関係ない 403（権限など）なら 0。
+func retryWait(resp *http.Response, body string) time.Duration {
+	if v := resp.Header.Get("Retry-After"); v != "" {
+		if sec, err := strconv.Atoi(v); err == nil && sec >= 0 {
+			return min(time.Duration(sec)*time.Second+time.Second, rateLimitMaxWait)
+		}
+	}
+	if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+		if epoch, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+			d := time.Until(time.Unix(epoch, 0)) + time.Second
+			if d < time.Second {
+				d = time.Second
+			}
+			return min(d, rateLimitMaxWait)
+		}
+	}
+	lower := strings.ToLower(body)
+	if resp.StatusCode == 429 || strings.Contains(lower, "rate limit") || strings.Contains(lower, "secondary") || strings.Contains(lower, "abuse") {
+		return rateLimitDefault
+	}
+	return 0
 }
 
 // errStatus は GitHub が 2xx 以外を返したときのエラー。
@@ -59,38 +93,52 @@ func (e *errStatus) Error() string {
 	return fmt.Sprintf("GitHub API が %d を返した: %s", e.Status, e.Body)
 }
 
+// do は API を 1 回呼ぶ。GitHub の制限（403／429）に掛かったら、ヘッダの指示どおり待って再試行する（新23）。
 func (c *client) do(method, path string, in, out any) error {
-	var body io.Reader
+	var payload []byte
 	if in != nil {
 		data, err := json.Marshal(in)
 		if err != nil {
 			return err
 		}
-		body = bytes.NewReader(data)
+		payload = data
 	}
-	req, err := http.NewRequest(method, c.base+path, body)
-	if err != nil {
-		return err
+	for attempt := 0; ; attempt++ {
+		var body io.Reader
+		if payload != nil {
+			body = bytes.NewReader(payload)
+		}
+		req, err := http.NewRequest(method, c.base+path, body)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer "+c.token)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := c.http.Do(req)
+		if err != nil {
+			return err
+		}
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		if (resp.StatusCode == 403 || resp.StatusCode == 429) && attempt < rateLimitRetries {
+			if wait := retryWait(resp, string(data)); wait > 0 {
+				fmt.Fprintf(c.log, "GitHub の制限に掛かった（%d）。%s 待って再試行する\n", resp.StatusCode, wait.Round(time.Second))
+				time.Sleep(wait)
+				continue
+			}
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return &errStatus{Status: resp.StatusCode, Body: strings.TrimSpace(string(data))}
+		}
+		if out != nil && len(data) > 0 {
+			return json.Unmarshal(data, out)
+		}
+		return nil
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	if in != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &errStatus{Status: resp.StatusCode, Body: strings.TrimSpace(string(data))}
-	}
-	if out != nil && len(data) > 0 {
-		return json.Unmarshal(data, out)
-	}
-	return nil
 }
 
 // post は書き込みの API。GitHub の二次的な制限に掛からないよう、呼ぶたびに少し待つ。
@@ -163,10 +211,11 @@ func Export(st *store.Store, repoName string, opts Options) (Result, error) {
 	if _, err := st.GetRepo(repoName); err != nil {
 		return res, err
 	}
-	c := &client{base: strings.TrimRight(opts.APIBase, "/"), token: opts.Token, http: &http.Client{Timeout: 60 * time.Second}, wait: opts.Wait}
+	c := &client{base: strings.TrimRight(opts.APIBase, "/"), token: opts.Token, http: &http.Client{Timeout: 60 * time.Second}, wait: opts.Wait, log: opts.Log}
 	ghRepo := "/repos/" + opts.Owner + "/" + opts.Repo
 
-	// 先に GitHub 側を確かめる：リポジトリがあり、Issue も PR も無いこと（番号を揃えるため）
+	// 先に GitHub 側を確かめる：リポジトリがあり、Issue も PR も無いこと（番号を揃えるため）。
+	// -resume なら、GitHub 側にある最大番号の次から続ける
 	var info struct {
 		DefaultBranch string `json:"default_branch"`
 	}
@@ -176,11 +225,20 @@ func Export(st *store.Store, repoName string, opts Options) (Result, error) {
 	var existing []struct {
 		Number int `json:"number"`
 	}
-	if err := c.do(http.MethodGet, ghRepo+"/issues?state=all&per_page=1", nil, &existing); err != nil {
+	if err := c.do(http.MethodGet, ghRepo+"/issues?state=all&per_page=1&sort=created&direction=desc", nil, &existing); err != nil {
 		return res, err
 	}
+	start := 1
 	if len(existing) > 0 {
-		return res, fmt.Errorf("GitHub のリポジトリ %s/%s には既に Issue か PR がある。番号が揃わないので空のリポジトリに書き出す", opts.Owner, opts.Repo)
+		if !opts.Resume {
+			return res, fmt.Errorf("GitHub のリポジトリ %s/%s には既に Issue か PR がある。番号が揃わないので空のリポジトリに書き出す（途中で止まった続きなら -resume）", opts.Owner, opts.Repo)
+		}
+		for _, e := range existing {
+			if e.Number >= start {
+				start = e.Number + 1
+			}
+		}
+		fmt.Fprintf(opts.Log, "GitHub 側に #%d まであるので、#%d から続ける\n", start-1, start)
 	}
 
 	// git
@@ -240,7 +298,7 @@ func Export(st *store.Store, repoName string, opts Options) (Result, error) {
 	var created struct {
 		Number int `json:"number"`
 	}
-	for n := 1; n <= maxNumber; n++ {
+	for n := start; n <= maxNumber; n++ {
 		is, ok := byNumber[n]
 		if !ok {
 			// 欠番：空の Issue を作って閉じる
@@ -360,6 +418,13 @@ func Export(st *store.Store, repoName string, opts Options) (Result, error) {
 		var out struct {
 			ID        int64  `json:"id"`
 			UploadURL string `json:"upload_url"`
+		}
+		if opts.Resume {
+			// 前回の実行で作ってあれば飛ばす
+			if err := c.do(http.MethodGet, ghRepo+"/releases/tags/"+url.PathEscape(rel.Tag), nil, nil); err == nil {
+				fmt.Fprintf(opts.Log, "release %s は既にある\n", rel.Tag)
+				continue
+			}
 		}
 		body := header(rel.User, rel.CreatedAt) + rel.Body
 		if err := c.post(ghRepo+"/releases", map[string]any{"tag_name": rel.Tag, "name": rel.Title, "body": body, "prerelease": rel.Prerelease, "draft": false}, &out); err != nil {

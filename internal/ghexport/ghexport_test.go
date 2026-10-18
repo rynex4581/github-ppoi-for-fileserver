@@ -32,14 +32,16 @@ func git(t *testing.T, dir string, args ...string) string {
 
 // fakeGitHub は GitHub の REST API のうち export-github が使う分だけを模す。
 type fakeGitHub struct {
-	mu       sync.Mutex
-	issues   []map[string]any // 番号順。PR も含む
-	comments map[int][]string
-	labels   []string
-	releases []map[string]any
-	assets   map[int64][]string
-	patches  map[int][]map[string]any
-	authOK   bool
+	mu        sync.Mutex
+	issues    []map[string]any // 番号順。PR も含む
+	comments  map[int][]string
+	labels    []string
+	releases  []map[string]any
+	assets    map[int64][]string
+	patches   map[int][]map[string]any
+	authOK    bool
+	limitOnce bool // 真なら、次のコメント作成を 403（Retry-After: 1）で一度だけ弾く（新23）
+	limited   int  // 弾いた回数
 }
 
 func (f *fakeGitHub) handler(t *testing.T, uploadBase *string) http.Handler {
@@ -133,6 +135,14 @@ func (f *fakeGitHub) handler(t *testing.T, uploadBase *string) http.Handler {
 		m := read(r)
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		if f.limitOnce {
+			f.limitOnce = false
+			f.limited++
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(403)
+			w.Write([]byte(`{"message":"You have exceeded a secondary rate limit."}`))
+			return
+		}
 		if n < 1 || n > len(f.issues) {
 			w.WriteHeader(404)
 			return
@@ -140,6 +150,20 @@ func (f *fakeGitHub) handler(t *testing.T, uploadBase *string) http.Handler {
 		f.comments[n] = append(f.comments[n], m["body"].(string))
 		w.WriteHeader(201)
 		json.NewEncoder(w).Encode(m)
+	})
+	mux.HandleFunc("GET /repos/o/r/releases/tags/{tag}", func(w http.ResponseWriter, r *http.Request) {
+		if !check(w, r) {
+			return
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		for _, rel := range f.releases {
+			if rel["tag_name"] == r.PathValue("tag") {
+				json.NewEncoder(w).Encode(rel)
+				return
+			}
+		}
+		w.WriteHeader(404)
 	})
 	mux.HandleFunc("POST /repos/o/r/releases", func(w http.ResponseWriter, r *http.Request) {
 		if !check(w, r) {
@@ -221,7 +245,7 @@ func TestExportToFakeGitHub(t *testing.T) {
 	}
 	st.SaveReleaseAttachment("tool", "v1.0", "tool.zip", []byte("zip-bytes"))
 
-	fake := &fakeGitHub{comments: map[int][]string{}, assets: map[int64][]string{}, patches: map[int][]map[string]any{}}
+	fake := &fakeGitHub{comments: map[int][]string{}, assets: map[int64][]string{}, patches: map[int][]map[string]any{}, limitOnce: true}
 	var base string
 	srv := httptest.NewServer(fake.handler(t, &base))
 	defer srv.Close()
@@ -236,6 +260,10 @@ func TestExportToFakeGitHub(t *testing.T) {
 	}
 	if res.Issues != 2 || res.Pulls != 1 || res.Placeholders != 1 || res.Labels != 1 || res.Releases != 1 || res.Assets != 1 {
 		t.Fatalf("件数が違う: %+v\n%s", res, log.String())
+	}
+	// 新23：一度 403 を受けても、Retry-After のぶん待って再試行し、コメントは落ちない
+	if fake.limited != 1 || !strings.Contains(log.String(), "待って再試行する") {
+		t.Errorf("制限の再試行が働いていない（弾いた回数 %d）:\n%s", fake.limited, log.String())
 	}
 	if len(fake.issues) != 4 {
 		t.Fatalf("GitHub 側の Issue が %d 件", len(fake.issues))
@@ -277,5 +305,68 @@ func TestExportToFakeGitHub(t *testing.T) {
 	// Issue が既にあるリポジトリには書き出さない
 	if _, err := Export(st, "tool", Options{Owner: "o", Repo: "r", Token: "test-token-0123", APIBase: srv.URL, GitRemote: remote}); err == nil || !strings.Contains(err.Error(), "既に Issue か PR がある") {
 		t.Errorf("既に Issue のあるリポジトリに書き出せてしまう: %v", err)
+	}
+}
+
+// 新23：GitHub 側に途中まで出来ているとき、-resume 無しは拒み、-resume なら最大番号の次から続ける。
+// 作成済みのリリースは飛ばす。
+func TestExportResume(t *testing.T) {
+	root := t.TempDir()
+	st, err := store.Create(root, store.Config{Owner: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateRepo("tool", ""); err != nil {
+		t.Fatal(err)
+	}
+	bare := filepath.Join(root, "repos", "tool.git")
+	work := filepath.Join(t.TempDir(), "work")
+	git(t, root, "clone", "--quiet", bare, work)
+	os.WriteFile(filepath.Join(work, "a.txt"), []byte("a\n"), 0o644)
+	git(t, work, "add", ".")
+	git(t, work, "commit", "--quiet", "-m", "first")
+	git(t, work, "push", "--quiet", "origin", "HEAD:refs/heads/main")
+	mainSHA := git(t, work, "rev-parse", "main")
+	t0 := time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)
+	for n, title := range map[int]string{1: "一つ目", 2: "二つ目", 3: "三つ目"} {
+		st.CreateIssueAt("tool", n)
+		st.WriteCreated("tool", n, store.Event{User: "yamada", Title: title, Body: "", Time: t0}, nil, nil)
+	}
+	if _, err := st.CreateReleaseAt("tool", "yamada", "v1.0", mainSHA, "版 1.0", "", false, t0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateReleaseAt("tool", "yamada", "v1.1", mainSHA, "版 1.1", "", false, t0.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	// 前回の実行で #1 と v1.0 まで出来ていた、という状態の GitHub
+	fake := &fakeGitHub{comments: map[int][]string{}, assets: map[int64][]string{}, patches: map[int][]map[string]any{}}
+	fake.issues = []map[string]any{{"number": 1, "title": "一つ目", "is_pull": false}}
+	fake.releases = []map[string]any{{"id": int64(1), "tag_name": "v1.0"}}
+	var base string
+	srv := httptest.NewServer(fake.handler(t, &base))
+	defer srv.Close()
+	base = srv.URL
+	remote := filepath.Join(t.TempDir(), "github.git")
+	git(t, t.TempDir(), "init", "--quiet", "--bare", remote)
+
+	var log bytes.Buffer
+	opts := Options{Owner: "o", Repo: "r", Token: "test-token-0123", APIBase: srv.URL, GitRemote: remote, Log: &log}
+	if _, err := Export(st, "tool", opts); err == nil || !strings.Contains(err.Error(), "-resume") {
+		t.Fatalf("途中まで出来ているのに -resume 無しで通ってしまう: %v", err)
+	}
+	opts.Resume = true
+	res, err := Export(st, "tool", opts)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, log.String())
+	}
+	if res.Issues != 2 || res.Releases != 1 || len(fake.issues) != 3 || fake.issues[1]["title"] != "二つ目" || fake.issues[2]["title"] != "三つ目" {
+		t.Fatalf("続きから書けていない: %+v issues=%v\n%s", res, fake.issues, log.String())
+	}
+	if len(fake.releases) != 2 || fake.releases[1]["tag_name"] != "v1.1" {
+		t.Fatalf("作成済みのリリースを飛ばしていない: %v", fake.releases)
+	}
+	if !strings.Contains(log.String(), "#2 から続ける") {
+		t.Errorf("続きの表示が無い:\n%s", log.String())
 	}
 }
