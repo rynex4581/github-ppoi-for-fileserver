@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo/logo-1.svg" width="160" height="160" alt="">
+  <img src="docs/logo/logo-wordmark.png" width="420" height="230" alt="">
 </p>
 
 <h1 align="center">github-ppoi for Fileserver</h1>

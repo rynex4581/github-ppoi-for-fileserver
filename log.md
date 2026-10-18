@@ -76,6 +76,7 @@
 
 - README を Backlog.md の README と同じ見せ方に組み替えた。ロゴ、キャッチコピー、バッジ、インストールの1行、Features、Getting started、Codex と使う、Web 画面、設定の表、Troubleshooting の順
 - ロゴは docs/logo に SVG で3案（共有フォルダと Issue を組み合わせたもの。背景は透過、線は中間色）。README には仮に1案目を入れた
+- ロゴは「GitHub」の文字に「っぽい」を斜めに重ね、黄色いフォルダを背景にしたものに決まった（docs/logo/logo-wordmark）。本物のロゴタイプと Windows の画像は使わず、文字は Segoe UI Black、「っぽい」は Noto Sans JP Black で描いた。README には書体の無い環境でも同じに見えるよう PNG を載せ、SVG は元データとして置く
 - 画面の画像は tools/screenshot で撮る。一時フォルダに架空のデータルート（リポジトリ2つ、Issue 6件、Pull Request 1件）を作り、本体と同じサーバを上げて、端末の Chromium 系ブラウザ（Chrome、Iron、Edge の順に探す）で4画面を撮って docs/images に置く。`go run ./tools/screenshot` で撮り直せる
 
 ## 設計メモに無い判断
