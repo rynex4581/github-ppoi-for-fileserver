@@ -144,6 +144,10 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 - README は入口（インストール、背景、Features、Getting started、Codex との使い方、画面、設計の要点、現在の状態）だけにした。データルートの構成、書き込みの種類、設定、バックアップと復元、インポートとエクスポート、Troubleshooting は docs/運用.md に、API の一覧は docs/API.md に移した。IMPORTANT は 2 点に絞り、hooks の絞り方と監査ログの話は docs/運用.md のセキュリティ上の前提に移した
 - 直訳調の文を直した（「前回開いた」は端末側に持つ、要らない、流し込める、叩く、家で実行する など）
 
+### Ver 0.20
+
+- 外部レビュー 2 回の対応、Releases、検索、新着の印、ファイル添付、reserve／check、import／export／export-github、低9、README の整理を含めて Ver 0.20 とした。タグ v0.20 で release を通す
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`

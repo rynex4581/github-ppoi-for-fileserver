@@ -10,7 +10,7 @@ import (
 )
 
 // Number はバージョン番号。英字の修正版が付く場合は "0.10A" のようになる。
-const Number = "0.10"
+const Number = "0.20"
 
 // Display は画面のフッター等に出す表記。
 const Display = "Ver " + Number
