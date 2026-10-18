@@ -369,6 +369,10 @@ func (s *Server) apiCreateComment(w http.ResponseWriter, r *http.Request, st *st
 	}
 	is, _ = st.GetIssue(repo.Name, is.Number)
 	evs := commentEvents(is)
+	if len(evs) == 0 {
+		s.apiError(w, http.StatusInternalServerError, "comment was written but could not be read back")
+		return
+	}
 	writeJSON(w, http.StatusCreated, s.toComment(st, repo, is, evs[len(evs)-1]))
 }
 

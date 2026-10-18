@@ -27,9 +27,16 @@ const cacheSaveInterval = 5 * time.Second
 // 版が違うキャッシュは読まずに捨て、共有フォルダから読み直す。
 const cacheFormat = 2
 
+// ownWriteGrace は自分が書いたイベントを、フォルダの一覧に出てこなくても信じ続ける時間。
+// SMB クライアントは一覧を数秒〜十数秒キャッシュするので、書いた直後の一覧には自分の
+// ファイルが無いことがある。その間に捨てると、書いた直後の GetIssue でイベントが消える。
+const ownWriteGrace = 60 * time.Second
+
 type repoCache struct {
 	Format int                      `json:"format"`
 	Issues map[int]map[string]Event `json:"issues"` // 番号 → ファイル名 → イベント
+
+	recent map[string]time.Time // 自分が書いたイベントのファイル名 → 書いた時刻。ディスクには書かない
 
 	loaded    bool
 	dirty     bool
@@ -119,10 +126,17 @@ func (s *Store) cachedEvents(repo string, number int) ([]Event, error) {
 		rc.dirty = true
 	}
 	for name := range known {
-		if !present[name] {
-			delete(known, name)
-			rc.dirty = true
+		if present[name] {
+			delete(rc.recent, name)
+			continue
 		}
+		// 一覧に無い。自分が書いた直後なら一覧の遅れとみなして残す
+		if t, ok := rc.recent[name]; ok && time.Since(t) < ownWriteGrace {
+			continue
+		}
+		delete(rc.recent, name)
+		delete(known, name)
+		rc.dirty = true
 	}
 	events := make([]Event, 0, len(known))
 	for name, ev := range known {
@@ -144,6 +158,10 @@ func (s *Store) rememberEvent(repo string, number int, name string, ev Event) {
 	}
 	ev.File = name
 	rc.Issues[number][name] = ev
+	if rc.recent == nil {
+		rc.recent = map[string]time.Time{}
+	}
+	rc.recent[name] = time.Now()
 	rc.dirty = true
 }
 

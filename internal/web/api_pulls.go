@@ -368,6 +368,10 @@ func (s *Server) apiCreateReview(w http.ResponseWriter, r *http.Request, st *sto
 	}
 	is, _ = st.GetIssue(repo.Name, is.Number)
 	evs := reviewEvents(is)
+	if len(evs) == 0 {
+		s.apiError(w, http.StatusInternalServerError, "review was written but could not be read back")
+		return
+	}
 	out := s.toReview(st, repo, is, evs[len(evs)-1])
 	out.CommentsCount = len(in.Comments)
 	writeJSON(w, http.StatusOK, out)
