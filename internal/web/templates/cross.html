@@ -30,7 +30,7 @@
         </div>
         <div class="flex-auto min-width-0">
           <a class="Link--muted text-small" href="/{{.Owner}}/{{.RepoName}}">{{.Owner}}/{{.RepoName}}</a>
-          <a class="Link--primary text-bold f4 lh-condensed wb-break-word d-block" href="{{.URL}}">{{.Title}}</a>
+          <div><a class="Link--primary text-bold f4 lh-condensed wb-break-word" href="{{.URL}}">{{.Title}}</a>{{if .New}}<span class="app-new-dot" title="{{tr "ppoi.new_activity"}}" aria-label="{{tr "ppoi.new_activity"}}"></span>{{end}}</div>
           {{range .Labels}}<span class="IssueLabel mr-1" style="{{labelStyle .Color}}">{{.Name}}</span>{{end}}
           <div class="color-fg-muted text-small mt-1">#{{.Number}} {{name .User}} · {{datetime .UpdatedAt}}</div>
         </div>

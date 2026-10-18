@@ -56,12 +56,14 @@ type Server struct {
 
 	approvalMu   sync.Mutex
 	approvalMemo map[approvalKey]bool // 承認がまだ有効かの判定結果（approvalValid）
-	newer        *newerVersion        // bin\github-ppoi.exe の版が自分より新しいときに入る
-	pages        map[string]*template.Template
-	icons        map[string]template.HTML
-	md           goldmark.Markdown
-	mux          *http.ServeMux
-	apiMux       *http.ServeMux // /api/v1/ 配下。画面の /{owner}/{repo}/... と衝突するので別にする
+
+	seen   seenStore     // 新着の印のための「前回開いた位置」
+	newer  *newerVersion // bin\github-ppoi.exe の版が自分より新しいときに入る
+	pages  map[string]*template.Template
+	icons  map[string]template.HTML
+	md     goldmark.Markdown
+	mux    *http.ServeMux
+	apiMux *http.ServeMux // /api/v1/ 配下。画面の /{owner}/{repo}/... と衝突するので別にする
 }
 
 // New はサーバを作る。登録されているデータルートをすべて開く。

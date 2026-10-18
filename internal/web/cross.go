@@ -17,6 +17,7 @@ type crossRow struct {
 	RepoName string
 	URL      string
 	Labels   []store.Label
+	New      bool // 新着の印
 }
 
 type crossView struct {
@@ -142,6 +143,7 @@ func (s *Server) listCross(w http.ResponseWriter, r *http.Request, isPull bool) 
 					Issue: is, Owner: owner, RepoName: repo.Name,
 					URL:    fmt.Sprintf("/%s/%s/%s/%d", owner, repo.Name, kind, is.Number),
 					Labels: resolveLabels(is.Labels, byID),
+					New:    s.isNew(owner, repo.Name, is),
 				})
 			}
 		}

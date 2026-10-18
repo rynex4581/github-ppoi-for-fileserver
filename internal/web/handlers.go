@@ -120,6 +120,7 @@ type issueRow struct {
 	store.Issue
 	Labels    []store.Label
 	Assignees []string
+	New       bool // 新着の印（前回開いたあとに他人のイベントが増えた）
 }
 
 type issuesView struct {
@@ -314,7 +315,7 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request, st *store.St
 			v.ClosedCount++
 		}
 		if is.State == f.State {
-			v.Issues = append(v.Issues, issueRow{Issue: is, Labels: resolveLabels(is.Labels, byID), Assignees: is.Assignees})
+			v.Issues = append(v.Issues, issueRow{Issue: is, Labels: resolveLabels(is.Labels, byID), Assignees: is.Assignees, New: s.isNew(repo.Owner, repo.Name, is)})
 		}
 	}
 
@@ -677,6 +678,7 @@ func (s *Server) handleIssue(w http.ResponseWriter, r *http.Request, st *store.S
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	s.markSeen(st, repo, is)
 	s.render(w, http.StatusOK, "issue", p)
 }
 

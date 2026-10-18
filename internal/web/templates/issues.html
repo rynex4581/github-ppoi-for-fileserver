@@ -58,7 +58,7 @@
       {{if .IsPull}}{{if .Merged}}<span class="color-fg-done">{{icon "git-pull-request"}}</span>{{else if eq .State "open"}}<span class="color-fg-success">{{icon "git-pull-request"}}</span>{{else}}<span class="color-fg-danger">{{icon "git-pull-request"}}</span>{{end}}{{else if eq .State "open"}}<span class="color-fg-success">{{icon "issue-opened"}}</span>{{else}}<span class="color-fg-done">{{icon "issue-closed"}}</span>{{end}}
     </div>
     <div class="flex-auto min-width-0">
-      <a class="Link--primary text-bold f4 lh-condensed wb-break-word" href="{{$.Data.ListURL}}/{{.Number}}">{{.Title}}</a>
+      <a class="Link--primary text-bold f4 lh-condensed wb-break-word" href="{{$.Data.ListURL}}/{{.Number}}">{{.Title}}</a>{{if .New}}<span class="app-new-dot" title="{{tr "ppoi.new_activity"}}" aria-label="{{tr "ppoi.new_activity"}}"></span>{{end}}
       {{range .Labels}}<a class="IssueLabel ml-1" style="{{labelStyle .Color}}" title="{{.Description}}" href="{{$.Data.ListURL}}?state={{$.Data.State}}&labels={{.ID}}">{{.Name}}</a>{{end}}
       <div class="color-fg-muted text-small mt-1">
         #{{.Number}}

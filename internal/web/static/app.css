@@ -212,3 +212,14 @@ body {
   max-height: 24em;
   overflow: auto;
 }
+
+/* 新着の印（前回開いたあとに他人のイベントが増えた Issue と PR） */
+.app-new-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background-color: var(--bgColor-accent-emphasis, var(--color-accent-emphasis, #0969da));
+}

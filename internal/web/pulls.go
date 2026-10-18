@@ -414,6 +414,9 @@ func (s *Server) renderPull(w http.ResponseWriter, status int, st *store.Store, 
 	p := s.repoPage(fmt.Sprintf("%s · #%d", is.Title, is.Number), repo, "pulls")
 	p.Error = errMsg
 	p.Data = v
+	if status == http.StatusOK {
+		s.markSeen(st, repo, is)
+	}
 	s.render(w, status, "pull", p)
 }
 
