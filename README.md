@@ -95,7 +95,7 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 
 ## Codex／AI エージェントと使う
 
-`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使用可能。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に記載済み。トークンは空でなければ何でも通る（`Authorization: token x`）。`/api/v1/version` だけは認証無し。内輪のバージョン・履歴管理として使うものなので原則として性善説で。
+`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使用可能。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に記載済み。トークンは空でなければ何でも通る（`Authorization: token x`）。URL のクエリ（`?token=`）は不可。JSON を送るときは `Content-Type: application/json` を付けること。`/api/v1/version` だけは認証無し。内輪のバージョン・履歴管理として使うものなので原則として性善説で。
 
 実装済
 

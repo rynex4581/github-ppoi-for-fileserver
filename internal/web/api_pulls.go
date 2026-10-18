@@ -78,8 +78,7 @@ type pullInput struct {
 
 func (s *Server) apiCreatePull(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
 	var in pullInput
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	title, body := "", ""
@@ -189,12 +188,11 @@ func (s *Server) apiMergePull(w http.ResponseWriter, r *http.Request, st *store.
 		MergeMessage string `json:"MergeMessageField"`
 		MergeTitle   string `json:"MergeTitleField"`
 	}
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
-	if in.Do != "" && in.Do != "merge" {
-		s.apiError(w, http.StatusUnprocessableEntity, "only Do=merge is supported (--no-ff merge commit)")
+	if in.Do != "merge" {
+		s.apiError(w, http.StatusUnprocessableEntity, "Do=merge is required (only --no-ff merge commit is supported)")
 		return
 	}
 	message := in.MergeMessage
@@ -330,8 +328,7 @@ func (s *Server) apiCreateReview(w http.ResponseWriter, r *http.Request, st *sto
 			NewPos int    `json:"new_position"`
 		} `json:"comments"`
 	}
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	for _, c := range in.Comments {

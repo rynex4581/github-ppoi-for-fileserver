@@ -35,8 +35,7 @@ type labelInput struct {
 
 func (s *Server) apiCreateLabel(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
 	var in labelInput
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	l, err := st.CreateLabel(repo.Name, store.Label{Name: in.Name, Color: in.Color, Description: in.Description})
@@ -74,8 +73,7 @@ func (s *Server) apiEditLabel(w http.ResponseWriter, r *http.Request, st *store.
 		Color       *string `json:"color"`
 		Description *string `json:"description"`
 	}
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	if in.Name != nil {
@@ -225,8 +223,7 @@ func (in issueInput) assigneeList() []string {
 
 func (s *Server) apiCreateIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
 	var in issueInput
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	title, body := "", ""
@@ -263,8 +260,7 @@ func (s *Server) apiGetIssue(w http.ResponseWriter, r *http.Request, st *store.S
 // apiEditIssue は title、state、assignees を変える。body の変更は持たない（本文を書き換えるイベントが無い）。
 func (s *Server) apiEditIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, is store.Issue) {
 	var in issueInput
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	if in.Body != nil && normalizeNewlines(*in.Body) != is.Body {
@@ -358,8 +354,7 @@ func (s *Server) apiCreateComment(w http.ResponseWriter, r *http.Request, st *st
 	var in struct {
 		Body string `json:"body"`
 	}
-	if err := readJSON(r, &in); err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
 	if err := s.addComment(st, repo, is, in.Body); err != nil {

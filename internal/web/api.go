@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -61,7 +62,12 @@ func (s *Server) apiFail(w http.ResponseWriter, err error) {
 	s.apiError(w, status, s.opMessage(err))
 }
 
-// readJSON はリクエストの JSON を読む。
+// errNotJSON は JSON を受ける経路に application/json 以外のボディが来たときのエラー。
+var errNotJSON = errors.New("Content-Type must be application/json")
+
+// readJSON はリクエストの JSON を読む。ボディがあるのに Content-Type が application/json で
+// なければ errNotJSON を返す（他サイトのフォームは text/plain や multipart でしか送れないため、
+// これが CSRF の防ぎにもなる）。
 func readJSON(r *http.Request, v any) error {
 	data, err := io.ReadAll(io.LimitReader(r.Body, 4<<20))
 	if err != nil {
@@ -70,7 +76,26 @@ func readJSON(r *http.Request, v any) error {
 	if len(strings.TrimSpace(string(data))) == 0 {
 		return nil
 	}
+	mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mt != "application/json" {
+		return errNotJSON
+	}
 	return json.Unmarshal(data, v)
+}
+
+// apiReadJSON は readJSON を呼び、失敗したら応答を書いて false を返す。
+// Content-Type の違いは 415、JSON の壊れは 422。
+func (s *Server) apiReadJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	err := readJSON(r, v)
+	switch {
+	case err == nil:
+		return true
+	case errors.Is(err, errNotJSON):
+		s.apiError(w, http.StatusUnsupportedMediaType, err.Error())
+	default:
+		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	}
+	return false
 }
 
 // pageParams は page と limit を読む。
@@ -498,6 +523,8 @@ func (s *Server) toChangedFiles(st *store.Store, repo store.Repo, ref string, fi
 // ---- ルーティング ----
 
 // apiAuth はトークンの有無を確かめる。空でなければ何でも通す。
+// 受けるのは Authorization ヘッダだけで、URL のクエリ（token= / access_token=）は見ない。
+// クエリで受けると他サイトのフォームからでも認証が通ってしまうため。
 func (s *Server) apiAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		auth := strings.TrimSpace(r.Header.Get("Authorization"))
@@ -506,12 +533,6 @@ func (s *Server) apiAuth(next http.HandlerFunc) http.HandlerFunc {
 			if strings.HasPrefix(auth, prefix) {
 				token = strings.TrimSpace(strings.TrimPrefix(auth, prefix))
 			}
-		}
-		if token == "" {
-			token = strings.TrimSpace(r.URL.Query().Get("token"))
-		}
-		if token == "" {
-			token = strings.TrimSpace(r.URL.Query().Get("access_token"))
 		}
 		if token == "" {
 			w.Header().Set("WWW-Authenticate", `Basic realm="github-ppoi"`)

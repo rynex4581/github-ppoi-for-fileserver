@@ -186,18 +186,17 @@ func (s *Server) openStore(root string) (*store.Store, error) {
 }
 
 // Handler はHTTPハンドラを返す。
-// Hostヘッダが localhost または 127.0.0.1 以外のリクエストは弾く（CSRF対策はひとまずこれのみ）。
+// Hostヘッダが localhost または 127.0.0.1 以外のリクエストは弾き、別サイトのページからの書き込み
+// （Sec-Fetch-Site が cross-site / same-site、または Origin が Host と違うもの）は
+// http.CrossOriginProtection で拒否する。GET / HEAD / OPTIONS と、ブラウザ以外からの
+// リクエスト（Sec-Fetch-Site も Origin も無い）は通す。画面と API の両方に掛ける。
 // /static/ 配下は埋め込みファイルをそのまま返し、それ以外を画面のルーティングに回す。
 // GitHubと同じ /{owner}/{repo}/ 形のURLと /static/ をServeMuxに同居させると
 // パターンが衝突するため、ここで先に分ける。
 func (s *Server) Handler() http.Handler {
 	static, _ := fs.Sub(staticFS, "static")
 	staticHandler := http.StripPrefix("/static/", http.FileServerFS(static))
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !isLocalHost(r.Host) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/static/") {
 			staticHandler.ServeHTTP(w, r)
 			return
@@ -212,6 +211,18 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		s.mux.ServeHTTP(w, r)
+	})
+	protect := http.NewCrossOriginProtection()
+	protect.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+	}))
+	protected := protect.Handler(inner)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isLocalHost(r.Host) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		protected.ServeHTTP(w, r)
 	})
 }
 
@@ -388,6 +399,7 @@ func (s *Server) render(w http.ResponseWriter, status int, name string, p page) 
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Frame-Options", "DENY")
 	w.WriteHeader(status)
 	w.Write(buf.Bytes())
 }
