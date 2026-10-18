@@ -100,6 +100,10 @@ func (s *Server) setTitle(st *store.Store, repo store.Repo, is store.Issue, titl
 	if title == is.Title {
 		return nil
 	}
+	// タイトルの変更も作成者本人だけ（設計メモ 3.6）。画面と API の両方がここを通る
+	if err := s.requireAuthor(is, ""); err != nil {
+		return err
+	}
 	return st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventTitle, User: s.login, Title: title})
 }
 
