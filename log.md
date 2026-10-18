@@ -127,6 +127,14 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 - 運10：新着の印。前回開いた位置（一番新しいイベントのファイル名）を %LOCALAPPDATA%\github-ppoi\seen.json に持つ
 - 3.17：reserve と check のサブコマンド（check の本体は internal/integrity）
 
+### リリースとインポート／エクスポート（3.18、3.16）
+
+- 3.18：リリースを meta\<リポジトリ名>\releases\<タグ名>\ にイベント追記方式で持ち、配布物は attachments\ に置く。画面は一覧・詳細・新規・編集・削除・ダウンロードとタグ一覧（/tags）。Code 画面の見出しにタグ数とリリース数。API は Gitea の /releases と /tags に合わせた
+- 3.16 export：Gitea v28.1.0 の dump-repo 形式で書き出す。WSL の Ubuntu に Gitea 28.1.0 を立て、restore-repo --validation で取り込めることをテスト（GITEA_BIN を与えたときだけ動く）で確認した
+- 3.16 import：dump-repo 形式を取り込む。GitHub の本リポジトリを gitea dump-repo --git_service github で取った実物（ラベル 10、リリース 1 と添付 2、タグ 1、98 コミット）を取り込み、check が問題 0 件で、画面に出ることを確認した
+- 3.16 export-github：GitHub の API を模したサーバと手元の bare に対するテストで確認した。本物の GitHub に対しては未実施
+- git に core.longpaths=true を付けた（深いパスのデータルートで import の push が 260 文字制限に掛かった）
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
@@ -150,6 +158,13 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 - 承認がまだ有効かの判定（git diff 2回）は (base の SHA, 承認 SHA, head SHA) をキーにプロセス内で覚える。git が失敗したときの結果は覚えない
 - 新着の印は「前回開いた位置より新しい他人のイベント」で判定する。一度も開いていない Issue は、他人のイベントが1つでもあれば印を付ける。位置はイベントのファイル名（UTC 時刻で始まる）の比較なので、端末の時計のずれの範囲で取りこぼし得る
 - check は head_sha と commit_sha が無いことも報告する（force push で消えるのは正常なので、その旨を添える）。git fsck は --no-dangling
+- リリースのタグ名はフォルダ名になるので、英数字と . _ - + だけに限る（/ を含むタグにはリリースを付けられない）。削除は deleted の追記で、タグと添付のファイルは残る。削除後に同じタグで作り直せる
+- リリースの編集と削除は誰でもできる（Issue の本文と違い、GitHub でも書き込み権があれば誰でも編集できるため）
+- リリースの本文には Ctrl+V の添付を付けず、配布物のファイル選択だけにした
+- dump-repo の export では、Gitea の restore が PR のコメントとレビューを foreignindex で引くため pull_request.yml に番号を入れる。issue.yml はスキーマ（additionalProperties: false）に無い項目を書かない
+- dump-repo の import では、マージした人が dump に無いので merged イベントの user は PR の作成者にする。コメント種別は comment／close／reopen／change_title だけ取り込み、他は読み飛ばして表示する
+- export-github では open の PR は head のブランチが push 済みなら PR として作る（設計メモは「マージ済み PR は Issue として作る」とだけ決めている）
+- 添付の書き出し名は保存名の先頭の時刻（UTC時刻_）を外した元の名前にする
 - API の issues/comments/{id} は ServeMux のパターンが issues/{index}/... と衝突するため、Handler の前段で正規表現で振り分ける
 - 撮影スクリプトの依存（chromedp）は go.mod に入るが、本体の exe にはリンクされないので third_party の一覧には入れない
 - 撮影中は LOCALAPPDATA を一時フォルダに向け、端末側の設定とキャッシュに触らない
@@ -159,5 +174,5 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 
 - SMB 上の同時更新の検証（家の2台と NAS で smbtest を回す）
 - 外部レビューの後回し分：低9（別途指示）、低14 と 低18（SMB 検証の結果を見てから）
-- 設計メモ 3.18（リリース、Code のタグ一覧）、3.16（import／export／export-github）
+- export-github を本物の GitHub に対して一度試す（テストは模したサーバだけ）
 - 運6 の所有者照合（別途指示）
