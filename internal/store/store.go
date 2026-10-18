@@ -220,6 +220,11 @@ func (s *Store) loadOrCreateConfig() error {
 	if s.config.DefaultBranch == "" {
 		s.config.DefaultBranch = "main"
 	}
+	// 項目が無い（古い）config.json でも Create と同じ既定値にする。0 のままだと添付が
+	// すべて「大きすぎる」になり、POST のボディの上限も 1MB になる
+	if s.config.AttachmentMaxBytes <= 0 {
+		s.config.AttachmentMaxBytes = 10 * 1024 * 1024
+	}
 	return nil
 }
 
