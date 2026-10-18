@@ -158,6 +158,21 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 
 - GitHub の商標の決まり（製品名やロゴに GitHub を使わない）に掛かるので、ロゴとアイコンの文字を GitH○b にした。u は描かず（fill="none"）、その枠に字の高さ（キャップハイト）に近い円を置いて伏せ字にする。README の PNG と favicon.ico も作り直した。PNG は Edge の headless で SVG を 2 倍で描画したもの
 
+### 外部レビュー（3回目）への対応
+
+docs_local/レビュー指摘_3回目.txt の順で、指摘の番号ごとにコミットを分けた。
+
+- 新19：import と export-github の push を --mirror からブランチとタグの refspec にした。refs/pull/* は bare に入れず、PR の head は dump の git から引いて created イベントに持つ
+- 運2：core.hooksPath に空文字ではなく %LOCALAPPDATA%\github-ppoi
+ohooks（空フォルダ）の絶対パスを渡す。--receive-pack の中では引用符で囲む。テストは、ルート直下の pre-receive（置ける環境のみ）と、hooksPath を差し替えると push がその hook で止まることの両方を見る
+- 新20：export の行コメントを投稿者ごとに分け、他人のレビューには付けない
+- 新21：check にリリース（events の JSON、created の commit_sha、attachments フォルダ）を足した。リリース作成時に attachments フォルダを作るようにした
+- 新27：import が途中で失敗したら作った repos と meta を消す。消せなかったときの後始末を docs/運用.md に書いた
+- 新24：Issue とコメントの添付が dump-repo 形式に無いことを docs/運用.md に書いた
+- 新22：buildRelease は最後の deleted より後の最初の created を採り、createRelease は読み直して自分の created でなければ ErrReleaseExists
+- 新23、新28：export-github は 403／429 を Retry-After か x-ratelimit-reset のぶん待って再試行する。-resume で GitHub 側の最大番号の次から続ける。トークンは環境変数 GITHUB_TOKEN の案内にした
+- 新25、新26、新5：タグ名の末尾の . を弾く。作り直したリリースでは created より古い配布物を一覧に出さない（ファイルと URL は残る）。添付フォルダの 1 時間以上前の .tmp は一覧を読むときに掃除する
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
@@ -188,6 +203,8 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 - dump-repo の import では、マージした人が dump に無いので merged イベントの user は PR の作成者にする。コメント種別は comment／close／reopen／change_title だけ取り込み、他は読み飛ばして表示する
 - export-github では open の PR は head のブランチが push 済みなら PR として作る（設計メモは「マージ済み PR は Issue として作る」とだけ決めている）
 - 添付の書き出し名は保存名の先頭の時刻（UTC時刻_）を外した元の名前にする
+- 新26 は「attachments を空にする」ではなく「created より古い添付を出さない」を選んだ（ファイルを消さない方針に合わせる）。URL を知っていれば前の配布物も取れる
+- 新23 の制限待ちは 1 回の上限を 1 時間、再試行を 8 回までにした。制限と関係ない 403（権限など）は本文を見て再試行しない
 - 低9 の比較は、イベント全体の末尾ではなく、ラベルはラベルの、担当者は担当者の最後の変更イベント名で行う（末尾で比べると、無関係なコメントが 1 つ付いただけで弾かれるため）。hidden が無い送信も古い画面として弾く
 - API の issues/comments/{id} は ServeMux のパターンが issues/{index}/... と衝突するため、Handler の前段で正規表現で振り分ける
 - 撮影スクリプトの依存（chromedp）は go.mod に入るが、本体の exe にはリンクされないので third_party の一覧には入れない
