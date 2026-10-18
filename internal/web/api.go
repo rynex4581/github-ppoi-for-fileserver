@@ -672,6 +672,16 @@ func (s *Server) apiRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/repos/{owner}/{repo}/issues/{index}/assets", s.apiIssue(false, s.apiCreateAsset))
 	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/issues/{index}/assets/{id}", s.apiIssue(false, s.apiGetAsset))
 
+	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/releases", s.apiRepo(s.apiReleases))
+	mux.HandleFunc("POST /api/v1/repos/{owner}/{repo}/releases", s.apiRepo(s.apiCreateRelease))
+	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/releases/latest", s.apiRepo(s.apiLatestRelease))
+	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/releases/{id}", s.apiRepo(s.apiGetRelease))
+	mux.HandleFunc("PATCH /api/v1/repos/{owner}/{repo}/releases/{id}", s.apiRepo(s.apiEditRelease))
+	mux.HandleFunc("DELETE /api/v1/repos/{owner}/{repo}/releases/{id}", s.apiRepo(s.apiDeleteRelease))
+	// releases/tags/{tag} と releases/{id}/assets は ServeMux のパターンが衝突するので、1つの入口で振り分ける
+	mux.HandleFunc("/api/v1/repos/{owner}/{repo}/releases/{id}/{rest...}", s.apiRepo(s.apiReleaseSub))
+	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/tags", s.apiRepo(s.apiTags))
+
 	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/pulls", s.apiRepo(s.apiPulls))
 	mux.HandleFunc("POST /api/v1/repos/{owner}/{repo}/pulls", s.apiRepo(s.apiCreatePull))
 	mux.HandleFunc("GET /api/v1/repos/{owner}/{repo}/pulls/{index}", s.apiIssue(true, s.apiGetPull))

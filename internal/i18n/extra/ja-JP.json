@@ -99,5 +99,12 @@
   "ppoi.error.not_author": "編集と削除は自分が書いたものだけできます。",
   "ppoi.cross.delay_note": "他の端末が書いたものがここに出るまで、10秒程度かかることがあります。",
   "ppoi.attach.select": "ファイルを添付",
-  "ppoi.new_activity": "前回開いたあとに更新があります"
+  "ppoi.new_activity": "前回開いたあとに更新があります",
+  "ppoi.release.none": "リリースはまだありません。",
+  "ppoi.release.no_tags": "タグはまだありません。",
+  "ppoi.release.not_found": "リリースがありません。",
+  "ppoi.release.delete_confirm": "このリリースを削除します。タグと添付ファイルは残ります。よろしいですか？",
+  "ppoi.release.edited": "編集済み",
+  "ppoi.release.assets_help": "配布するファイル（exe、zip など）を添付できます。複数選択可。",
+  "ppoi.release.remove_checked": "チェックすると削除"
 }

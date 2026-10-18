@@ -1,0 +1,25 @@
+{{define "content"}}
+{{$v := .Data}}
+<div class="d-flex flex-items-center mb-3">
+  <h2 class="f3 text-normal mr-3">{{tr "repo.release.tags"}}</h2>
+  <a class="Link--muted" href="{{$v.ReleasesURL}}">{{tr "repo.release.releases"}}</a>
+</div>
+<div class="Box">
+  {{range $v.Rows}}
+  <div class="Box-row d-flex flex-items-center">
+    <div class="flex-auto">
+      <div class="f4 text-bold text-mono">{{if .ReleaseURL}}<a class="Link--primary" href="{{.ReleaseURL}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</div>
+      <div class="color-fg-muted text-small mt-1">
+        {{if not .Time.IsZero}}{{datetime .Time}} · {{end}}<a class="Link--muted text-mono" href="{{.CommitURL}}">{{short .SHA}}</a>
+      </div>
+    </div>
+    {{if .ReleaseURL}}<a class="Link--muted text-small" href="{{.ReleaseURL}}">{{tr "repo.release.detail"}}</a>{{else if and .NewURL (not $.RepoReadOnly)}}<a class="btn btn-sm" href="{{.NewURL}}">{{tr "repo.release.new_release"}}</a>{{end}}
+  </div>
+  {{else}}
+  <div class="blankslate">
+    <span class="color-fg-muted">{{icon "tag"}}</span>
+    <h3 class="blankslate-heading">{{tr "ppoi.release.no_tags"}}</h3>
+  </div>
+  {{end}}
+</div>
+{{end}}

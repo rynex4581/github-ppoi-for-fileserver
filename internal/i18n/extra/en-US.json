@@ -99,5 +99,12 @@
   "ppoi.error.not_author": "You can only edit or delete what you wrote.",
   "ppoi.cross.delay_note": "Changes made on other PCs can take about 10 seconds to show up here.",
   "ppoi.attach.select": "Attach files",
-  "ppoi.new_activity": "Updated since you last opened it"
+  "ppoi.new_activity": "Updated since you last opened it",
+  "ppoi.release.none": "There are no releases yet.",
+  "ppoi.release.no_tags": "There are no tags yet.",
+  "ppoi.release.not_found": "Release not found.",
+  "ppoi.release.delete_confirm": "Delete this release? The tag and the attached files will remain.",
+  "ppoi.release.edited": "edited",
+  "ppoi.release.assets_help": "Attach files to distribute (exe, zip, ...). Multiple files allowed.",
+  "ppoi.release.remove_checked": "check to remove"
 }

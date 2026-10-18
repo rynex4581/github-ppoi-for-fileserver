@@ -196,6 +196,11 @@ type codeView struct {
 	BarePath  string
 	CloneCmd  string
 	PushCmds  string
+
+	TagCount     int
+	ReleaseCount int
+	TagsURL      string
+	ReleasesURL  string
 }
 
 func (s *Server) renderCodeError(w http.ResponseWriter, err error, msg string) {
@@ -219,6 +224,7 @@ func (s *Server) handleCode(w http.ResponseWriter, r *http.Request, st *store.St
 	if len(branches) == 0 {
 		// コミットが1つも無い
 		v := codeView{refContext: refContext{Base: base}, Empty: true, BarePath: g.Dir, CloneCmd: cloneCommand(g, repo.Name), PushCmds: pushExistingCommands(g)}
+		s.fillTagCounts(st, repo, &v)
 		p := s.repoPage(s.tr("repo.code"), repo, "code")
 		p.Data = v
 		s.render(w, http.StatusOK, "code", p)
@@ -268,9 +274,22 @@ func (s *Server) handleCode(w http.ResponseWriter, r *http.Request, st *store.St
 	if c.Path != "" {
 		title = c.Path
 	}
+	s.fillTagCounts(st, repo, &v)
 	p := s.repoPage(title, repo, "code")
 	p.Data = v
 	s.render(w, http.StatusOK, "code", p)
+}
+
+// fillTagCounts は Code 画面の見出しに出すタグ数とリリース数、それぞれの URL を入れる。
+func (s *Server) fillTagCounts(st *store.Store, repo store.Repo, v *codeView) {
+	if tags, err := s.gitRepo(st, repo).Tags(); err == nil {
+		v.TagCount = len(tags)
+	}
+	if rels, err := st.ListReleases(repo.Name); err == nil {
+		v.ReleaseCount = len(rels)
+	}
+	v.TagsURL = s.repoURL(st, repo) + "/tags"
+	v.ReleasesURL = s.releasesURL(st, repo)
 }
 
 // defaultBranch は repo.json の既定ブランチが実在すればそれを、無ければベアリポジトリの HEAD を使う。

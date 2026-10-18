@@ -1,0 +1,61 @@
+{{define "content"}}
+{{$f := .Data}}
+<div class="Subhead">
+  <h2 class="Subhead-heading">{{if $f.Edit}}{{tr "repo.release.edit_release"}}{{else}}{{tr "repo.release.new_release"}}{{end}}</h2>
+  <div class="Subhead-description">{{tr "repo.release.new_subheader"}}</div>
+</div>
+<form method="post" action="{{$f.Action}}" enctype="multipart/form-data">
+  <div class="d-flex flex-column flex-lg-row gutter-lg">
+    <div class="col-lg-9">
+      <div class="d-flex flex-wrap mb-3">
+        <div class="mr-3 mb-2">
+          <label class="d-block text-bold text-small mb-1" for="tag">{{tr "repo.release.tag_name"}}</label>
+          {{if $f.Edit}}
+          <input class="form-control text-mono" type="text" id="tag" value="{{$f.Tag}}" readonly>
+          {{else}}
+          <input class="form-control text-mono" type="text" id="tag" name="tag" list="free-tags" value="{{$f.Tag}}" placeholder="v1.0" required autocomplete="off">
+          <datalist id="free-tags">{{range $f.FreeTags}}<option value="{{.}}"></option>{{end}}</datalist>
+          <p class="note">{{tr "repo.release.tag_helper"}}</p>
+          {{end}}
+        </div>
+        {{if not $f.Edit}}
+        <div class="mb-2">
+          <label class="d-block text-bold text-small mb-1" for="target">{{tr "repo.release.target"}}</label>
+          <select class="form-select" id="target" name="target">
+            {{range $f.Branches}}<option value="{{.Name}}"{{if eq .Name $f.Target}} selected{{end}}>{{.Name}}</option>{{end}}
+          </select>
+          <p class="note">{{tr "repo.release.tag_helper_new"}}</p>
+        </div>
+        {{end}}
+      </div>
+      <div class="Box">
+        <div class="Box-body">
+          <input class="form-control input-block input-lg mb-3" type="text" name="title" placeholder="{{tr "repo.release.title"}}" value="{{$f.Title}}" required autocomplete="off">
+          <textarea data-max-bytes="{{$.MaxAttach}}" data-too-large="{{tr "ppoi.attach.too_large_js"}}" class="form-control input-block app-textarea" name="body" rows="12" placeholder="{{tr "repo.release.message"}}" data-no-attach>{{$f.Body}}</textarea>
+          <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+        </div>
+        <div class="Box-footer">
+          <div class="text-bold mb-2">{{tr "repo.release.downloads"}}</div>
+          {{range $f.Assets}}
+          <label class="d-flex flex-items-center py-1">
+            <input type="checkbox" name="remove" value="{{.Name}}">
+            <span class="ml-2 flex-auto"><a href="{{$f.Download}}{{.Name}}">{{.Name}}</a> <span class="color-fg-muted text-small">{{tr "ppoi.code.bytes" .Size}}</span></span>
+            <span class="color-fg-muted text-small">{{tr "ppoi.release.remove_checked"}}</span>
+          </label>
+          {{end}}
+          <input class="form-control mt-2" type="file" name="assets" multiple>
+          <p class="note">{{tr "ppoi.release.assets_help"}}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3">
+      <div class="form-checkbox mt-0">
+        <label><input type="checkbox" name="prerelease" value="1"{{if $f.Prerelease}} checked{{end}}> {{tr "repo.release.prerelease_desc"}}</label>
+        <p class="note">{{tr "repo.release.prerelease_helper"}}</p>
+      </div>
+      <button class="btn btn-primary btn-block mt-3" type="submit">{{if $f.Edit}}{{tr "repo.release.edit_release"}}{{else}}{{tr "repo.release.publish"}}{{end}}</button>
+      <a class="btn btn-block mt-2" href="{{$f.BackURL}}">{{tr "repo.release.cancel"}}</a>
+    </div>
+  </div>
+</form>
+{{end}}

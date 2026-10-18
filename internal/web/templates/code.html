@@ -14,6 +14,8 @@
 <div class="d-flex flex-items-center flex-wrap mb-3">
   {{template "branchmenu" .Data}}
   <a class="Link--muted ml-3 d-flex flex-items-center" href="{{.Data.CommitsHere}}">{{icon "history"}}<span class="ml-1"><strong>{{.Data.CommitCount}}</strong> {{tr "repo.commits"}}</span></a>
+  <a class="Link--muted ml-3 d-flex flex-items-center" href="{{.Data.TagsURL}}">{{icon "tag"}}<span class="ml-1"><strong>{{.Data.TagCount}}</strong> {{tr "repo.release.tags"}}</span></a>
+  <a class="Link--muted ml-3 d-flex flex-items-center" href="{{.Data.ReleasesURL}}">{{icon "package"}}<span class="ml-1"><strong>{{.Data.ReleaseCount}}</strong> {{tr "repo.release.releases"}}</span></a>
   <div class="flex-auto"></div>
   <details class="details-reset details-overlay position-relative">
     <summary class="btn btn-primary">{{icon "code"}} {{tr "repo.code"}} <span class="dropdown-caret"></span></summary>

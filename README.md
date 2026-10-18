@@ -47,7 +47,8 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 - 📁 **複数のデータルートを1つの画面で扱える。** データルート1つが owner 1つに対応し、URL は `/<owner>/<リポジトリ名>/`
 - 🐞 **Issue。** 状態・ラベル・担当者での絞り込み、コメント、クローズと再オープン、ラベルと担当者の変更、本文とコメントの編集・削除（編集前の本文は畳んで表示）
 - 🔀 **Pull Request。** ブランチを選んで作成、Conversation／Commits／Files changed、承認・変更要請・コメントのレビュー、差分への行コメント、`--no-ff` のマージと Revert、コンフリクトと force push の表示、承認必須の設定
-- 📄 **Code。** ファイルツリー、Markdown と画像の表示、ブランチ切替、コミット履歴と差分、clone コマンドの表示
+- 📄 **Code。** ファイルツリー、Markdown と画像の表示、ブランチ切替、コミット履歴と差分、タグ一覧、clone コマンドの表示
+- 📦 **Releases。** タグに紐づくリリース（タイトル、本文、配布ファイル、プレリリースの印）。タグが無ければ作成時に打つ
 - 🏷️ **ラベルの管理**と 📎 **添付ファイル**（本文の入力欄に Ctrl+V で画像を貼り付け。Excel や PDF などはファイル選択で添付）
 - 🔍 **横断ページ。** 全 owner の Issue と Pull Request を1つの一覧で見る（すべて／自分に割り当て／自分が作成）。タイトル・本文・コメントの部分一致で検索
 - 🔵 **新着の印。** 自分が関わる Issue と PR に、前回開いたあとに他の人の書き込みがあれば一覧に印が付く。「前回開いた」は端末側に持つ
@@ -110,11 +111,12 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 - issues：一覧（state、type、labels、q）、作成、取得、PATCH（title、body、state、assignees、labels）、comments（一覧、作成、取得、PATCH、DELETE）、labels、assets
 - labels：一覧、作成、取得、PATCH、削除
 - pulls：一覧、作成、取得、PATCH、`.diff`、commits、files、merge（`Do` は merge のみ）、reviews（APPROVED／REQUEST_CHANGES／COMMENT と行コメント）
+- releases：一覧、作成、取得（id と tags/{tag}）、latest、PATCH、削除、assets（一覧、アップロード、取得、削除）。tags：一覧
 - tea（Gitea 公式 CLI）の v0.16 で、ログイン、リポジトリ一覧、Issue の一覧・作成・表示・クローズ、コメント、ラベル、ブランチ、PR の一覧・作成・マージが通ることを確認済
 
 予定（未実装）
 
-- マイルストーン、Wiki、リリース、通知など、上に無い Gitea API の範囲
+- マイルストーン、Wiki、通知など、上に無い Gitea API の範囲
 
 Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように記述する。
 

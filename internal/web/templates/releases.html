@@ -1,0 +1,57 @@
+{{define "content"}}
+{{$v := .Data}}
+<div class="d-flex flex-items-center mb-3">
+  <h2 class="f3 text-normal mr-3">{{if $v.Single}}<a class="Link--primary" href="{{$v.ListURL}}">{{tr "repo.release.releases"}}</a>{{else}}{{tr "repo.release.releases"}}{{end}}</h2>
+  <a class="Link--muted d-flex flex-items-center" href="{{$v.TagsURL}}">{{icon "tag"}}<span class="ml-1"><strong>{{$v.TagCount}}</strong> {{tr "repo.release.tags"}}</span></a>
+  <div class="flex-auto"></div>
+  {{if not .RepoReadOnly}}<a class="btn btn-primary" href="{{$v.NewURL}}">{{tr "repo.release.new_release"}}</a>{{end}}
+</div>
+
+{{range $v.Rows}}
+{{$row := .}}
+<div class="d-flex flex-column flex-md-row gutter-md mb-4">
+  <div class="col-md-3 pt-2">
+    <div class="color-fg-muted text-small mb-2">{{datetime .CreatedAt}}</div>
+    <div class="mb-1"><a class="Link--muted d-flex flex-items-center" href="{{$v.TagsURL}}">{{icon "tag"}}<span class="ml-1 text-mono">{{.Tag}}</span></a></div>
+    {{if .CommitURL}}<div><a class="Link--muted d-flex flex-items-center" href="{{.CommitURL}}">{{icon "git-commit"}}<span class="ml-1 text-mono text-small">{{short .TagSHA}}</span></a></div>{{end}}
+  </div>
+  <div class="col-md-9">
+    <div class="Box">
+      <div class="Box-header d-flex flex-items-center flex-wrap">
+        <h3 class="f3 mr-2"><a class="Link--primary" href="{{.URL}}">{{.Title}}</a></h3>
+        {{if .Latest}}<span class="Label Label--success mr-1">{{tr "repo.release.latest"}}</span>{{end}}
+        {{if .Prerelease}}<span class="Label Label--attention mr-1">{{tr "repo.release.prerelease"}}</span>{{end}}
+        <div class="flex-auto"></div>
+        {{if not $.RepoReadOnly}}
+        <a class="btn btn-sm mr-2" href="{{.EditURL}}">{{tr "repo.release.edit"}}</a>
+        <form method="post" action="{{.DeleteURL}}" data-confirm="{{tr "ppoi.release.delete_confirm"}}"><button class="btn btn-sm btn-danger" type="submit">{{tr "repo.release.delete_release"}}</button></form>
+        {{end}}
+      </div>
+      <div class="Box-body">
+        <div class="color-fg-muted text-small mb-3">{{name .User}} · {{datetime .CreatedAt}}{{if .EditedBy}} · {{tr "ppoi.release.edited"}}{{end}}</div>
+        {{if .Body}}<div class="markdown-body">{{markdown .Body}}</div>{{else}}<p class="color-fg-muted mb-0">{{tr "repo.issues.no_content"}}</p>{{end}}
+      </div>
+      {{if .Assets}}
+      <div class="Box-footer">
+        <div class="text-bold mb-2">{{tr "repo.release.downloads"}}</div>
+        {{range .Assets}}
+        <div class="d-flex flex-items-center py-1">
+          <span class="color-fg-muted">{{icon "package"}}</span>
+          <a class="ml-2 flex-auto" href="{{$row.Download}}{{.Name}}">{{.Name}}</a>
+          <span class="color-fg-muted text-small">{{tr "ppoi.code.bytes" .Size}}</span>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{else}}
+<div class="Box">
+  <div class="blankslate">
+    <span class="color-fg-muted">{{icon "tag"}}</span>
+    <h3 class="blankslate-heading">{{tr "ppoi.release.none"}}</h3>
+  </div>
+</div>
+{{end}}
+{{end}}
