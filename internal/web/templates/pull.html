@@ -188,7 +188,7 @@
           <div class="color-fg-muted text-small mt-1">{{tr "repo.pulls.merge_commit_id"}}: <a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.MergeSHA}}">{{short .MergeSHA}}</a></div>
           {{if .RevertSHA}}<div class="color-fg-muted text-small mt-1">{{tr "ppoi.pulls.reverted_desc" ""}}<a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.RevertSHA}}">{{short .RevertSHA}}</a></div>{{end}}
         </div>
-        {{if $v.CanRevert}}
+        {{if and $v.CanRevert (not $.RepoReadOnly)}}
         <div class="Box-row">
           <details class="details-reset">
             <summary class="btn btn-danger">{{tr "repo.commit.revert"}}</summary>
@@ -222,7 +222,7 @@
         {{else}}
         <div class="Box-row"><strong class="color-fg-success">{{tr "repo.pulls.can_auto_merge_desc"}}</strong></div>
         {{end}}
-        {{if $v.CanMerge}}
+        {{if and $v.CanMerge (not $.RepoReadOnly)}}
         <div class="Box-row">
           <details class="details-reset">
             <summary class="btn btn-primary">{{tr "ppoi.pulls.merge"}}</summary>

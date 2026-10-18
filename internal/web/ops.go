@@ -326,6 +326,10 @@ func (s *Server) addLineComment(st *store.Store, repo store.Repo, is store.Issue
 // merged イベントの記録、head ブランチの削除まで行う。
 // head ブランチの削除に失敗したときは、マージは済んでいるので nil と一緒に警告の文言を返す。
 func (s *Server) mergePull(st *store.Store, repo store.Repo, is store.Issue, message string) (warn string, err error) {
+	// 読み取り専用のデータルートでは git にも触らない（push だけ通って記録できない状態を作らない）
+	if st.ReadOnly() {
+		return "", store.ErrReadOnly
+	}
 	unlock, err := s.locks.lock(st, repo)
 	if err != nil {
 		return "", err
@@ -413,6 +417,9 @@ func (s *Server) headUsedByOtherPull(st *store.Store, repo store.Repo, is store.
 
 // revertPull はマージ済みの PR のマージコミットを打ち消す。1回だけ。
 func (s *Server) revertPull(st *store.Store, repo store.Repo, is store.Issue) error {
+	if st.ReadOnly() {
+		return store.ErrReadOnly
+	}
 	if !is.Merged || is.RevertSHA != "" {
 		return opErr(405, "repo.pulls.is_closed")
 	}

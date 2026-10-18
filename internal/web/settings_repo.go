@@ -37,6 +37,10 @@ func (s *Server) handleRepoSettings(w http.ResponseWriter, r *http.Request, st *
 
 // handleRepoMaintenance はベアリポジトリの gc を実行する。
 func (s *Server) handleRepoMaintenance(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	if st.ReadOnly() {
+		s.renderRepoSettings(w, http.StatusForbidden, st, repo, false, s.tr("ppoi.readonly.write"))
+		return
+	}
 	if err := s.gitRepo(st, repo).Maintenance(); err != nil {
 		s.renderRepoSettings(w, http.StatusInternalServerError, st, repo, false, err.Error())
 		return
@@ -47,6 +51,11 @@ func (s *Server) handleRepoMaintenance(w http.ResponseWriter, r *http.Request, s
 // handleRepoSettingsSave は repo.json を書き換え、ベアリポジトリ側の設定も合わせる。
 // force push 禁止は receive.denyNonFastForwards、既定ブランチは HEAD に反映する。
 func (s *Server) handleRepoSettingsSave(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	// 読み取り専用なら bare の設定（denyNonFastForwards、HEAD）にも触らない
+	if st.ReadOnly() {
+		s.renderRepoSettings(w, http.StatusForbidden, st, repo, false, s.tr("ppoi.readonly.write"))
+		return
+	}
 	next := repo
 	next.Description = strings.TrimSpace(r.FormValue("description"))
 	next.DefaultBranch = strings.TrimSpace(r.FormValue("default_branch"))

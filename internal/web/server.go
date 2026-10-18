@@ -445,20 +445,21 @@ func (s *Server) renderMarkdown(src string) template.HTML {
 
 // page は全画面に共通のデータ。
 type page struct {
-	Title     string
-	Login     string
-	LoginName string
-	Version   string
-	Port      int
-	Lang      string
-	Owner     string
-	Newer     *newerVersion
-	ReadOnly  []string // 読み取り専用で開いているデータルートの知らせ（表示する文のまま）
-	MaxAttach int64    // 添付ファイルの上限（バイト）。リポジトリの画面で入る
-	Repo      *store.Repo
-	Tab       string
-	Error     string
-	Data      any
+	Title        string
+	Login        string
+	LoginName    string
+	Version      string
+	Port         int
+	Lang         string
+	Owner        string
+	Newer        *newerVersion
+	ReadOnly     []string // 読み取り専用で開いているデータルートの知らせ（表示する文のまま）
+	RepoReadOnly bool     // 表示中のリポジトリのデータルートが読み取り専用。書き込みの操作を画面に出さない
+	MaxAttach    int64    // 添付ファイルの上限（バイト）。リポジトリの画面で入る
+	Repo         *store.Repo
+	Tab          string
+	Error        string
+	Data         any
 }
 
 func (s *Server) newPage(title string) page {
@@ -621,6 +622,7 @@ func (s *Server) repoPage(title string, repo store.Repo, tab string) page {
 	p.Tab = tab
 	if st := s.storeByOwner(repo.Owner); st != nil {
 		p.MaxAttach = st.AttachmentMaxBytes()
+		p.RepoReadOnly = st.ReadOnly()
 	}
 	return p
 }

@@ -38,11 +38,11 @@
       <p class="note">{{tr "ppoi.settings.deny_force_push_desc"}}</p>
     </div>
     <hr>
-    <button class="btn btn-primary" type="submit">{{tr "repo.settings.update_settings"}}</button>
+    {{if not .RepoReadOnly}}<button class="btn btn-primary" type="submit">{{tr "repo.settings.update_settings"}}</button>{{end}}
   </form>
   <hr>
   <form method="post" action="{{.Data.BaseURL}}/maintenance">
-    <button class="btn" type="submit">{{tr "ppoi.settings.maintenance"}}</button>
+    {{if not .RepoReadOnly}}<button class="btn" type="submit">{{tr "ppoi.settings.maintenance"}}</button>{{end}}
     <p class="note">{{tr "ppoi.settings.maintenance_desc"}}</p>
   </form>
 </div>
