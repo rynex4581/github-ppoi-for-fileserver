@@ -774,6 +774,9 @@ func (s *Server) handleIssueEdit(w http.ResponseWriter, r *http.Request, st *sto
 		return
 	}
 	v, err := s.issueEditView(st, repo, is, r.URL.Query().Get("target"))
+	if err == nil {
+		err = s.requireAuthor(is, v.Target)
+	}
 	if err != nil {
 		s.renderIssueError(w, st, repo, is, err)
 		return
@@ -787,6 +790,10 @@ func (s *Server) handleIssueEditSave(w http.ResponseWriter, r *http.Request, st 
 		return
 	}
 	v, err := s.issueEditView(st, repo, is, r.URL.Query().Get("target"))
+	if err == nil {
+		// タイトルの変更も含めて、書いた本人だけ
+		err = s.requireAuthor(is, v.Target)
+	}
 	if err != nil {
 		s.renderIssueError(w, st, repo, is, err)
 		return
