@@ -33,7 +33,11 @@ func (s *Store) SaveAttachment(repo string, number int, original string, data []
 		return "", ErrIssueNotFound
 	}
 	base := path.Base(strings.ReplaceAll(original, "\\", "/"))
+	// 拡張子は英数字だけのものを採用する。それ以外（: や ? を含むもの、長すぎるもの）は付けない
 	ext := strings.ToLower(path.Ext(base))
+	if !attachmentExtPattern.MatchString(ext) {
+		ext = ""
+	}
 	stem := attachmentNameSanitize.ReplaceAllString(strings.TrimSuffix(base, path.Ext(base)), "-")
 	stem = strings.Trim(stem, "-.")
 	if stem == "" {
@@ -54,11 +58,18 @@ func (s *Store) SaveAttachment(repo string, number int, original string, data []
 		}
 		name = fmt.Sprintf("%s%03dZ_%s-%d%s", t.Format("20060102T150405"), t.Nanosecond()/1e6, stem, i, ext)
 	}
+	// 組み立てた名前が配信側（AttachmentPath）の検査を通ることを書く前に確かめる
+	if !isSafeName(name) {
+		return "", fmt.Errorf("添付ファイルの名前を作れない: %q", name)
+	}
 	if err := writeFileAtomic(filepath.Join(dir, name), data, false); err != nil {
 		return "", err
 	}
 	return name, nil
 }
+
+// attachmentExtPattern は添付ファイルの拡張子として採用する形。
+var attachmentExtPattern = regexp.MustCompile(`^\.[A-Za-z0-9]{1,10}$`)
 
 // AttachmentPath は添付ファイルのパスを返す。名前が不正、またはファイルが無ければ ErrAttachmentNotFound。
 func (s *Store) AttachmentPath(repo string, number int, name string) (string, error) {

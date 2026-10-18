@@ -33,6 +33,10 @@ func (e attachmentError) Error() string { return e.msg }
 func (s *Server) saveAttachments(st *store.Store, repo store.Repo, number int, r *http.Request, body string) (string, error) {
 	if r.MultipartForm == nil {
 		if err := r.ParseMultipartForm(multipartMemory); err != nil {
+			var tooBig *http.MaxBytesError
+			if errors.As(err, &tooBig) {
+				return body, attachmentError{s.tr("ppoi.attach.too_large", st.AttachmentMaxBytes()/(1024*1024))}
+			}
 			if strings.Contains(err.Error(), "multipart") {
 				return body, nil // 添付の無い通常のフォーム
 			}

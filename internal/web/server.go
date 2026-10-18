@@ -466,6 +466,19 @@ func (s *Server) routes() {
 	s.mux = mux
 }
 
+// maxAttachmentsPerPost は1回の送信で受け付ける添付ファイルの数の目安。ボディの上限の計算に使う。
+const maxAttachmentsPerPost = 10
+
+// limitRequestBody は書き込み系のリクエストのボディに上限を掛ける。
+// 添付の上限はファイルごとに別に見るが、ここで掛けておかないと上限を超えるボディを
+// 最後まで読んでから弾くことになる。超えたときの読み込みは *http.MaxBytesError になる。
+func limitRequestBody(w http.ResponseWriter, r *http.Request, st *store.Store) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, st.AttachmentMaxBytes()*maxAttachmentsPerPost+1<<20)
+}
+
 // requireStores はデータルートが1つ以上使える状態かを確かめ、無ければ設定画面へ送る。
 func (s *Server) requireStores(w http.ResponseWriter, r *http.Request) bool {
 	if len(s.allStores()) == 0 {
@@ -497,6 +510,7 @@ func (s *Server) withRepo(h repoHandler) http.HandlerFunc {
 			s.renderError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		limitRequestBody(w, r, st)
 		h(w, r, st, repo)
 	}
 }

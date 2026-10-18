@@ -558,6 +558,7 @@ func (s *Server) apiRepo(h apiRepoHandler) http.HandlerFunc {
 			s.apiError(w, http.StatusNotFound, "repository not found")
 			return
 		}
+		limitRequestBody(w, r, st)
 		h(w, r, st, repo)
 	})
 }

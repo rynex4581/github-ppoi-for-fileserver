@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -481,6 +482,11 @@ func (s *Server) apiGetAsset(w http.ResponseWriter, r *http.Request, st *store.S
 // apiCreateAsset は multipart の attachment（Gitea と同じ項目名）を保存する。?name= があればその名前にする。
 func (s *Server) apiCreateAsset(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, is store.Issue) {
 	if err := r.ParseMultipartForm(multipartMemory); err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			s.apiError(w, http.StatusRequestEntityTooLarge, err.Error())
+			return
+		}
 		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
