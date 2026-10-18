@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none" stroke="#8b949e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 案5：丸いバッジの中に猫耳の付いた共有フォルダ -->
+  <circle cx="64" cy="64" r="56"/>
+  <path d="M30 50h12l6 6h48a5 5 0 0 1 5 5v32a5 5 0 0 1-5 5H30a5 5 0 0 1-5-5V55a5 5 0 0 1 5-5z"/>
+  <path d="M50 56l8-16 8 16M78 56l8-16 8 16"/>
+  <circle cx="58" cy="74" r="6"/>
+  <circle cx="58" cy="74" r="2.2" fill="#8b949e" stroke="none"/>
+  <circle cx="86" cy="74" r="6"/>
+  <circle cx="86" cy="74" r="2.2" fill="#8b949e" stroke="none"/>
+  <path d="M66 87q3 4 6 0q3 4 6 0"/>
+</svg>
