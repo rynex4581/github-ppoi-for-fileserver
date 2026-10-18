@@ -1,4 +1,4 @@
-# タグ v* を打つと Windows 用 exe をビルドして Releases に置く。
+# タグ v* を打つと Windows 用 exe をビルドし、7z に固めて Releases に置く。
 # タグは internal/version の Number と一致していなければならない（v0.11A なら Number は 0.11A）。
 name: release
 
@@ -51,10 +51,13 @@ jobs:
           "FileVersion=$($v.FileVersion) ProductVersion=$($v.ProductVersion)"
           if (-not $v.FileVersion) { Write-Error "VERSIONINFO が入っていない"; exit 1 }
 
+      - name: 7z に固める
+        env:
+          TAG: ${{ github.ref_name }}
+        run: 7z a "github-ppoi-$env:TAG.7z" github-ppoi.exe smbtest.exe LICENSE
+
       - name: Releases に置く
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          files: |
-            github-ppoi.exe
-            smbtest.exe
+          files: github-ppoi-${{ github.ref_name }}.7z
