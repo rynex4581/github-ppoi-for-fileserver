@@ -72,6 +72,12 @@ func (s *Store) releaseAttachmentsDir(repo, tag string) string {
 // ReleaseEventsDir はリリースの events フォルダのパスを返す（検証用）。
 func (s *Store) ReleaseEventsDir(repo, tag string) string { return s.releaseEventsDir(repo, tag) }
 
+// ReleasesDir と ReleaseAttachmentsDir は check 用に場所を公開する。
+func (s *Store) ReleasesDir(repo string) string { return s.releasesDir(repo) }
+func (s *Store) ReleaseAttachmentsDir(repo, tag string) string {
+	return s.releaseAttachmentsDir(repo, tag)
+}
+
 // writeReleaseEvent はリリースのイベントを1ファイルとして書く。
 func (s *Store) writeReleaseEvent(repo, tag string, ev Event) error {
 	if err := s.writable(); err != nil {
@@ -207,6 +213,10 @@ func (s *Store) createRelease(repo, user, tag, tagSHA, title, body string, prere
 	}
 	ev := Event{Type: EventCreated, User: user, Title: title, Body: body, Prerelease: prerelease, CommitSHA: tagSHA, Time: created}
 	if err := s.writeReleaseEvent(repo, tag, ev); err != nil {
+		return Release{}, err
+	}
+	// 配布物の置き場は先に作っておく（check が attachments\ の有無を見る）
+	if err := os.MkdirAll(s.releaseAttachmentsDir(repo, tag), 0o755); err != nil {
 		return Release{}, err
 	}
 	return s.GetRelease(repo, tag)

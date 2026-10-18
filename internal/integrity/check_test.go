@@ -60,6 +60,10 @@ func TestCheck(t *testing.T) {
 	if _, err := st.ReserveIssueNumbers("r", 5); err != nil {
 		t.Fatal(err)
 	}
+	// 正常なリリース：実在するコミットを指し、配布物の置き場がある
+	if _, err := st.CreateRelease("r", "yamada", "v1.0", sha, "版 1.0", "", false); err != nil {
+		t.Fatal(err)
+	}
 
 	var out bytes.Buffer
 	n, err := Check(root, "", &out)
@@ -76,6 +80,12 @@ func TestCheck(t *testing.T) {
 	st.AppendEvent("r", is.Number, store.Event{Type: store.EventComment, User: "suzuki", Body: "![x](/attachments/demo/r/1/20000101T000000000Z_none.png)"})
 	st.AppendEvent("r", 2, store.Event{Type: store.EventReview, User: "suzuki", State: "approved", CommitSHA: "0123456789abcdef0123456789abcdef01234567"})
 	st.AppendEvent("r", is.Number, store.Event{Type: store.EventEdited, User: "yamada", Body: "x", Target: "nothing.json"})
+	// リリースも壊す：読めない JSON、無いコミットを指す created、attachments が無い（新21）
+	os.WriteFile(filepath.Join(st.ReleaseEventsDir("r", "v1.0"), "20990101T000000000Z_x_1_001.json"), []byte("{broken"), 0o644)
+	if _, err := st.CreateRelease("r", "yamada", "v2.0", "0123456789abcdef0123456789abcdef01234567", "版 2.0", "", false); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(st.ReleaseAttachmentsDir("r", "v2.0"))
 
 	out.Reset()
 	n, err = Check(root, "r", &out)
@@ -83,13 +93,14 @@ func TestCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := out.String()
-	for _, want := range []string{"JSON として読めない", "添付 20000101T000000000Z_none.png が無い", "commit_sha 0123456789abcdef0123456789abcdef01234567 がベアリポジトリに無い", "対象のイベント nothing.json が無い"} {
+	for _, want := range []string{"JSON として読めない", "添付 20000101T000000000Z_none.png が無い", "commit_sha 0123456789abcdef0123456789abcdef01234567 がベアリポジトリに無い", "対象のイベント nothing.json が無い",
+		"リリース v1.0 20990101T000000000Z_x_1_001.json: JSON として読めない", "リリース v2.0 ", "リリース v2.0: attachments フォルダが無い"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("%q が報告されていない:\n%s", want, text)
 		}
 	}
-	if n != 4 {
-		t.Errorf("問題は 4 件のはずが %d 件:\n%s", n, text)
+	if n != 7 {
+		t.Errorf("問題は 7 件のはずが %d 件:\n%s", n, text)
 	}
 
 	if _, err := Check(root, "nothing", &out); err == nil {

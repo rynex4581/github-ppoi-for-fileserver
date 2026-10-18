@@ -1,6 +1,7 @@
 // Package integrity はデータルートの整合性チェック（設計メモ 3.17 の check）。
 // バックアップからの復元のあとに、イベントの JSON が読めるか、本文が参照する添付があるか、
-// イベントが持つコミットがベアリポジトリにあるか、git fsck が通るかを一括で確かめて一覧にする。
+// イベントが持つコミットがベアリポジトリにあるか、リリースのイベントと配布物の置き場があるか、
+// git fsck が通るかを一括で確かめて一覧にする。
 package integrity
 
 import (
@@ -167,6 +168,65 @@ func checkRepo(st *store.Store, repo string) []Problem {
 					}
 					add(number, ev.File, msg)
 				}
+			}
+		}
+	}
+
+	// リリース（3.18）。タグごとに events の JSON、created の commit_sha、attachments\ の有無を見る（新21）
+	rels, err := os.ReadDir(st.ReleasesDir(repo))
+	if err != nil && !os.IsNotExist(err) {
+		add(0, "", "releases フォルダを読めない: "+err.Error())
+	}
+	for _, e := range rels {
+		if !e.IsDir() {
+			continue
+		}
+		tag := e.Name()
+		label := "リリース " + tag
+		evDir := st.ReleaseEventsDir(repo, tag)
+		files, err := os.ReadDir(evDir)
+		if err != nil {
+			add(0, label, "events フォルダを読めない: "+err.Error())
+			continue
+		}
+		names := make([]string, 0, len(files))
+		for _, f := range files {
+			if !f.IsDir() && filepath.Ext(f.Name()) == ".json" {
+				names = append(names, f.Name())
+			}
+		}
+		sort.Strings(names)
+		hasCreated, alive := false, false
+		for _, name := range names {
+			data, err := os.ReadFile(filepath.Join(evDir, name))
+			if err != nil {
+				add(0, label+" "+name, "読めない: "+err.Error())
+				continue
+			}
+			var ev store.Event
+			if err := json.Unmarshal(data, &ev); err != nil {
+				add(0, label+" "+name, "JSON として読めない: "+err.Error())
+				continue
+			}
+			if ev.Type == "" || ev.User == "" {
+				add(0, label+" "+name, "type か user が無い")
+			}
+			switch ev.Type {
+			case store.EventCreated:
+				hasCreated, alive = true, true
+				if ev.CommitSHA != "" && !commitOK(ev.CommitSHA) {
+					add(0, label+" "+name, "commit_sha "+ev.CommitSHA+" がベアリポジトリに無い")
+				}
+			case store.EventDeleted:
+				alive = false
+			}
+		}
+		if len(names) > 0 && !hasCreated {
+			add(0, label, "created イベントが無い")
+		}
+		if alive {
+			if _, err := os.Stat(st.ReleaseAttachmentsDir(repo, tag)); err != nil {
+				add(0, label, "attachments フォルダが無い")
 			}
 		}
 	}
