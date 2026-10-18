@@ -130,6 +130,8 @@
 
   document.addEventListener('paste', function (e) {
     var textarea = e.target.closest('textarea.app-textarea');
+    // マージメッセージの欄などは添付を受けない（コミットメッセージに印だけ残るため）
+    if (textarea && textarea.hasAttribute('data-no-attach')) return;
     if (!textarea || !e.clipboardData) return;
     var form = textarea.closest('form');
     if (!form) return;

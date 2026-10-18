@@ -16,6 +16,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"os/exec"
 	"runtime"
 	"time"
@@ -86,6 +89,14 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
+	// Ctrl+C やコンソールを閉じたときに、キャッシュを書き出してから終わる
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-stop
+		srv.Close()
+		os.Exit(0)
+	}()
 	if err := hs.Serve(ln); err != nil {
 		log.Fatal(err)
 	}

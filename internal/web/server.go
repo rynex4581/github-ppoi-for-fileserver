@@ -5,6 +5,7 @@
 package web
 
 import (
+	"regexp"
 	"bytes"
 	"embed"
 	"errors"
@@ -126,6 +127,13 @@ func (s *Server) findNewerVersion() *newerVersion {
 		log.Printf("新しい版がある: Ver %s %s", best.Version, best.Path)
 	}
 	return best
+}
+
+// Close は終了前に呼ぶ。各データルートのキャッシュをディスクに書き出す。
+func (s *Server) Close() {
+	for _, st := range s.allStores() {
+		st.FlushCache()
+	}
 }
 
 // allStores は開けているデータルートを登録順で返す。
@@ -371,7 +379,14 @@ func formatTime(t time.Time) string {
 }
 
 // labelStyle はラベルの背景色と、明度から決めた文字色を返す。
+// labelColorPattern はラベルの色として受け付ける形（6桁の16進）。labels.json を手で編集して
+// 別の文字列が入っていても、style にそのまま埋め込まない。
+var labelColorPattern = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)
+
 func labelStyle(color string) template.CSS {
+	if !labelColorPattern.MatchString(color) {
+		color = "ededed"
+	}
 	fg := "#ffffff"
 	if len(color) == 6 {
 		var r, g, b int
