@@ -4,7 +4,7 @@
 
 <h1 align="center">GitHub-ppoi for Fileserver</h1>
 
-<p align="center"><strong>えっ、共有ファイルサーバでIssueもコードレビューもPRもGithubっぽいWebUIから！？</strong></p>
+<p align="center"><strong>えっ、共有ファイルサーバでIssueもコードレビューもPRもGitHubっぽいWebUIから！？</strong></p>
 
 <p align="center">A GitHub-like issue tracker and code review tool that runs on each client PC and keeps all of its data on a plain SMB file server. No server, no database.</p>
 
