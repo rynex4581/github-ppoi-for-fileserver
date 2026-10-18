@@ -77,8 +77,8 @@ Git for Windows が入っていること（`git` がコマンドラインから�
 画面右上の歯車から「自分の設定」を開き、データルートを追加する。1つのデータルートが owner 1つに対応し、同じ owner 名のデータルートは2つ登録できない。トップ画面には owner ごとにリポジトリが並ぶ。
 
 > [!TIP]
-> 待ち受けポートは 9418 から 9427 の範囲で空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に出る。
-> `config.json` に `"port"` を書けばそのポートだけを使い、使えなければエラーで止まる。
+> 待ち受けポートは 9418 から 9427 の範囲で空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に表示、出力される。
+> `config.json` に `"port"` を書けばそのポートだけを使い、使えなければエラーで停止する。
 > 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する。`--no-browser` を付けると起動時にブラウザを開かない。<br>
 > ~~こんなツール使う職場はどうせgitのポートである9418なんて使ってるわけないからこっちで使うね☆ﾐ~~
 
@@ -93,11 +93,11 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 .\github-ppoi.exe
 ```
 
-`go generate` は exe のプロパティに出すバージョン（VERSIONINFO）のリソースを作る。goversioninfo（MIT）はビルドのときだけ使い、exe には入らない。省くとビルドはできるが、exe にバージョンが入らず、更新通知の比較もできない。
+`go generate` は exe のプロパティに出すバージョン（VERSIONINFO）のリソースを作成する。goversioninfo（MIT）はビルドのときだけ使い、exe には入らない。省くとビルドはできるが、exe にバージョンが入らず、更新通知の比較もできない。
 
 ## Codex／AI エージェントと使う
 
-`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使える。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。トークンは空でなければ何でも通る（`Authorization: token x`）。`/api/v1/version` だけは認証無し。
+`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使用可能。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に記載済み。トークンは空でなければ何でも通る（`Authorization: token x`）。`/api/v1/version` だけは認証無し。内輪のバージョン・履歴管理として使うものなので原則として性善説で。
 
 実装済
 
@@ -106,14 +106,14 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 - issues：一覧（state、type、labels、q）、作成、取得、PATCH（title、state、assignees、labels）、comments、labels、assets
 - labels：一覧、作成、取得、PATCH、削除
 - pulls：一覧、作成、取得、PATCH、`.diff`、commits、files、merge（`Do` は merge のみ）、reviews（APPROVED／REQUEST_CHANGES／COMMENT と行コメント）
-- tea（Gitea 公式 CLI）の v0.16 で、ログイン、リポジトリ一覧、Issue の一覧・作成・表示・クローズ、コメント、ラベル、ブランチ、PR の一覧・作成・マージが通ることを確認した
+- tea（Gitea 公式 CLI）の v0.16 で、ログイン、リポジトリ一覧、Issue の一覧・作成・表示・クローズ、コメント、ラベル、ブランチ、PR の一覧・作成・マージが通ることを確認済
 
 予定（未実装）
 
 - Issue 本文の書き換え（PATCH の `body`）
 - マイルストーン、Wiki、リリース、通知など、上に無い Gitea API の範囲
 
-Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように書く。
+Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように記述する。
 
 > Issue と Pull Request は localhost の Gitea 互換 API で扱う。
 > ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。
@@ -122,7 +122,7 @@ Codex に使わせるときは、対象のリポジトリの AGENTS.md に次の
 
 ## <img src="docs/images/icon-browser.svg" width="24" height="24" align="top" alt=""> Web 画面
 
-Issue の詳細。本文とコメントは Markdown で書け、右側で担当者とラベルを変える。
+Issue の詳細。本文とコメントは Markdown で記述でき、右側で担当者とラベルを変更できる。
 
 <p align="center">
   <img src="docs/images/issue.png" width="800" alt="Issue の詳細">
@@ -142,12 +142,12 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 
 ## 設計の要点
 
-- Issue、コメント、状態変更はすべて「イベント1件につき1ファイル」の追記で保存し、既存ファイルの上書きは行わない。現在の状態はイベントを時系列に適用して組み立てる
-- Issue番号は、番号のフォルダを「既に存在すれば失敗する」方式で作成し、作成できた側がその番号を取る。SMB上の排他をこの1点に絞る
+- Issue、コメント、状態変更はすべて「イベント1件につき1ファイル」の追記で保存し、既存ファイルの上書きは行わない。現在の状態はイベントを時系列に適用して構成、表示する
+- Issue番号は、番号のフォルダを「既に存在すれば失敗する」方式で作成し、作成できた側がその番号を取る。SMB上の排他制御はこの1点のみ
 - イベントのファイル名は「UTC時刻（ミリ秒）_端末名_端末内連番」とし、端末間で重複しないようにする
 - ファイルは一時名で書いてからrenameし、書きかけが他の端末から見えないようにする
-- 画面はGitHubの構成と導線を~~パク~~リスペクトする！ CSSはPrimer、アイコンはOcticonsを使い、すべてexeに埋め込む。外部への参照は持たない
-- 画面の文言はGiteaの言語ファイルを~~パク~~そのまま使う！　ほら用語とか統一したいし。既定は日本語で、英語に変更可能
+- 画面はGitHubの構成と導線を~~パク~~リスペクトする。 CSSはPrimer、アイコンはOcticonsを使い、すべてexeに埋め込む。外部への参照は持たない
+- 画面の文言はGiteaの言語ファイルを~~パク~~互換性のためそのまま使用する。ほら用語とか統一したいし。既定は日本語で、英語に変更可能
 - gitは各端末のGit for Windowsを使用する。exeには同梱しない
 
 ## データルートの構成
