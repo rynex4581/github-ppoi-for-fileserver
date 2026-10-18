@@ -185,7 +185,7 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 | `default_branch` | 新規リポジトリの既定ブランチ名 | `main` |
 | `attachment_max_bytes` | 添付ファイルのサイズ上限 | 10485760（10 MB） |
 
-どちらも設定画面から書き換えられる。端末側のファイルは消しても、exe を起動してデータルートを登録し直せば元に戻る。
+どちらも設定画面から変更可能。端末側のファイルは削除しても、exe を起動してデータルートを登録し直せば元に戻る。
 
 ## Troubleshooting
 
@@ -205,7 +205,7 @@ git config --global --add safe.directory "*"
 
 ## 現在の状態
 
-Ver 0.10。開発中。
+Ver 0.10。開発中
 
 未実装
 
