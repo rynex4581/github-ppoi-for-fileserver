@@ -259,7 +259,8 @@ func scanOthers(st *store.Store, own map[int]bool, others map[int]*watch, sum *s
 			wt = &watch{ok: map[string]bool{}, failed: map[string]int{}}
 			others[number] = wt
 		}
-		if wt.created && len(wt.failed) == len(wt.ok) && allOK(wt) {
+		// created が読めて、読めなかったファイルも全部読み直せたら、その Issue はもう見ない
+		if wt.created && allOK(wt) {
 			continue
 		}
 		dir := st.EventsDir(testRepo, number)
@@ -455,6 +456,11 @@ func runCheck(st *store.Store, root string) error {
 		}
 		if s.Created < 1000 {
 			fmt.Printf("  （%s は 1000 件に満たない。合格基準は各1000回）\n", s.Host)
+			pass = false
+		}
+		if s.AllocErrors > 0 {
+			fmt.Printf("  （%s で採番の失敗がある。合格基準は失敗 0 回）\n", s.Host)
+			pass = false
 		}
 	}
 	if len(sums) < 2 {
