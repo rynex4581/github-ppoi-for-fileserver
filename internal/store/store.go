@@ -9,8 +9,9 @@
 //	  meta\<リポジトリ名>\repo.json
 //	  meta\<リポジトリ名>\issues\<6桁番号>\events\<イベントファイル>
 //
-// 書き込みはすべて追記で、既存ファイルの上書きは行わない。
-// ファイルは一時名で書いてから rename し、書きかけが他の端末から見えないようにする。
+// イベントは追記だけで、既存ファイルの上書きは行わない。config.json、repo.json、labels.json、
+// users\<ログオン名>.json は全体を書き直す上書きファイルである。
+// どのファイルも一時名で書いてから rename し、書きかけが他の端末から見えないようにする。
 package store
 
 import (
@@ -24,6 +25,7 @@ import (
 	"regexp"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 // Config はデータルート直下の config.json の内容。1つのデータルートが owner 1つに対応する。
@@ -93,12 +95,22 @@ func Create(root string, cfg Config) (*Store, error) {
 type Store struct {
 	root   string
 	config Config
-	host   string
+	host   string // 端末名（ファイル名に使える文字に直したもの）
+	pid    int    // 自プロセスの ID。同じ端末で2つ動いても名前が重ならないようにする
 	seq    atomic.Uint64
 	cache  eventCache // イベントのローカルキャッシュ（cache.go）
 }
 
 var hostSanitize = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
+
+// hostName は端末名をファイル名に使える形で返す。取れなければ unknown。
+func hostName() string {
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		hostname = "unknown"
+	}
+	return hostSanitize.ReplaceAllString(hostname, "-")
+}
 
 // Open は既存のデータルートを開く。フォルダや config.json が無ければエラーを返す（勝手に作らない）。
 // repos と meta のフォルダは無ければ作る。
@@ -110,13 +122,7 @@ func Open(root string) (*Store, error) {
 	if !info.IsDir() {
 		return nil, fmt.Errorf("データルートがフォルダではない: %s", root)
 	}
-	s := &Store{root: root}
-
-	hostname, err := os.Hostname()
-	if err != nil || hostname == "" {
-		hostname = "unknown"
-	}
-	s.host = hostSanitize.ReplaceAllString(hostname, "-")
+	s := &Store{root: root, host: hostName(), pid: os.Getpid()}
 
 	if err := s.loadOrCreateConfig(); err != nil {
 		return nil, err
@@ -162,10 +168,20 @@ func (s *Store) loadOrCreateConfig() error {
 	return nil
 }
 
+// tmpTag は一時名に入れる「端末名-PID」。同じ対象に別の端末や別のプロセスが同時に書いても
+// 一時名が重ならず、クラッシュで残った前回の .tmp にも邪魔されない。
+var tmpTag = fmt.Sprintf("%s-%d", hostName(), os.Getpid())
+
+// tmpSeq は一時名に入れるプロセス内の連番。
+var tmpSeq atomic.Uint64
+
 // writeFileAtomic は一時名で書いてから rename する。
-// 一時名は末尾に .tmp を付けたもので、読み込み側は拡張子で対象を絞るので拾わない。
-func writeFileAtomic(path string, data []byte) error {
-	tmp := path + ".tmp"
+// 一時名は「<本来の名前>.<端末名>-<PID>-<連番>.tmp」で、読み込み側は拡張子で対象を絞るので拾わない。
+// replace が真なら既存のファイルを置き換える（上書きファイル用）。偽なら既存があれば失敗する
+// （イベントと添付用。同じ名前が後勝ちで消えないようにする）。
+// 書き終えたら、同じ対象の古い .tmp（1時間以上前のもの）を掃除する。
+func writeFileAtomic(path string, data []byte, replace bool) error {
+	tmp := fmt.Sprintf("%s.%s-%d.tmp", path, tmpTag, tmpSeq.Add(1))
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
@@ -184,16 +200,51 @@ func writeFileAtomic(path string, data []byte) error {
 		os.Remove(tmp)
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
+	rename := renameNoReplace
+	if replace {
+		rename = os.Rename
+	}
+	if err := rename(tmp, path); err != nil {
 		os.Remove(tmp)
 		return err
 	}
+	removeStaleTemp(path)
 	return nil
 }
 
-// writeJSONAtomic はJSONを整形して書く。
+// removeStaleTemp は path と同じ対象の .tmp のうち1時間以上前のものを消す。
+// クラッシュや SMB の切断で残った書きかけの掃除で、消せなくても何もしない。
+func removeStaleTemp(path string) {
+	dir, base := filepath.Split(path)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		n := e.Name()
+		if e.IsDir() || !strings.HasPrefix(n, base+".") || !strings.HasSuffix(n, ".tmp") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || time.Since(info.ModTime()) < time.Hour {
+			continue
+		}
+		os.Remove(filepath.Join(dir, n))
+	}
+}
+
+// writeJSONAtomic はJSONを整形して書き、既存のファイルがあれば置き換える（上書きファイル用）。
 // 人がエクスプローラーから開いて読めるよう、< > & はエスケープせずそのまま書く。
 func writeJSONAtomic(path string, v any) error {
+	return writeJSON(path, v, true)
+}
+
+// writeJSONNew はJSONを整形して新しいファイルとして書く。既存のファイルがあれば失敗する（イベント用）。
+func writeJSONNew(path string, v any) error {
+	return writeJSON(path, v, false)
+}
+
+func writeJSON(path string, v any, replace bool) error {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
@@ -201,7 +252,7 @@ func writeJSONAtomic(path string, v any) error {
 	if err := enc.Encode(v); err != nil {
 		return err
 	}
-	return writeFileAtomic(path, buf.Bytes())
+	return writeFileAtomic(path, buf.Bytes(), replace)
 }
 
 func readJSON(path string, v any) error {

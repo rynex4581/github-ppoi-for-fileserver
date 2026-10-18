@@ -54,7 +54,7 @@ func (s *Store) SaveAttachment(repo string, number int, original string, data []
 		}
 		name = fmt.Sprintf("%s%03dZ_%s-%d%s", t.Format("20060102T150405"), t.Nanosecond()/1e6, stem, i, ext)
 	}
-	if err := writeFileAtomic(filepath.Join(dir, name), data); err != nil {
+	if err := writeFileAtomic(filepath.Join(dir, name), data, false); err != nil {
 		return "", err
 	}
 	return name, nil
