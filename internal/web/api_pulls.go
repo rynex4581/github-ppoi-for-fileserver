@@ -299,6 +299,9 @@ func (s *Server) apiReviewComments(w http.ResponseWriter, r *http.Request, st *s
 	out := []apiReviewComment{}
 	var pending []store.Event
 	for _, ev := range is.Events {
+		if ev.Deleted {
+			continue
+		}
 		switch ev.Type {
 		case store.EventReviewComment:
 			pending = append(pending, ev)
