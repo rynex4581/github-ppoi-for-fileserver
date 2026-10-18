@@ -154,6 +154,10 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 
 - 設定画面の「フォルダのパス」の横に「参照…」を付けた。ブラウザからはフォルダのフルパスを取れないので、本体（同じ端末で動いている exe）が Windows 標準の「フォルダーの選択」（IFileOpenDialog、FOS_PICKFOLDERS）を開き、選ばれたパスを返す。COM は cgo 無しで vtable を直接呼ぶ。親ウィンドウは前面のウィンドウ（ブラウザ）にして手前に出す。Windows 以外は 501 でパスの直接入力を案内する
 
+### ロゴの GitH○b
+
+- GitHub の商標の決まり（製品名やロゴに GitHub を使わない）に掛かるので、ロゴとアイコンの文字を GitH○b にした。u は描かず（fill="none"）、その位置に線の太さを字に合わせた円を置く。README の PNG と favicon.ico も作り直した。PNG は Edge の headless で SVG を 2 倍で描画したもの
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`

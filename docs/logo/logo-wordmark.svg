@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="420" height="230" viewBox="0 0 420 230">
   <path d="M36 26h110l24 22h214a12 12 0 0 1 12 12v134a12 12 0 0 1-12 12H36a12 12 0 0 1-12-12V38a12 12 0 0 1 12-12z" fill="#d9a63a"/>
   <path d="M24 78h372a12 12 0 0 1 12 12v104a12 12 0 0 1-12 12H36a12 12 0 0 1-12-12z" fill="#f6cd55"/>
-  <text x="192" y="166" text-anchor="middle" font-family="'Segoe UI Black','Segoe UI',Arial,sans-serif" font-weight="900" font-size="80" letter-spacing="-3" fill="#24292f">GitHub</text>
+  <text x="192" y="166" text-anchor="middle" font-family="'Segoe UI Black','Segoe UI',Arial,sans-serif" font-weight="900" font-size="80" letter-spacing="-3" fill="#24292f">GitH<tspan fill="none">u</tspan>b</text>
+  <circle cx="253.5" cy="146" r="15.5" fill="none" stroke="#24292f" stroke-width="14"/>
   <text transform="translate(228 194) rotate(-14)" font-family="'Noto Sans JP Black',sans-serif" font-weight="900" font-size="60" fill="#cf222e" stroke="#fff" stroke-width="7" stroke-linejoin="round" paint-order="stroke fill">っぽい</text>
 </svg>
