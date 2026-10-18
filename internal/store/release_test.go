@@ -70,3 +70,20 @@ func TestReleases(t *testing.T) {
 		t.Fatalf("作り直しが違う: %+v", rel)
 	}
 }
+
+// 新22：生きている間に created が重なっても先の内容を保ち、削除の後の created は新しく採る。
+func TestBuildReleaseFirstCreatedWins(t *testing.T) {
+	a := Event{Type: EventCreated, User: "a", Title: "先", File: "1.json"}
+	b := Event{Type: EventCreated, User: "b", Title: "後", File: "2.json"}
+	d := Event{Type: EventDeleted, User: "a", File: "3.json"}
+	c := Event{Type: EventCreated, User: "c", Title: "作り直し", File: "4.json"}
+	if rel, ok := buildRelease("v1", []Event{a, b}); !ok || rel.Title != "先" || rel.CreatedFile != "1.json" {
+		t.Fatalf("重なった created で先が負けた: %+v %v", rel, ok)
+	}
+	if rel, ok := buildRelease("v1", []Event{a, b, d}); ok {
+		t.Fatalf("削除したのに生きている: %+v", rel)
+	}
+	if rel, ok := buildRelease("v1", []Event{a, b, d, c}); !ok || rel.Title != "作り直し" || rel.CreatedFile != "4.json" {
+		t.Fatalf("削除の後の created を採っていない: %+v %v", rel, ok)
+	}
+}

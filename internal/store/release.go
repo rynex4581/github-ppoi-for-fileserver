@@ -51,6 +51,10 @@ type Release struct {
 	UpdatedAt  time.Time
 	EditedBy   string
 	Events     []Event
+
+	// CreatedFile は採用した created のファイル名。2 台が同時に同じタグで作ったとき、
+	// 後から書いた側が自分の created が採用されていないことを知るために使う（新22）
+	CreatedFile string
 }
 
 func (s *Store) releasesDir(repo string) string {
@@ -79,9 +83,9 @@ func (s *Store) ReleaseAttachmentsDir(repo, tag string) string {
 }
 
 // writeReleaseEvent はリリースのイベントを1ファイルとして書く。
-func (s *Store) writeReleaseEvent(repo, tag string, ev Event) error {
+func (s *Store) writeReleaseEvent(repo, tag string, ev Event) (string, error) {
 	if err := s.writable(); err != nil {
-		return err
+		return "", err
 	}
 	if ev.Time.IsZero() {
 		ev.Time = time.Now()
@@ -89,9 +93,10 @@ func (s *Store) writeReleaseEvent(repo, tag string, ev Event) error {
 	ev.Time = ev.Time.UTC().Truncate(time.Millisecond)
 	dir := s.releaseEventsDir(repo, tag)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return "", err
 	}
-	return writeJSONNew(filepath.Join(dir, s.eventFileName(ev.Time)), ev)
+	name := s.eventFileName(ev.Time)
+	return name, writeJSONNew(filepath.Join(dir, name), ev)
 }
 
 // readReleaseEvents はリリースのイベントをファイル名順に読む。フォルダが無ければ ErrReleaseNotFound。
@@ -125,13 +130,18 @@ func (s *Store) readReleaseEvents(repo, tag string) ([]Event, error) {
 }
 
 // buildRelease はイベントから今の状態を組み立てる。削除済み（または created が無い）なら偽。
+// created は「最後の deleted より後の最初のもの」を採り、生きている間に重なった created は無視する
+// （2 台が同時に同じタグで作ったとき、後の方で先の内容を上書きしないため。新22）。
 func buildRelease(tag string, events []Event) (Release, bool) {
 	var rel Release
 	exists := false
 	for _, ev := range events {
 		switch ev.Type {
 		case EventCreated:
-			rel = Release{Tag: tag, Title: ev.Title, Body: ev.Body, Prerelease: ev.Prerelease, TagSHA: ev.CommitSHA, User: ev.User, CreatedAt: ev.Time, UpdatedAt: ev.Time}
+			if exists {
+				continue
+			}
+			rel = Release{Tag: tag, Title: ev.Title, Body: ev.Body, Prerelease: ev.Prerelease, TagSHA: ev.CommitSHA, User: ev.User, CreatedAt: ev.Time, UpdatedAt: ev.Time, CreatedFile: ev.File}
 			exists = true
 		case EventEdited:
 			if !exists {
@@ -212,14 +222,24 @@ func (s *Store) createRelease(repo, user, tag, tagSHA, title, body string, prere
 		return Release{}, ErrReleaseExists
 	}
 	ev := Event{Type: EventCreated, User: user, Title: title, Body: body, Prerelease: prerelease, CommitSHA: tagSHA, Time: created}
-	if err := s.writeReleaseEvent(repo, tag, ev); err != nil {
+	name, err := s.writeReleaseEvent(repo, tag, ev)
+	if err != nil {
 		return Release{}, err
 	}
 	// 配布物の置き場は先に作っておく（check が attachments\ の有無を見る）
 	if err := os.MkdirAll(s.releaseAttachmentsDir(repo, tag), 0o755); err != nil {
 		return Release{}, err
 	}
-	return s.GetRelease(repo, tag)
+	// 読み直して、自分の created が採用されているか確かめる。別の端末が同時に同じタグで作っていて
+	// そちらが先なら、こちらは ErrReleaseExists（書いたファイルは残るが buildRelease が無視する）
+	rel, err := s.GetRelease(repo, tag)
+	if err != nil {
+		return Release{}, err
+	}
+	if rel.CreatedFile != name {
+		return Release{}, ErrReleaseExists
+	}
+	return rel, nil
 }
 
 // EditRelease はタイトル・本文・プレリリースを書き換える（edited を追記する）。
@@ -231,7 +251,8 @@ func (s *Store) EditRelease(repo, user, tag, title, body string, prerelease bool
 	if rel.Title == title && rel.Body == body && rel.Prerelease == prerelease {
 		return nil
 	}
-	return s.writeReleaseEvent(repo, tag, Event{Type: EventEdited, User: user, Title: title, Body: body, Prerelease: prerelease})
+	_, err = s.writeReleaseEvent(repo, tag, Event{Type: EventEdited, User: user, Title: title, Body: body, Prerelease: prerelease})
+	return err
 }
 
 // DeleteRelease はリリースを削除する（deleted を追記する）。タグと添付のファイルは残る。
@@ -239,7 +260,8 @@ func (s *Store) DeleteRelease(repo, user, tag string) error {
 	if _, err := s.GetRelease(repo, tag); err != nil {
 		return err
 	}
-	return s.writeReleaseEvent(repo, tag, Event{Type: EventDeleted, User: user})
+	_, err := s.writeReleaseEvent(repo, tag, Event{Type: EventDeleted, User: user})
+	return err
 }
 
 // SaveReleaseAttachment はリリースの添付（配布物）を保存し、ファイル名を返す。
