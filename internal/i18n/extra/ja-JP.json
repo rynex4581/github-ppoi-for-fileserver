@@ -66,6 +66,7 @@
   "ppoi.settings.browse_unsupported": "フォルダ選択のダイアログはこの OS では使用できません。パスを直接入力してください。",
   "ppoi.settings.root_help": "既に config.json があるフォルダはそのまま登録します。無いフォルダは owner 名を入れて初期化します。owner 名は URL に使うので半角英数で、後から変えられません。",
   "ppoi.settings.owner": "owner 名（半角英数）",
+  "ppoi.settings.owner_format": "半角英数と . _ - だけで、先頭は英数字。50 文字まで。",
   "ppoi.settings.owner_name": "owner の表示名",
   "ppoi.settings.owner_required": "新しいデータルートには owner 名が要ります。",
   "ppoi.settings.root_already": "そのフォルダは既に登録されています。",

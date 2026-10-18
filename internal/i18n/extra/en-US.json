@@ -65,6 +65,7 @@
   "ppoi.settings.browse_unsupported": "The folder dialog is not available on this OS. Type the path instead.",
   "ppoi.settings.root_path": "Folder path",
   "ppoi.settings.root_help": "A folder that already has config.json is registered as is. A folder without it is initialized with the owner name you enter. The owner name is used in URLs, must be ASCII and cannot be changed later.",
+  "ppoi.settings.owner_format": "ASCII letters, digits, . _ - only; must start with a letter or digit; up to 50 characters.",
   "ppoi.settings.owner": "Owner name (ASCII)",
   "ppoi.settings.owner_name": "Owner display name",
   "ppoi.settings.owner_required": "A new data root needs an owner name.",
