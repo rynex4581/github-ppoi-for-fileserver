@@ -1,0 +1,25 @@
+{{define "content"}}
+{{with .Data}}
+<div class="col-lg-9">
+  <div class="mb-3">
+    <a class="Link--muted" href="{{.BackURL}}">{{icon "arrow-left"}} {{.Issue.Title}} <span class="color-fg-muted">#{{.Issue.Number}}</span></a>
+  </div>
+  <form method="post" action="{{.Action}}">
+    <div class="Box">
+      <div class="Box-header color-bg-subtle"><strong>{{tr "edit"}}</strong></div>
+      <div class="Box-body">
+        {{if .IsBody}}
+        <input class="form-control input-block input-lg mb-3" type="text" name="title" value="{{.Title}}" required autocomplete="off">
+        {{end}}
+        <textarea data-max-bytes="{{$.MaxAttach}}" data-too-large="{{tr "ppoi.attach.too_large_js"}}" class="form-control input-block app-textarea" name="body" rows="14" placeholder="{{tr "repo.diff.comment.placeholder"}}" autofocus>{{.Body}}</textarea>
+        <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.issues.markdown_supported"}}</p>
+      </div>
+      <div class="Box-footer d-flex flex-justify-end">
+        <a class="btn mr-2" href="{{.BackURL}}">{{tr "cancel"}}</a>
+        <button class="btn btn-primary" type="submit">{{tr "repo.issues.save"}}</button>
+      </div>
+    </div>
+  </form>
+</div>
+{{end}}
+{{end}}

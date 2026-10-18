@@ -281,6 +281,7 @@ type pullView struct {
 	IsAuthor       bool
 	MergeMessage   string
 	Outdated       []lineCommentView
+	BodyEdit       editInfo
 	ApproveCount   int
 	RejectCount    int
 }
@@ -288,7 +289,7 @@ type pullView struct {
 func (s *Server) buildPullView(st *store.Store, repo store.Repo, is store.Issue, tab string) (pullView, error) {
 	g := s.gitRepo(st, repo)
 	base := s.repoURL(st, repo)
-	v := pullView{Issue: is, Tab: tab, PullURL: s.pullURL(st, repo, is.Number), Assignees: is.Assignees, IsAuthor: strings.EqualFold(is.User, s.login)}
+	v := pullView{Issue: is, Tab: tab, PullURL: s.pullURL(st, repo, is.Number), Assignees: is.Assignees, IsAuthor: strings.EqualFold(is.User, s.login), BodyEdit: bodyEditInfo(is)}
 	var err error
 	if v.AllLabels, err = st.ListLabels(repo.Name); err != nil {
 		return v, err

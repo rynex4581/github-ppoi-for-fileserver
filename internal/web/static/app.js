@@ -2,8 +2,60 @@
 // 1. 差分の行コメント：行の「+」を押すと、その行の下にコメントの入力欄を出す
 // 2. 添付ファイル：本文の入力欄に画像を Ctrl+V で貼ると、本文に ![image](attachment:N) の印を入れ、
 //    画像はフォームの送信時に一緒に送る。保存と印の置き換えはサーバ側で行う
-// 3. 細かいもの：クリックで全選択する入力欄（.app-select-on-click）、送信前の確認（form の data-confirm）
+// 3. Markdown のプレビュー：本文の入力欄（textarea.app-textarea）の上に「書き込み／プレビュー」の
+//    タブを付け、プレビューはサーバの POST /markdown で描画したものを出す
+// 4. 細かいもの：クリックで全選択する入力欄（.app-select-on-click）、送信前の確認（form の data-confirm）
 (function () {
+  // ---- Markdown のプレビュー ----
+  function setupPreview(textarea) {
+    if (textarea._preview || textarea.hasAttribute('data-no-preview')) return;
+    textarea._preview = true;
+    var labels = document.body.dataset;
+    var tabs = document.createElement('div');
+    tabs.className = 'tabnav app-md-tabs mb-2';
+    var nav = document.createElement('nav');
+    nav.className = 'tabnav-tabs';
+    [['write', labels.lWrite || 'Write'], ['preview', labels.lPreview || 'Preview']].forEach(function (t, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tabnav-tab' + (i === 0 ? ' selected' : '');
+      b.dataset.tab = t[0];
+      b.textContent = t[1];
+      nav.appendChild(b);
+    });
+    tabs.appendChild(nav);
+    var preview = document.createElement('div');
+    preview.className = 'markdown-body app-md-preview border rounded-2 p-3';
+    preview.hidden = true;
+    textarea.parentNode.insertBefore(tabs, textarea);
+    textarea.parentNode.insertBefore(preview, textarea.nextSibling);
+    nav.addEventListener('click', function (e) {
+      var btn = e.target.closest('.tabnav-tab');
+      if (!btn) return;
+      nav.querySelectorAll('.tabnav-tab').forEach(function (b) { b.classList.toggle('selected', b === btn); });
+      var show = btn.dataset.tab === 'preview';
+      textarea.hidden = show;
+      preview.hidden = !show;
+      if (!show) return;
+      preview.textContent = labels.lLoading || '...';
+      var body = new URLSearchParams();
+      body.set('text', textarea.value);
+      fetch('/markdown', { method: 'POST', body: body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+        .then(function (r) { return r.text(); })
+        .then(function (html) { preview.innerHTML = html; })
+        .catch(function () { preview.textContent = 'error'; });
+    });
+  }
+  function setupAllPreviews(root) {
+    (root.querySelectorAll ? root.querySelectorAll('textarea.app-textarea') : []).forEach(setupPreview);
+  }
+  setupAllPreviews(document);
+  new MutationObserver(function (list) {
+    list.forEach(function (m) {
+      m.addedNodes.forEach(function (n) { if (n.nodeType === 1) setupAllPreviews(n); });
+    });
+  }).observe(document.body, { childList: true, subtree: true });
+
   document.addEventListener('click', function (e) {
     var sel = e.target.closest('.app-select-on-click');
     if (sel) sel.select();

@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -541,6 +542,38 @@ func (s *Server) apiAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+// commentPathPattern は /issues/comments/{id} の形。ServeMux のパターンにすると
+// /issues/{index}/... と衝突するので、Handler で先に振り分ける。
+var commentPathPattern = regexp.MustCompile(`^/api/v1/repos/([^/]+)/([^/]+)/issues/comments/(\d+)$`)
+
+// handleAPIComment は Gitea の /issues/comments/{id}（GET、PATCH、DELETE）を受ける。
+func (s *Server) handleAPIComment(w http.ResponseWriter, r *http.Request, m []string) {
+	s.apiAuth(func(w http.ResponseWriter, r *http.Request) {
+		st := s.storeByOwner(m[1])
+		if st == nil {
+			s.apiError(w, http.StatusNotFound, "owner not found")
+			return
+		}
+		repo, err := st.GetRepo(m[2])
+		if err != nil {
+			s.apiError(w, http.StatusNotFound, "repository not found")
+			return
+		}
+		limitRequestBody(w, r, st)
+		id, _ := strconv.ParseInt(m[3], 10, 64)
+		switch r.Method {
+		case http.MethodGet:
+			s.apiGetComment(w, r, st, repo, id)
+		case http.MethodPatch:
+			s.apiEditComment(w, r, st, repo, id)
+		case http.MethodDelete:
+			s.apiDeleteComment(w, r, st, repo, id)
+		default:
+			s.apiError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	})(w, r)
 }
 
 // apiRepoHandler は owner と repo を解決してから呼ぶハンドラ。

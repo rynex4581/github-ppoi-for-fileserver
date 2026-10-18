@@ -485,16 +485,19 @@ func (s *Server) handleIssueCreate(w http.ResponseWriter, r *http.Request, st *s
 
 // timelineItem はIssue詳細のタイムラインに出す1項目。
 type timelineItem struct {
-	Kind     string // comment / closed / reopened / title / labels / assignee
-	User     string // 操作した人
-	Time     time.Time
-	Body     string
-	Title    string
-	OldTitle string
-	Added    []store.Label // labels
-	Removed  []store.Label // labels
-	Assignee string        // assignee: 対象の人
-	Assigned bool          // assignee: true なら指名、false なら解除
+	Kind      string // comment / closed / reopened / title / labels / assignee
+	User      string // 操作した人
+	Time      time.Time
+	Body      string
+	File      string   // 元のイベントのファイル名。編集と削除の target
+	Edit      editInfo // 編集の有無と履歴
+	CanDelete bool     // 削除できる（コメントと行コメント）
+	Title     string
+	OldTitle  string
+	Added     []store.Label // labels
+	Removed   []store.Label // labels
+	Assignee  string        // assignee: 対象の人
+	Assigned  bool          // assignee: true なら指名、false なら解除
 
 	// Pull Request 用
 	State     string // review: approved / changes_requested / comment
@@ -507,8 +510,25 @@ type timelineItem struct {
 	SHA       string // merged: マージコミット。reverted: 取り消しのコミット
 }
 
+// editInfo は本文やコメントの編集の有無と履歴。画面の「編集済み」の表示に使う。
+type editInfo struct {
+	Edited  bool
+	By      string
+	At      time.Time
+	History []store.Revision
+}
+
+func editInfoOf(ev store.Event) editInfo {
+	return editInfo{Edited: ev.EditedBy != "", By: ev.EditedBy, At: ev.EditedAt, History: ev.History}
+}
+
+func bodyEditInfo(is store.Issue) editInfo {
+	return editInfo{Edited: is.BodyEditedBy != "", By: is.BodyEditedBy, At: is.BodyEditedAt, History: is.BodyHistory}
+}
+
 type issueView struct {
 	Issue     store.Issue
+	BodyEdit  editInfo
 	Labels    []store.Label
 	Assignees []string
 	Timeline  []timelineItem
@@ -530,10 +550,13 @@ func buildTimeline(is store.Issue, byID map[int]store.Label) []timelineItem {
 				title = ev.Title
 			}
 		case store.EventComment:
-			items = append(items, timelineItem{Kind: "comment", User: ev.User, Time: ev.Time, Body: ev.Body})
+			if ev.Deleted {
+				continue
+			}
+			items = append(items, timelineItem{Kind: "comment", User: ev.User, Time: ev.Time, Body: ev.Body, File: ev.File, Edit: editInfoOf(ev), CanDelete: true})
 		case store.EventClosed, store.EventReopened:
-			if ev.Body != "" {
-				items = append(items, timelineItem{Kind: "comment", User: ev.User, Time: ev.Time, Body: ev.Body})
+			if ev.Body != "" && !ev.Deleted {
+				items = append(items, timelineItem{Kind: "comment", User: ev.User, Time: ev.Time, Body: ev.Body, File: ev.File, Edit: editInfoOf(ev)})
 			}
 			items = append(items, timelineItem{Kind: ev.Type, User: ev.User, Time: ev.Time})
 		case store.EventTitle:
@@ -560,9 +583,12 @@ func buildTimeline(is store.Issue, byID map[int]store.Label) []timelineItem {
 				items = append(items, it)
 			}
 		case store.EventReview:
-			items = append(items, timelineItem{Kind: "review", User: ev.User, Time: ev.Time, Body: ev.Body, State: ev.State, CommitSHA: ev.CommitSHA})
+			items = append(items, timelineItem{Kind: "review", User: ev.User, Time: ev.Time, Body: ev.Body, State: ev.State, CommitSHA: ev.CommitSHA, File: ev.File, Edit: editInfoOf(ev)})
 		case store.EventReviewComment:
-			items = append(items, timelineItem{Kind: "review_comment", User: ev.User, Time: ev.Time, Body: ev.Body, CommitSHA: ev.CommitSHA, Path: ev.Path, Line: ev.Line, Side: ev.Side, DiffHunk: ev.DiffHunk})
+			if ev.Deleted {
+				continue
+			}
+			items = append(items, timelineItem{Kind: "review_comment", User: ev.User, Time: ev.Time, Body: ev.Body, CommitSHA: ev.CommitSHA, Path: ev.Path, Line: ev.Line, Side: ev.Side, DiffHunk: ev.DiffHunk, File: ev.File, Edit: editInfoOf(ev), CanDelete: true})
 		case store.EventMerged:
 			items = append(items, timelineItem{Kind: "merged", User: ev.User, Time: ev.Time, SHA: ev.MergeSHA})
 		case store.EventReverted:
@@ -621,7 +647,7 @@ func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request, st *store.Sto
 }
 
 func (s *Server) issuePage(st *store.Store, repo store.Repo, is store.Issue) (page, error) {
-	v := issueView{Issue: is, Assignees: is.Assignees}
+	v := issueView{Issue: is, Assignees: is.Assignees, BodyEdit: bodyEditInfo(is)}
 	var err error
 	if v.AllLabels, err = st.ListLabels(repo.Name); err != nil {
 		return page{}, err
@@ -688,6 +714,136 @@ func (s *Server) handleIssueComment(w http.ResponseWriter, r *http.Request, st *
 		return
 	}
 	s.redirectIssue(w, r, st, repo, is)
+}
+
+// ---- 本文とコメントの編集・削除 ----
+
+// issueEditView は編集画面の内容。
+type issueEditView struct {
+	Issue   store.Issue
+	Target  string // 対象のイベントのファイル名。本文なら空
+	IsBody  bool   // 本文（タイトルも一緒に直せる）
+	Title   string
+	Body    string
+	Action  string // フォームの送信先
+	BackURL string // キャンセルで戻る先
+}
+
+// issueBase は Issue または PR の画面の URL。
+func (s *Server) issueBase(st *store.Store, repo store.Repo, is store.Issue) string {
+	if is.IsPull {
+		return s.pullURL(st, repo, is.Number)
+	}
+	return fmt.Sprintf("%s/issues/%d", s.repoURL(st, repo), is.Number)
+}
+
+func (s *Server) issueEditView(st *store.Store, repo store.Repo, is store.Issue, target string) (issueEditView, error) {
+	base := s.issueBase(st, repo, is)
+	v := issueEditView{Issue: is, Target: target, BackURL: base, Action: base + "/edit?target=" + url.QueryEscape(target)}
+	if target == "" || target == is.BodyFile {
+		v.IsBody = true
+		v.Target = ""
+		v.Action = base + "/edit"
+		v.Title = is.Title
+		v.Body = is.Body
+		return v, nil
+	}
+	for _, ev := range is.Events {
+		if ev.File == target && !ev.Deleted && (ev.Type == store.EventComment || ev.Type == store.EventClosed || ev.Type == store.EventReopened || ev.Type == store.EventReview || ev.Type == store.EventReviewComment) {
+			v.Body = ev.Body
+			return v, nil
+		}
+	}
+	return v, opErr(404, "ppoi.error.comment_not_found")
+}
+
+func (s *Server) renderIssueEdit(w http.ResponseWriter, status int, repo store.Repo, v issueEditView, errMsg string) {
+	tab := "issues"
+	if v.Issue.IsPull {
+		tab = "pulls"
+	}
+	p := s.repoPage(s.tr("edit"), repo, tab)
+	p.Error = errMsg
+	p.Data = v
+	s.render(w, status, "issue_edit", p)
+}
+
+func (s *Server) handleIssueEdit(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	is, ok := s.loadIssue(w, r, st, repo)
+	if !ok {
+		return
+	}
+	v, err := s.issueEditView(st, repo, is, r.URL.Query().Get("target"))
+	if err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
+	}
+	s.renderIssueEdit(w, http.StatusOK, repo, v, "")
+}
+
+func (s *Server) handleIssueEditSave(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	is, ok := s.loadIssue(w, r, st, repo)
+	if !ok {
+		return
+	}
+	v, err := s.issueEditView(st, repo, is, r.URL.Query().Get("target"))
+	if err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
+	}
+	v.Body = normalizeNewlines(r.FormValue("body"))
+	if v.IsBody {
+		v.Title = strings.TrimSpace(r.FormValue("title"))
+		if v.Title == "" {
+			s.renderIssueEdit(w, http.StatusUnprocessableEntity, repo, v, s.tr("ppoi.error.title_required"))
+			return
+		}
+		if v.Title != is.Title {
+			if err := s.setTitle(st, repo, is, v.Title); err != nil {
+				s.renderIssueEdit(w, opStatus(err), repo, v, s.opMessage(err))
+				return
+			}
+		}
+	}
+	if v.Body != bodyOf(is, v) {
+		if err := s.editBody(st, repo, is, v.Target, v.Body); err != nil {
+			s.renderIssueEdit(w, opStatus(err), repo, v, s.opMessage(err))
+			return
+		}
+	}
+	s.redirectIssue(w, r, st, repo, is)
+}
+
+// bodyOf は編集画面の対象の今の本文を返す。
+func bodyOf(is store.Issue, v issueEditView) string {
+	if v.IsBody {
+		return is.Body
+	}
+	for _, ev := range is.Events {
+		if ev.File == v.Target {
+			return ev.Body
+		}
+	}
+	return ""
+}
+
+func (s *Server) handleIssueDelete(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo) {
+	is, ok := s.loadIssue(w, r, st, repo)
+	if !ok {
+		return
+	}
+	if err := s.deleteComment(st, repo, is, r.URL.Query().Get("target")); err != nil {
+		s.renderIssueError(w, st, repo, is, err)
+		return
+	}
+	s.redirectIssue(w, r, st, repo, is)
+}
+
+// handleMarkdownPreview は入力欄のプレビュー用に Markdown を描画して返す。
+func (s *Server) handleMarkdownPreview(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Write([]byte(s.renderMarkdown(normalizeNewlines(r.FormValue("text")))))
 }
 
 // renderIssueError は Issue か PR の詳細画面にエラーを出す。

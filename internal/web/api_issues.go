@@ -265,8 +265,10 @@ func (s *Server) apiEditIssue(w http.ResponseWriter, r *http.Request, st *store.
 		return
 	}
 	if in.Body != nil && normalizeNewlines(*in.Body) != is.Body {
-		s.apiError(w, http.StatusUnprocessableEntity, s.tr("ppoi.api.body_edit"))
-		return
+		if err := s.editBody(st, repo, is, is.BodyFile, *in.Body); err != nil {
+			s.apiFail(w, err)
+			return
+		}
 	}
 	// tea は state だけ変えるときも title を空で送ってくる。空は変更なしとして扱う
 	if in.Title != nil && strings.TrimSpace(*in.Title) != "" {
@@ -331,6 +333,9 @@ func (s *Server) toComment(st *store.Store, repo store.Repo, is store.Issue, ev 
 func commentEvents(is store.Issue) []store.Event {
 	var out []store.Event
 	for _, ev := range is.Events {
+		if ev.Deleted {
+			continue
+		}
 		switch ev.Type {
 		case store.EventComment:
 			out = append(out, ev)
@@ -365,6 +370,73 @@ func (s *Server) apiCreateComment(w http.ResponseWriter, r *http.Request, st *st
 	is, _ = st.GetIssue(repo.Name, is.Number)
 	evs := commentEvents(is)
 	writeJSON(w, http.StatusCreated, s.toComment(st, repo, is, evs[len(evs)-1]))
+}
+
+// findComment はコメントの ID から Issue とイベントを探す。
+func (s *Server) findComment(st *store.Store, repo store.Repo, id int64) (store.Issue, store.Event, bool) {
+	issues, err := st.ListIssues(repo.Name)
+	if err != nil {
+		return store.Issue{}, store.Event{}, false
+	}
+	for _, is := range issues {
+		for _, ev := range commentEvents(is) {
+			if eventID(ev) == id {
+				return is, ev, true
+			}
+		}
+	}
+	return store.Issue{}, store.Event{}, false
+}
+
+// apiGetComment は Gitea の GET /issues/comments/{id}。
+func (s *Server) apiGetComment(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, id int64) {
+	is, ev, found := s.findComment(st, repo, id)
+	if !found {
+		s.apiError(w, http.StatusNotFound, "comment not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, s.toComment(st, repo, is, ev))
+}
+
+// apiEditComment は Gitea の PATCH /issues/comments/{id}。body を書き換える。
+func (s *Server) apiEditComment(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, id int64) {
+	is, ev, found := s.findComment(st, repo, id)
+	if !found {
+		s.apiError(w, http.StatusNotFound, "comment not found")
+		return
+	}
+	var in struct {
+		Body string `json:"body"`
+	}
+	if !s.apiReadJSON(w, r, &in) {
+		return
+	}
+	if err := s.editBody(st, repo, is, ev.File, in.Body); err != nil {
+		s.apiFail(w, err)
+		return
+	}
+	is, _ = st.GetIssue(repo.Name, is.Number)
+	for _, cur := range commentEvents(is) {
+		if cur.File == ev.File {
+			writeJSON(w, http.StatusOK, s.toComment(st, repo, is, cur))
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// apiDeleteComment は Gitea の DELETE /issues/comments/{id}。
+func (s *Server) apiDeleteComment(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, id int64) {
+	is, ev, found := s.findComment(st, repo, id)
+	if !found {
+		s.apiError(w, http.StatusNotFound, "comment not found")
+		return
+	}
+	if err := s.deleteComment(st, repo, is, ev.File); err != nil {
+		s.apiFail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---- issue labels ----

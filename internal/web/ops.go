@@ -152,6 +152,36 @@ func (s *Server) setAssignees(st *store.Store, repo store.Repo, is store.Issue, 
 
 // ---- Pull Request ----
 
+// editBody は本文またはコメントを書き換える。target が空なら本文。
+// 誰でも編集できる（内輪で使う前提。編集前の本文は履歴として残る）。
+func (s *Server) editBody(st *store.Store, repo store.Repo, is store.Issue, target, body string) error {
+	body = normalizeNewlines(body)
+	if target == "" {
+		target = is.BodyFile
+	}
+	if target != is.BodyFile && strings.TrimSpace(body) == "" {
+		return opErr(422, "ppoi.error.comment_required")
+	}
+	if err := st.EditBody(repo.Name, is.Number, s.login, target, body); err != nil {
+		if errors.Is(err, store.ErrEventNotFound) {
+			return opErr(404, "ppoi.error.comment_not_found")
+		}
+		return err
+	}
+	return nil
+}
+
+// deleteComment はコメントまたは行コメントを削除する。
+func (s *Server) deleteComment(st *store.Store, repo store.Repo, is store.Issue, target string) error {
+	if err := st.DeleteComment(repo.Name, is.Number, s.login, target); err != nil {
+		if errors.Is(err, store.ErrEventNotFound) {
+			return opErr(404, "ppoi.error.comment_not_found")
+		}
+		return err
+	}
+	return nil
+}
+
 // createPull は Pull Request を作る。base と head の確認と、差分の有無の確認を含む。
 func (s *Server) createPull(st *store.Store, repo store.Repo, title, body, head, base string, labels []int, assignees []string) (store.Issue, error) {
 	title = strings.TrimSpace(title)

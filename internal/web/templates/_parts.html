@@ -119,3 +119,6 @@
   {{trh "repo.issues.remove_label" (chips .Removed) (datetime .Time)}}
 {{- end -}}
 {{end}}
+
+{{/* 編集済みの印と履歴。editInfo を受け取る */}}
+{{define "edithistory"}}{{if .Edited}} <details class="d-inline-block ml-1 details-reset details-overlay app-history"><summary class="color-fg-muted text-small Link--muted">{{tr "repo.issues.content_history.edited"}}</summary><div class="Box p-2 mt-1 app-history-list">{{range .History}}<div class="mb-2"><div class="color-fg-muted text-small">{{name .User}} · {{datetime .Time}}</div><div class="markdown-body">{{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>{{tr "repo.issues.no_content"}}</em></p>{{end}}</div></div>{{end}}</div></details>{{end}}{{end}}

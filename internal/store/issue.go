@@ -27,6 +27,10 @@ const (
 	EventReviewComment = "review_comment" // 行コメント。body、commit_sha、path、line、side、diff_hunk を持つ
 	EventMerged        = "merged"         // マージ。merge_sha と、マージした時点の head_sha を持つ
 	EventReverted      = "reverted"       // マージの取り消し。revert_sha と merge_sha を持つ
+
+	// 編集と削除。元のイベントは消さず、対象のファイル名を target に持つイベントを追記する
+	EventEdited  = "edited"  // 本文またはコメントの編集。body に新しい本文
+	EventDeleted = "deleted" // コメントの削除。表示しなくなるだけで、ファイルは残る
 )
 
 // レビューの状態。
@@ -60,8 +64,24 @@ type Event struct {
 	MergeSHA  string `json:"merge_sha,omitempty"`  // merged / reverted: マージコミット
 	RevertSHA string `json:"revert_sha,omitempty"` // reverted: 取り消しのコミット
 
+	// 編集と削除用
+	Target string `json:"target,omitempty"` // edited / deleted: 対象のイベントのファイル名
+
 	// File は読み込み元のファイル名。書き込み時は空でよい。
 	File string `json:"-"`
+
+	// 以下は読み込み時に edited / deleted を適用した結果。ファイルには書かない
+	History  []Revision `json:"-"` // 編集前の本文（古い順）
+	EditedBy string     `json:"-"` // 最後に編集した人。未編集なら空
+	EditedAt time.Time  `json:"-"`
+	Deleted  bool       `json:"-"` // 削除済み。表示しない
+}
+
+// Revision は編集前の本文1つ。User と Time はその本文を書いた人と時刻。
+type Revision struct {
+	User string
+	Time time.Time
+	Body string
 }
 
 // Issue はイベントを時系列に適用して組み立てた現在の状態。
@@ -77,7 +97,13 @@ type Issue struct {
 	Comments  int       // コメント数（クローズ・再オープン時の本文も数える）
 	Labels    []int     // 付いているラベルのID（削除済みのラベルのIDが残ることがある）
 	Assignees []string  // 担当者のログオン名
-	Events    []Event
+	Events    []Event   // edited / deleted を適用した後のイベント
+
+	// 本文の編集
+	BodyFile     string     // created イベントのファイル名。本文の編集の target
+	BodyHistory  []Revision // 編集前の本文（古い順）
+	BodyEditedBy string     // 最後に本文を編集した人。未編集なら空
+	BodyEditedAt time.Time
 
 	// Pull Request 用
 	IsPull        bool
@@ -320,6 +346,7 @@ func (s *Store) ReadEvents(repo string, number int) ([]Event, error) {
 // BuildIssue はイベントを時系列に適用してIssueを組み立てる。
 // created イベントが無ければ false を返す（採番だけ済んで書き込みに失敗した残骸）。
 func BuildIssue(number int, events []Event) (Issue, bool) {
+	events = applyEdits(events)
 	is := Issue{Number: number, State: "open", Events: events}
 	created := false
 	reviews := map[string]Review{}
@@ -338,18 +365,24 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 			is.Head = ev.Head
 			is.Base = ev.Base
 			is.HeadSHA = ev.HeadSHA
+			is.BodyFile = ev.File
+			is.BodyHistory = ev.History
+			is.BodyEditedBy = ev.EditedBy
+			is.BodyEditedAt = ev.EditedAt
 		case EventComment:
-			is.Comments++
+			if !ev.Deleted {
+				is.Comments++
+			}
 		case EventClosed:
 			is.State = "closed"
 			is.ClosedAt = ev.Time
-			if ev.Body != "" {
+			if ev.Body != "" && !ev.Deleted {
 				is.Comments++
 			}
 		case EventReopened:
 			is.State = "open"
 			is.ClosedAt = time.Time{}
-			if ev.Body != "" {
+			if ev.Body != "" && !ev.Deleted {
 				is.Comments++
 			}
 		case EventTitle:
@@ -359,14 +392,16 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 		case EventAssigned:
 			is.Assignees = append([]string(nil), ev.Assignees...)
 		case EventReview:
-			if ev.Body != "" {
+			if ev.Body != "" && !ev.Deleted {
 				is.Comments++
 			}
 			if ev.State == ReviewApproved || ev.State == ReviewChangesRequested {
 				reviews[ev.User] = Review{User: ev.User, State: ev.State, Time: ev.Time, CommitSHA: ev.CommitSHA}
 			}
 		case EventReviewComment:
-			is.Comments++
+			if !ev.Deleted {
+				is.Comments++
+			}
 		case EventMerged:
 			is.Merged = true
 			is.MergeSHA = ev.MergeSHA
@@ -389,6 +424,98 @@ func BuildIssue(number int, events []Event) (Issue, bool) {
 	}
 	sort.Slice(is.Reviews, func(i, j int) bool { return is.Reviews[i].User < is.Reviews[j].User })
 	return is, created
+}
+
+// applyEdits は edited と deleted を対象のイベントに反映した写しを返す。
+// 対象が無い、または編集できない種類のイベントを指す edited / deleted は無視する。
+func applyEdits(events []Event) []Event {
+	out := make([]Event, len(events))
+	copy(out, events)
+	index := map[string]int{}
+	for i, ev := range out {
+		if ev.File != "" {
+			index[ev.File] = i
+		}
+	}
+	for _, ev := range out {
+		if ev.Type != EventEdited && ev.Type != EventDeleted {
+			continue
+		}
+		i, ok := index[ev.Target]
+		if !ok || !editableEvent(out[i].Type) {
+			continue
+		}
+		t := &out[i]
+		if ev.Type == EventDeleted {
+			if deletableEvent(t.Type) {
+				t.Deleted = true
+			}
+			continue
+		}
+		writer, at := t.User, t.Time
+		if t.EditedBy != "" {
+			writer, at = t.EditedBy, t.EditedAt
+		}
+		t.History = append(t.History, Revision{User: writer, Time: at, Body: t.Body})
+		t.Body = ev.Body
+		t.EditedBy, t.EditedAt = ev.User, ev.Time
+	}
+	return out
+}
+
+// editableEvent は本文を編集できる種類のイベントかを返す。
+func editableEvent(typ string) bool {
+	switch typ {
+	case EventCreated, EventComment, EventClosed, EventReopened, EventReview, EventReviewComment:
+		return true
+	}
+	return false
+}
+
+// deletableEvent は削除できる種類（コメントと行コメント）かを返す。本文や状態の変更は消せない。
+func deletableEvent(typ string) bool {
+	return typ == EventComment || typ == EventReviewComment
+}
+
+// ErrEventNotFound は編集や削除の対象のイベントが無い（または対象にできない）ときのエラー。
+var ErrEventNotFound = errors.New("対象のコメントが無い")
+
+// EditBody は本文またはコメントを書き換える。target は対象のイベントのファイル名。
+// 元のイベントは消さず、edited イベントを追記する。
+func (s *Store) EditBody(repo string, number int, user, target, body string) error {
+	if err := s.checkEditTarget(repo, number, target, false); err != nil {
+		return err
+	}
+	return s.AppendEvent(repo, number, Event{Type: EventEdited, User: user, Target: target, Body: body})
+}
+
+// DeleteComment はコメントまたは行コメントを削除する。表示しなくなるだけで、ファイルは残る。
+func (s *Store) DeleteComment(repo string, number int, user, target string) error {
+	if err := s.checkEditTarget(repo, number, target, true); err != nil {
+		return err
+	}
+	return s.AppendEvent(repo, number, Event{Type: EventDeleted, User: user, Target: target})
+}
+
+func (s *Store) checkEditTarget(repo string, number int, target string, del bool) error {
+	events, err := s.ReadEvents(repo, number)
+	if err != nil {
+		return err
+	}
+	for _, ev := range events {
+		if ev.File != target {
+			continue
+		}
+		if del {
+			if deletableEvent(ev.Type) {
+				return nil
+			}
+		} else if editableEvent(ev.Type) {
+			return nil
+		}
+		return ErrEventNotFound
+	}
+	return ErrEventNotFound
 }
 
 // CreatePull は番号を採番し、Pull Request の created イベントを書いて、組み立てた結果を返す。

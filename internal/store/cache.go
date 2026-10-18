@@ -25,7 +25,7 @@ const cacheSaveInterval = 5 * time.Second
 
 // cacheFormat はキャッシュの形式の版。Event に項目を足したときなどに上げる。
 // 版が違うキャッシュは読まずに捨て、共有フォルダから読み直す。
-const cacheFormat = 1
+const cacheFormat = 2
 
 type repoCache struct {
 	Format int                      `json:"format"`

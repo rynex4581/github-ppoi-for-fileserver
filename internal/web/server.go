@@ -210,6 +210,10 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {
+			if m := commentPathPattern.FindStringSubmatch(r.URL.Path); m != nil {
+				s.handleAPIComment(w, r, m)
+				return
+			}
 			s.apiMux.ServeHTTP(w, r)
 			return
 		}
@@ -495,6 +499,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /settings/roots", s.handleRootAdd)
 	mux.HandleFunc("POST /settings/roots/remove", s.handleRootRemove)
 	mux.HandleFunc("GET /licenses", s.handleLicenses)
+	mux.HandleFunc("POST /markdown", s.handleMarkdownPreview)
 	mux.HandleFunc("GET /issues", s.handleCrossIssues)
 	mux.HandleFunc("GET /pulls", s.handleCrossPulls)
 
@@ -508,6 +513,9 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /{owner}/{repo}/issues/new", s.withRepo(s.handleIssueNew))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/new", s.withRepo(s.handleIssueCreate))
 	mux.HandleFunc("GET /{owner}/{repo}/issues/{number}", s.withRepo(s.handleIssue))
+	mux.HandleFunc("GET /{owner}/{repo}/issues/{number}/edit", s.withRepo(s.handleIssueEdit))
+	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/edit", s.withRepo(s.handleIssueEditSave))
+	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/delete", s.withRepo(s.handleIssueDelete))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/comments", s.withRepo(s.handleIssueComment))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/labels", s.withRepo(s.handleIssueLabels))
 	mux.HandleFunc("POST /{owner}/{repo}/issues/{number}/assignees", s.withRepo(s.handleIssueAssignees))
@@ -515,6 +523,9 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /{owner}/{repo}/pulls/new", s.withRepo(s.handlePullNew))
 	mux.HandleFunc("POST /{owner}/{repo}/pulls/new", s.withRepo(s.handlePullCreate))
 	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}", s.withRepo(s.pullTab("conversation")))
+	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}/edit", s.withRepo(s.handleIssueEdit))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/edit", s.withRepo(s.handleIssueEditSave))
+	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/delete", s.withRepo(s.handleIssueDelete))
 	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}/commits", s.withRepo(s.pullTab("commits")))
 	mux.HandleFunc("GET /{owner}/{repo}/pulls/{number}/files", s.withRepo(s.pullTab("files")))
 	mux.HandleFunc("POST /{owner}/{repo}/pulls/{number}/comments", s.withRepo(s.handleIssueComment))

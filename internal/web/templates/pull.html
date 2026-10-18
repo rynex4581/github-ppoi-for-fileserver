@@ -87,7 +87,7 @@
     <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
     <div class="TimelineItem-body">
       <div class="Box app-comment">
-        <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span></div>
+        <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span>{{template "edithistory" $v.BodyEdit}}<a class="float-right Link--muted text-small" href="{{$v.PullURL}}/edit">{{tr "repo.issues.context.edit"}}</a></div>
         <div class="Box-body markdown-body">{{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>{{tr "repo.issues.no_content"}}</em></p>{{end}}</div>
       </div>
     </div>
@@ -100,7 +100,11 @@
       <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
       <div class="TimelineItem-body">
         <div class="Box app-comment">
-          <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .Time)}}</span></div>
+          <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .Time)}}</span>{{template "edithistory" .Edit}}
+            <span class="float-right text-small">
+              <a class="Link--muted" href="{{$v.PullURL}}/edit?target={{.File}}">{{tr "repo.issues.context.edit"}}</a>
+              {{if .CanDelete}}<form method="post" class="d-inline ml-2" action="{{$v.PullURL}}/delete?target={{.File}}" data-confirm="{{tr "repo.issues.delete_comment_confirm"}}"><button class="btn-link Link--muted" type="submit">{{tr "repo.issues.context.delete"}}</button></form>{{end}}
+            </span></div>
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
         </div>
       </div>
@@ -124,6 +128,10 @@
           <summary class="Box-header color-bg-subtle text-mono text-small">{{.Path}}{{if .Outdated}} <span class="color-fg-muted">({{short .CommitSHA}})</span>{{end}}</summary>
           {{if .DiffHunk}}<pre class="app-hunk-pre m-0 text-small">{{.DiffHunk}}</pre>{{end}}
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
+          <div class="Box-footer text-small color-bg-subtle">{{template "edithistory" .Edit}}
+            <a class="Link--muted" href="{{$v.PullURL}}/edit?target={{.File}}">{{tr "repo.issues.context.edit"}}</a>
+            <form method="post" class="d-inline ml-2" action="{{$v.PullURL}}/delete?target={{.File}}" data-confirm="{{tr "repo.issues.delete_comment_confirm"}}"><button class="btn-link Link--muted" type="submit">{{tr "repo.issues.context.delete"}}</button></form>
+          </div>
         </details>
       </div>
     </div>
@@ -220,7 +228,7 @@
             <summary class="btn btn-primary">{{tr "ppoi.pulls.merge"}}</summary>
             <form method="post" action="{{$v.PullURL}}/merge" class="mt-3">
               <label class="d-block text-small text-bold mb-1" for="merge-message">{{tr "ppoi.pulls.merge_message"}}</label>
-              <textarea data-max-bytes="{{$.MaxAttach}}" data-too-large="{{tr "ppoi.attach.too_large_js"}}" class="form-control input-block app-textarea mb-2" id="merge-message" name="message" rows="4">{{$v.MergeMessage}}</textarea>
+              <textarea data-max-bytes="{{$.MaxAttach}}" data-too-large="{{tr "ppoi.attach.too_large_js"}}" class="form-control input-block app-textarea mb-2" id="merge-message" name="message" rows="4" data-no-preview>{{$v.MergeMessage}}</textarea>
               <button class="btn btn-primary" type="submit">{{tr "ppoi.pulls.confirm_merge"}}</button>
             </form>
           </details>
