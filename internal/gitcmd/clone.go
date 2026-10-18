@@ -27,8 +27,9 @@ var ErrPushRejected = errors.New("push が弾かれた")
 const pushRetries = 3
 
 // noHooksReceivePack は push 先の receive-pack を hooks 無しで起動させる指定。
-// runGit の -c core.hooksPath= は receive-pack に引き継がれないため、起動コマンドの側で付ける。
-const noHooksReceivePack = "--receive-pack=git -c core.hooksPath= receive-pack"
+// runGit の -c は receive-pack に引き継がれないため、起動コマンドの側で付ける。
+// core.longpaths も同じ理由でここに付ける（共有フォルダの深いパスで pack の一時名が 260 文字を超える）。
+const noHooksReceivePack = "--receive-pack=git -c core.hooksPath= -c core.longpaths=true receive-pack"
 
 func (c Clone) git(args ...string) ([]byte, error) {
 	extra := []string{"-c", "user.name=" + c.UserName, "-c", "user.email=" + c.UserEmail}

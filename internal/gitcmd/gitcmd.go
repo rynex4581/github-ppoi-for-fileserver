@@ -39,7 +39,8 @@ func (r Repo) run(args ...string) ([]byte, error) {
 // ただし -c は push 先の receive-pack には渡らない（git がローカルの push で設定の環境変数を
 // 落とす）ので、push 側は noHooksReceivePack で receive-pack にも同じ設定を付ける。
 func runGit(dir string, extra []string, args ...string) ([]byte, int, error) {
-	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false", "-c", "core.hooksPath="}
+	// core.longpaths は Windows の 260 文字制限に掛からないようにするため（共有フォルダの深いパスで pack の一時名が超える）
+	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false", "-c", "core.hooksPath=", "-c", "core.longpaths=true"}
 	full = append(full, extra...)
 	full = append(full, "-C", dir)
 	full = append(full, args...)
@@ -429,7 +430,7 @@ func CloneMirror(src, dst string) error {
 
 // PushMirror は src（bare か mirror）の全参照を dst に push する（インポート用）。
 func PushMirror(src, dst string) error {
-	_, _, err := runGit(src, nil, "push", "--quiet", "--mirror", "--end-of-options", dst)
+	_, _, err := runGit(src, nil, "push", "--quiet", "--mirror", noHooksReceivePack, "--end-of-options", dst)
 	return err
 }
 
