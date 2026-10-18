@@ -29,6 +29,9 @@ import (
 )
 
 func main() {
+	if code, ok := runSubcommand(os.Args); ok {
+		os.Exit(code)
+	}
 	noBrowser := flag.Bool("no-browser", false, "起動時にブラウザを開かない")
 	flag.Parse()
 

@@ -391,6 +391,13 @@ func (r Repo) Maintenance() error {
 	return err
 }
 
+// Fsck は git fsck を実行する。force push で参照されなくなったオブジェクトは正常なので報告しない。
+// 問題があれば出力とエラーを返す。
+func (r Repo) Fsck() (string, error) {
+	out, err := r.run("fsck", "--no-progress", "--no-dangling")
+	return string(out), err
+}
+
 // SetHead はベアリポジトリの HEAD が指すブランチを変える。clone したときの既定のブランチになる。
 func (r Repo) SetHead(branch string) error {
 	_, err := r.run("symbolic-ref", "HEAD", "refs/heads/"+branch)

@@ -211,6 +211,44 @@ func (s *Store) allocateNumber(repo string) (int, error) {
 	return 0, errors.New("Issue番号の採番に失敗した（再試行の上限に達した）")
 }
 
+// ReserveIssueNumbers は upTo 番までの空の番号フォルダを作り、採番を進める（設計メモ 3.17）。
+// 既存の最大番号より上だけ作る（それより下の欠番は埋めない）。作った番号を昇順で返す。
+// 空の番号フォルダは「作成途中」と同じ状態で、一覧には出ない。
+func (s *Store) ReserveIssueNumbers(repo string, upTo int) ([]int, error) {
+	if err := s.writable(); err != nil {
+		return nil, err
+	}
+	if !isSafeName(repo) {
+		return nil, ErrRepoNotFound
+	}
+	if _, err := s.GetRepo(repo); err != nil {
+		return nil, err
+	}
+	dir := s.issuesDir(repo)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	numbers, err := s.listIssueNumbers(repo)
+	if err != nil {
+		return nil, err
+	}
+	from := 1
+	if len(numbers) > 0 {
+		from = numbers[len(numbers)-1] + 1
+	}
+	var created []int
+	for n := from; n <= upTo; n++ {
+		err := os.Mkdir(filepath.Join(dir, fmt.Sprintf("%06d", n)), 0o755)
+		if err != nil && !errors.Is(err, fs.ErrExist) {
+			return created, err
+		}
+		if err == nil {
+			created = append(created, n)
+		}
+	}
+	return created, nil
+}
+
 // listIssueNumbers は issues 配下の番号フォルダを昇順で返す。フォルダが無ければ空。
 func (s *Store) listIssueNumbers(repo string) ([]int, error) {
 	entries, err := os.ReadDir(s.issuesDir(repo))
