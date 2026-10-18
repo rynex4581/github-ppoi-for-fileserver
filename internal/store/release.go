@@ -27,13 +27,13 @@ var ErrReleaseNotFound = errors.New("リリースが無い")
 var ErrReleaseExists = errors.New("このタグのリリースは既にある")
 
 // ErrBadTagName はタグ名がフォルダ名に使えないときのエラー。
-var ErrBadTagName = errors.New("タグ名はフォルダ名に使える文字（英数字と . _ - +）だけにする")
+var ErrBadTagName = errors.New("タグ名はフォルダ名に使える文字（英数字と . _ - +）だけにし、末尾を . にしない")
 
 var tagNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}$`)
 
-// ValidateTagName はリリースに使えるタグ名かを確かめる。
+// ValidateTagName はリリースに使えるタグ名かを確かめる。末尾の . は git が拒み、Windows もフォルダ名から落とす（新25）。
 func ValidateTagName(tag string) error {
-	if !tagNamePattern.MatchString(tag) || strings.Contains(tag, "..") || strings.HasSuffix(tag, ".lock") || isWindowsReserved(tag) {
+	if !tagNamePattern.MatchString(tag) || strings.Contains(tag, "..") || strings.HasSuffix(tag, ".") || strings.HasSuffix(tag, ".lock") || isWindowsReserved(tag) {
 		return ErrBadTagName
 	}
 	return nil
@@ -280,7 +280,24 @@ func (s *Store) ListReleaseAttachments(repo, tag string) ([]Attachment, error) {
 	if !isSafeName(repo) || ValidateTagName(tag) != nil {
 		return nil, ErrReleaseNotFound
 	}
-	return listAttachmentsIn(s.releaseAttachmentsDir(repo, tag))
+	all, err := listAttachmentsIn(s.releaseAttachmentsDir(repo, tag))
+	if err != nil {
+		return nil, err
+	}
+	// 削除して同じタグで作り直したとき、前のリリースの配布物は出さない（新26）。
+	// 添付の保存名の先頭の時刻が、今の created より前なら前のもの。ファイルは残り、URL では取れる
+	rel, err := s.GetRelease(repo, tag)
+	if err != nil {
+		return all, nil
+	}
+	var out []Attachment
+	for _, a := range all {
+		if t, ok := attachmentNameTime(a.Name); ok && t.Before(rel.CreatedAt) {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out, nil
 }
 
 // ReleaseAttachmentPath はリリースの添付のパスを返す。無ければ ErrAttachmentNotFound。

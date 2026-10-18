@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -78,6 +79,20 @@ func (s *Store) saveAttachmentTo(dir, original string, data []byte) (string, err
 // attachmentPrefixPattern は保存名の先頭に付ける「UTC時刻_」の形。
 var attachmentPrefixPattern = regexp.MustCompile(`^\d{8}T\d{9}Z_`)
 
+// attachmentNameTime は保存名の先頭の時刻（UTC、ミリ秒）を返す。形が違えば偽。
+func attachmentNameTime(name string) (time.Time, bool) {
+	m := attachmentPrefixPattern.FindString(name)
+	if m == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("20060102T150405", m[:15])
+	if err != nil {
+		return time.Time{}, false
+	}
+	ms, _ := strconv.Atoi(m[15:18])
+	return t.Add(time.Duration(ms) * time.Millisecond), true
+}
+
 // OriginalAttachmentName は保存名から先頭の時刻を外し、元のファイル名に近いものを返す（書き出し用）。
 func OriginalAttachmentName(name string) string {
 	return attachmentPrefixPattern.ReplaceAllString(name, "")
@@ -132,6 +147,8 @@ func listAttachmentsIn(dir string) ([]Attachment, error) {
 		}
 		return nil, err
 	}
+	// 1 時間以上前の .tmp はここで掃除する（添付は置き換え無しで書くので writeFileAtomic では対象外。新5）
+	removeStaleTemp(dir, entries)
 	var out []Attachment
 	for _, e := range entries {
 		if e.IsDir() || strings.HasSuffix(e.Name(), ".tmp") {

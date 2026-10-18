@@ -2,7 +2,10 @@ package store
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestReleases(t *testing.T) {
@@ -62,12 +65,39 @@ func TestReleases(t *testing.T) {
 		t.Fatalf("削除後の一覧が %d 件", len(all))
 	}
 	// 削除後に同じタグで作り直せる
+	time.Sleep(2 * time.Millisecond) // 前の配布物の保存名の時刻より後に作る
 	if _, err := st.CreateRelease("r", "testuser1", "v1.0", "", "作り直し", "", false); err != nil {
 		t.Fatal(err)
 	}
 	rel, _ = st.GetRelease("r", "v1.0")
 	if rel.Title != "作り直し" || rel.EditedBy != "" {
 		t.Fatalf("作り直しが違う: %+v", rel)
+	}
+	// 新26：前のリリースの配布物は作り直したリリースの一覧に出ない（ファイルと URL は残る）
+	if list, _ := st.ListReleaseAttachments("r", "v1.0"); len(list) != 0 {
+		t.Fatalf("作り直したのに前の配布物が出ている: %+v", list)
+	}
+	if _, err := st.ReleaseAttachmentPath("r", "v1.0", name); err != nil {
+		t.Fatalf("前の配布物のファイルが取れない: %v", err)
+	}
+	name2, err := st.SaveReleaseAttachment("r", "v1.0", "tool2.zip", []byte("zip2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 新5：1 時間以上前の .tmp は一覧を読むときに掃除する
+	stale := filepath.Join(filepath.Dir(must(st.ReleaseAttachmentPath("r", "v1.0", name2))), "x.host-1-1.tmp")
+	os.WriteFile(stale, []byte("x"), 0o644)
+	old := time.Now().Add(-2 * time.Hour)
+	os.Chtimes(stale, old, old)
+	if list, _ := st.ListReleaseAttachments("r", "v1.0"); len(list) != 1 || list[0].Name != name2 {
+		t.Fatalf("作り直した後の配布物の一覧が違う: %+v", list)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("古い .tmp が掃除されていない: %v", err)
+	}
+	// 新25：末尾の . は git が拒むので 422 側で弾く
+	if _, err := st.CreateRelease("r", "testuser1", "v2.", "", "x", "", false); !errors.Is(err, ErrBadTagName) {
+		t.Fatalf("末尾が . のタグ名が通ってしまう: %v", err)
 	}
 }
 
@@ -86,4 +116,11 @@ func TestBuildReleaseFirstCreatedWins(t *testing.T) {
 	if rel, ok := buildRelease("v1", []Event{a, b, d, c}); !ok || rel.Title != "作り直し" || rel.CreatedFile != "4.json" {
 		t.Fatalf("削除の後の created を採っていない: %+v %v", rel, ok)
 	}
+}
+
+func must(p string, err error) string {
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
