@@ -88,7 +88,7 @@ func openOrCreate(root string) (st *store.Store, err error) {
 		if err == nil {
 			return st, nil
 		}
-		if !errors.Is(err, store.ErrConfigExists) && !errors.Is(err, os.ErrExist) {
+		if !errors.Is(err, store.ErrConfigExists) && !errors.Is(err, store.ErrConfigRace) {
 			continue
 		}
 	}

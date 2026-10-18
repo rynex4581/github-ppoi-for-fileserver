@@ -90,6 +90,9 @@ func isWindowsReserved(name string) bool {
 // ErrConfigExists は既に config.json のあるフォルダをデータルートとして新規作成しようとしたときのエラー。
 var ErrConfigExists = errors.New("このフォルダには既に config.json がある")
 
+// ErrConfigRace は config.json を書く直前に別の端末が先に書いたときのエラー。
+var ErrConfigRace = errors.New("config.json を書けなかった。他の端末が同時にこのフォルダをデータルートとして初期化した可能性がある。もう一度やり直す")
+
 // Create はフォルダをデータルートとして初期化する。config.json を書き、repos と meta を作る。
 // フォルダは既に存在していなければならない。config.json が既にあれば ErrConfigExists。
 func Create(root string, cfg Config) (*Store, error) {
@@ -115,7 +118,11 @@ func Create(root string, cfg Config) (*Store, error) {
 		cfg.AttachmentMaxBytes = 10 * 1024 * 1024
 	}
 	cfg.OwnerName = strings.TrimSpace(cfg.OwnerName)
-	if err := writeJSONAtomic(path, cfg); err != nil {
+	// 2台が同時に初期化しても後の方が上書きしないよう、既存があれば失敗する書き方にする
+	if err := writeJSONNew(path, cfg); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return nil, ErrConfigRace
+		}
 		return nil, err
 	}
 	return Open(root)
