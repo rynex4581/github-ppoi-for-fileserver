@@ -34,8 +34,11 @@ func (r Repo) run(args ...string) ([]byte, error) {
 }
 
 // runGit は dir で git を実行し、標準出力と終了コードを返す。extra は -c の追加設定。
+// core.hooksPath を空にして、リポジトリに置かれた hooks を本ツールの呼び出しでは動かさない。
+// ただし -c は push 先の receive-pack には渡らない（git がローカルの push で設定の環境変数を
+// 落とす）ので、push 側は noHooksReceivePack で receive-pack にも同じ設定を付ける。
 func runGit(dir string, extra []string, args ...string) ([]byte, int, error) {
-	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false"}
+	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false", "-c", "core.hooksPath="}
 	full = append(full, extra...)
 	full = append(full, "-C", dir)
 	full = append(full, args...)

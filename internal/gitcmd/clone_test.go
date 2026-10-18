@@ -2,6 +2,7 @@ package gitcmd
 
 import (
 	"errors"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -142,5 +143,39 @@ func TestCloneMergeRetriesAfterRemoteMoved(t *testing.T) {
 	}
 	if _, err := r.Blob("main", "other.txt"); err != nil {
 		t.Error("他の端末のコミットが失われている")
+	}
+}
+
+// 本ツールの git 呼び出しでは、ベアリポジトリと専用 clone に置かれた hooks が動かないことを確かめる。
+// -c core.hooksPath= はローカルの push では receive-pack に渡らないので、--receive-pack で付けた分も含めて見る。
+func TestHooksDoNotRunForTool(t *testing.T) {
+	r, work := newTestRepo(t)
+	hook := "#!/bin/sh\necho HOOK-RAN >&2\nexit 1\n"
+	write(t, r.Dir, "hooks/pre-receive", hook)
+
+	// まず、この環境で hooks が実際に動くことを確かめる（動かない環境では確かめようがない）
+	plain := exec.Command("git", "-c", "safe.directory=*", "-C", work, "push", "--quiet", "origin", "feature/x:refs/heads/probe")
+	if out, err := plain.CombinedOutput(); err == nil || !strings.Contains(string(out), "HOOK-RAN") {
+		t.Skipf("この環境では pre-receive が動かない: %v\n%s", err, out)
+	}
+
+	c := Clone{Dir: filepath.Join(t.TempDir(), "clones", "sample"), Remote: r.Dir, UserName: "testuser1", UserEmail: "testuser1@example.invalid"}
+	if err := c.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	// 専用 clone 側の hooks（コミット時に動くもの）も動かないこと
+	write(t, c.Dir, ".git/hooks/pre-commit", hook)
+	write(t, c.Dir, ".git/hooks/commit-msg", hook)
+	write(t, c.Dir, ".git/hooks/pre-push", hook)
+
+	mergeSHA, err := c.Merge("main", "feature/x", "Merge pull request #2 from feature/x")
+	if err != nil {
+		t.Fatalf("hooks があるとマージが通らない: %v", err)
+	}
+	if sha, _ := r.ResolveCommit("main"); sha != mergeSHA {
+		t.Fatalf("push が bare に届いていない: main=%s merge=%s", sha, mergeSHA)
+	}
+	if err := c.DeleteRemoteBranch("feature/x"); err != nil {
+		t.Fatalf("hooks があるとブランチの削除が通らない: %v", err)
 	}
 }

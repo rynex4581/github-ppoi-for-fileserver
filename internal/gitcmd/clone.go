@@ -26,6 +26,10 @@ var ErrPushRejected = errors.New("push が弾かれた")
 // push が弾かれたときにやり直す回数。
 const pushRetries = 3
 
+// noHooksReceivePack は push 先の receive-pack を hooks 無しで起動させる指定。
+// runGit の -c core.hooksPath= は receive-pack に引き継がれないため、起動コマンドの側で付ける。
+const noHooksReceivePack = "--receive-pack=git -c core.hooksPath= receive-pack"
+
 func (c Clone) git(args ...string) ([]byte, error) {
 	extra := []string{"-c", "user.name=" + c.UserName, "-c", "user.email=" + c.UserEmail}
 	out, _, err := runGit(c.Dir, extra, args...)
@@ -61,7 +65,7 @@ func (c Clone) sync(branch string) error {
 
 // push は branch を push する。弾かれたら ErrPushRejected を返す。
 func (c Clone) push(branch string) error {
-	_, err := c.git("push", "--quiet", "origin", "refs/heads/"+branch+":refs/heads/"+branch)
+	_, err := c.git("push", "--quiet", noHooksReceivePack, "origin", "refs/heads/"+branch+":refs/heads/"+branch)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "rejected") || strings.Contains(msg, "failed to push") || strings.Contains(msg, "fetch first") {
@@ -112,7 +116,7 @@ func (c Clone) Merge(base, head, message string) (string, error) {
 
 // DeleteRemoteBranch はリモートのブランチを消す。
 func (c Clone) DeleteRemoteBranch(name string) error {
-	_, err := c.git("push", "--quiet", "origin", ":refs/heads/"+name)
+	_, err := c.git("push", "--quiet", noHooksReceivePack, "origin", ":refs/heads/"+name)
 	return err
 }
 
