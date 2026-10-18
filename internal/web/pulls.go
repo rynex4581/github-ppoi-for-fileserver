@@ -176,6 +176,9 @@ func (s *Server) handlePullCreate(w http.ResponseWriter, r *http.Request, st *st
 		Title: strings.TrimSpace(r.FormValue("title")),
 		Body:  normalizeNewlines(r.FormValue("body")),
 	}
+	// 送られてきたブランチ名はそのまま検証に回す。preparePullNew は表示用に存在するブランチへ
+	// 差し替えるので、その前に控えておく
+	head, base := f.Head, f.Base
 	if err := s.preparePullNew(st, repo, &f); err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -189,25 +192,20 @@ func (s *Server) handlePullCreate(w http.ResponseWriter, r *http.Request, st *st
 		p.Data = f
 		s.render(w, http.StatusUnprocessableEntity, "pull_new", p)
 	}
-	switch {
-	case f.TooFew:
+	if f.TooFew {
 		fail(s.tr("ppoi.pulls.needs_branches"))
 		return
-	case f.Same || f.Head == "":
-		fail(s.tr("ppoi.pulls.same_branch"))
-		return
-	case f.Nothing:
-		fail(s.tr("repo.pulls.nothing_to_compare"))
-		return
-	case f.Title == "":
+	}
+	if f.Title == "" {
 		fail(s.tr("ppoi.error.title_required"))
 		return
 	}
-	headSHA, err := s.gitRepo(st, repo).ResolveCommit("refs/heads/" + f.Head)
+	base, headSHA, err := s.validatePull(st, repo, head, base)
 	if err != nil {
-		fail(s.tr("ppoi.code.ref_not_found"))
+		fail(s.opMessage(err))
 		return
 	}
+	f.Head, f.Base = head, base
 	number, err := st.AllocateIssue(repo.Name)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, err.Error())

@@ -86,5 +86,6 @@
   "ppoi.licenses.self": "This tool itself is released under the MIT License.",
   "ppoi.api.bad_state": "Invalid state value.",
   "ppoi.api.body_edit": "Editing the body is not supported (there is no event for rewriting the body).",
-  "ppoi.update.available": "A newer version (Ver %s) is available. Copy the following file to this PC and restart."
+  "ppoi.update.available": "A newer version (Ver %s) is available. Copy the following file to this PC and restart.",
+  "ppoi.pulls.not_open": "Approvals and change requests can only be added to an open pull request"
 }

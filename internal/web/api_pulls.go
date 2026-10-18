@@ -331,6 +331,23 @@ func (s *Server) apiCreateReview(w http.ResponseWriter, r *http.Request, st *sto
 	if !s.apiReadJSON(w, r, &in) {
 		return
 	}
+	state := store.ReviewComment
+	switch strings.ToUpper(in.Event) {
+	case "APPROVED":
+		state = store.ReviewApproved
+	case "REQUEST_CHANGES":
+		state = store.ReviewChangesRequested
+	}
+	body := normalizeNewlines(in.Body)
+	// 行コメントだけのレビュー（本文の無い COMMENT）はレビューのイベントを保存しない
+	lineOnly := state == store.ReviewComment && strings.TrimSpace(body) == "" && len(in.Comments) > 0
+	// レビューの検査は行コメントを書く前に通す。後で弾くと行コメントだけが残る
+	if !lineOnly {
+		if err := s.validateReview(is, state, body); err != nil {
+			s.apiFail(w, err)
+			return
+		}
+	}
 	for _, c := range in.Comments {
 		side, line := "new", c.NewPos
 		if c.NewPos == 0 && c.OldPos > 0 {
@@ -341,17 +358,7 @@ func (s *Server) apiCreateReview(w http.ResponseWriter, r *http.Request, st *sto
 			return
 		}
 	}
-	state := store.ReviewComment
-	switch strings.ToUpper(in.Event) {
-	case "APPROVED":
-		state = store.ReviewApproved
-	case "REQUEST_CHANGES":
-		state = store.ReviewChangesRequested
-	}
-	body := in.Body
-	if state == store.ReviewComment && strings.TrimSpace(body) == "" && len(in.Comments) > 0 {
-		// 行コメントだけのレビュー。本文の無いコメントのレビューは保存しない
-		is, _ = st.GetIssue(repo.Name, is.Number)
+	if lineOnly {
 		writeJSON(w, http.StatusOK, apiReview{User: s.toUser(s.login), State: "COMMENT", PullURL: s.apiURL("repos", st.Config().Owner, repo.Name, "pulls", strconv.Itoa(is.Number)), CommentsCount: len(in.Comments)})
 		return
 	}

@@ -152,46 +152,65 @@ func (s *Server) createPull(st *store.Store, repo store.Repo, title, body, head,
 	if title == "" {
 		return store.Issue{}, opErr(422, "ppoi.error.title_required")
 	}
+	base, headSHA, err := s.validatePull(st, repo, head, base)
+	if err != nil {
+		return store.Issue{}, err
+	}
+	return st.CreatePull(repo.Name, s.login, title, normalizeNewlines(body), head, base, headSHA, labels, assignees)
+}
+
+// validatePull は PR の head と base を確かめる。base が空なら既定のブランチにする。
+// 両方が存在し、同じでなく、取り込むコミットがあることを見て、head の先頭のコミットを返す。
+// 画面と API の両方がこれを通る（存在しないブランチを黙って差し替えない）。
+func (s *Server) validatePull(st *store.Store, repo store.Repo, head, base string) (string, string, error) {
 	g := s.gitRepo(st, repo)
 	branches, err := g.Branches()
 	if err != nil {
-		return store.Issue{}, err
+		return "", "", err
 	}
 	if base == "" {
 		base = s.defaultBranch(g, repo)
 	}
 	if !branchExists(branches, base) || !branchExists(branches, head) {
-		return store.Issue{}, opErr(422, "ppoi.code.ref_not_found")
+		return "", "", opErr(422, "ppoi.code.ref_not_found")
 	}
 	if base == head {
-		return store.Issue{}, opErr(422, "ppoi.pulls.same_branch")
+		return "", "", opErr(422, "ppoi.pulls.same_branch")
 	}
 	commits, err := g.RangeLog(base, head, 1)
 	if err != nil {
-		return store.Issue{}, err
+		return "", "", err
 	}
 	if len(commits) == 0 {
-		return store.Issue{}, opErr(422, "repo.pulls.nothing_to_compare")
+		return "", "", opErr(422, "repo.pulls.nothing_to_compare")
 	}
 	headSHA, err := g.ResolveCommit("refs/heads/" + head)
 	if err != nil {
-		return store.Issue{}, opErr(422, "ppoi.code.ref_not_found")
+		return "", "", opErr(422, "ppoi.code.ref_not_found")
 	}
-	return st.CreatePull(repo.Name, s.login, title, normalizeNewlines(body), head, base, headSHA, labels, assignees)
+	return base, headSHA, nil
 }
 
-// addReview はレビュー（承認／変更要請／コメント）を付ける。自分の PR は承認も変更要請もできない。
-func (s *Server) addReview(st *store.Store, repo store.Repo, is store.Issue, state, body string) error {
-	body = normalizeNewlines(body)
+// validateReview はレビューの入力を確かめる。書き込みの前に通す（API は行コメントを先に書くので、
+// ここで弾けば行コメントだけ残ることが無い）。
+// 自分の PR は承認も変更要請もできない。承認と変更要請は open の PR にしか付けられない
+// （クローズ中に付けた承認が再オープン後に効いてしまわないようにする）。コメントは open 以外でも付けられる。
+func (s *Server) validateReview(is store.Issue, state, body string) error {
 	if !is.IsPull {
 		return opErr(404, "ppoi.error.issue_not_found")
 	}
 	switch state {
 	case store.ReviewApproved:
+		if is.State != "open" {
+			return opErr(405, "ppoi.pulls.not_open")
+		}
 		if is.User == s.login {
 			return opErr(422, "repo.diff.review.self_approve")
 		}
 	case store.ReviewChangesRequested:
+		if is.State != "open" {
+			return opErr(405, "ppoi.pulls.not_open")
+		}
 		if is.User == s.login {
 			return opErr(422, "repo.diff.review.self_reject")
 		}
@@ -204,6 +223,15 @@ func (s *Server) addReview(st *store.Store, repo store.Repo, is store.Issue, sta
 		}
 	default:
 		return opErr(422, "ppoi.api.bad_state")
+	}
+	return nil
+}
+
+// addReview はレビュー（承認／変更要請／コメント）を付ける。
+func (s *Server) addReview(st *store.Store, repo store.Repo, is store.Issue, state, body string) error {
+	body = normalizeNewlines(body)
+	if err := s.validateReview(is, state, body); err != nil {
+		return err
 	}
 	sha, _ := s.gitRepo(st, repo).ResolveCommit("refs/heads/" + is.Head)
 	return st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventReview, User: s.login, State: state, Body: body, CommitSHA: sha})
