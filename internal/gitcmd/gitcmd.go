@@ -443,9 +443,10 @@ func CloneMirror(src, dst string) error {
 	return err
 }
 
-// PushMirror は src（bare か mirror）の全参照を dst に push する（インポート用）。
-func PushMirror(src, dst string) error {
-	_, _, err := runGit(src, nil, "push", "--quiet", "--mirror", noHooksReceivePack(), "--end-of-options", dst)
+// PushBranchesAndTags は src（bare か mirror）のブランチとタグを dst に push する（インポートと GitHub への書き出し用）。
+// --mirror にしないのは、refs/pull/* を送ると GitHub が拒むため（新19）。
+func PushBranchesAndTags(src, dst string) error {
+	_, _, err := runGit(src, nil, "push", "--quiet", noHooksReceivePack(), "--end-of-options", dst, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*")
 	return err
 }
 

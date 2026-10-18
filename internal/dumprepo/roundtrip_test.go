@@ -211,6 +211,10 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if _, err := g2.ResolveCommit("refs/heads/topic"); err != nil {
 		t.Error("取り込んだ git に topic ブランチが無い")
 	}
+	// 新19：refs/pull/* は bare に入れない（GitHub への書き出しで拒まれる）
+	if refs := git(t, g2.Dir, "for-each-ref", "refs/pull"); strings.TrimSpace(refs) != "" {
+		t.Errorf("取り込んだ bare に refs/pull が入っている: %s", refs)
+	}
 	rel, err := st2.GetRelease("tool", "v1.0")
 	if err != nil || rel.Title != "版 1.0" || rel.User != "yamada" {
 		t.Fatalf("リリースが違う: %+v %v", rel, err)

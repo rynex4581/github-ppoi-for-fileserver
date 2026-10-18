@@ -186,10 +186,11 @@ func Export(st *store.Store, repoName string, opts Options) (Result, error) {
 	// git
 	bare := filepath.Join(st.Root(), "repos", repoName+".git")
 	g := gitcmd.Repo{Dir: bare}
-	if err := gitcmd.PushMirror(bare, opts.GitRemote); err != nil {
-		return res, fmt.Errorf("git の push --mirror に失敗: %w", trimToken(err, opts.Token))
+	// refs/pull/* は GitHub が拒むので、ブランチとタグだけを push する（新19）
+	if err := gitcmd.PushBranchesAndTags(bare, opts.GitRemote); err != nil {
+		return res, fmt.Errorf("git の push に失敗: %w", trimToken(err, opts.Token))
 	}
-	fmt.Fprintln(opts.Log, "git: push --mirror")
+	fmt.Fprintln(opts.Log, "git: ブランチとタグを push")
 	branches := map[string]bool{}
 	if bs, err := g.Branches(); err == nil {
 		for _, b := range bs {

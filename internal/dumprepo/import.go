@@ -89,10 +89,11 @@ func Import(st *store.Store, dir, repoName string, log io.Writer) (Result, error
 	// git
 	gitDir := filepath.Join(dir, "git")
 	if _, err := os.Stat(gitDir); err == nil {
-		if err := gitcmd.PushMirror(gitDir, bare); err != nil {
+		// refs/pull/* は bare に入れない（PR の head は created イベントに持つ。新19）
+		if err := gitcmd.PushBranchesAndTags(gitDir, bare); err != nil {
 			return res, fmt.Errorf("git の取り込みに失敗: %w", err)
 		}
-		fmt.Fprintln(log, "git: push --mirror")
+		fmt.Fprintln(log, "git: ブランチとタグを取り込んだ")
 	} else {
 		res.Skipped = append(res.Skipped, "git フォルダが無いので、リポジトリは空のまま")
 	}
@@ -205,7 +206,8 @@ func Import(st *store.Store, dir, repoName string, log io.Writer) (Result, error
 		}
 		headSHA := pr.Head.SHA
 		if headSHA == "" {
-			if sha, err := g.ResolveCommit(fmt.Sprintf("refs/pull/%d/head", n)); err == nil {
+			// dump の git にある refs/pull/<番号>/head から引く（bare には入れていない）
+			if sha, err := (gitcmd.Repo{Dir: gitDir}).ResolveCommit(fmt.Sprintf("refs/pull/%d/head", n)); err == nil {
 				headSHA = sha
 			}
 		}
