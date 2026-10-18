@@ -42,7 +42,7 @@ jobs:
           go build -trimpath -ldflags "-s -w" -o github-ppoi.exe ./cmd/github-ppoi
           go build -trimpath -ldflags "-s -w" -o smbtest.exe ./cmd/smbtest
 
-      - name: 版の確認
+      - name: バージョンの確認
         run: |
           $v = (Get-Item .\github-ppoi.exe).VersionInfo
           "FileVersion=$($v.FileVersion) ProductVersion=$($v.ProductVersion)"

@@ -40,7 +40,7 @@
   "ppoi.pulls.reverted_at": "がこのマージを取り消し %s",
   "ppoi.pulls.reverted_desc": "取り消しのコミット: %s",
   "ppoi.pulls.revert_confirm": "このマージを打ち消すコミットを %s に作ります。",
-  "ppoi.pulls.force_pushed": "このプルリクエストの作成後に、ブランチ <code>%s</code> が force push されています。以前の版に付いたコメントは「古い内容」に畳んであります。",
+  "ppoi.pulls.force_pushed": "このプルリクエストの作成後に、ブランチ <code>%s</code> が force push されています。force push 前のコミットに付いたコメントは「古い内容」に畳んであります。",
   "ppoi.pulls.head_deleted": "ブランチ <code>%s</code> は削除されています。",
   "ppoi.pulls.approval_required": "このリポジトリの設定により、マージには承認が1つ以上必要です。",
   "ppoi.pulls.conflict_help": "手元で <code>%[1]s</code> に <code>%[2]s</code> をマージして push すると、ここからマージできるようになります。",
@@ -86,5 +86,5 @@
   "ppoi.licenses.self": "本ツール自体は MIT License で公開している。",
   "ppoi.api.bad_state": "state の値が正しくありません。",
   "ppoi.api.body_edit": "本文の書き換えには対応していません（本文を書き換えるイベントが無いため）。",
-  "ppoi.update.available": "新しい版（Ver %s）があります。次のファイルを自分の端末にコピーして起動し直してください。"
+  "ppoi.update.available": "新しいバージョン（Ver %s）があります。次のファイルを自分の端末にコピーして起動し直してください。"
 }
