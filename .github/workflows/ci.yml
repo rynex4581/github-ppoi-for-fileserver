@@ -19,6 +19,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: goversioninfo を入れる
+        run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
+
       - name: 検査
         run: |
           gofmt -l . | Tee-Object -Variable unformatted
@@ -29,9 +32,7 @@ jobs:
         run: go test ./...
 
       - name: VERSIONINFO のリソースを作る
-        run: |
-          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
-          go generate ./cmd/github-ppoi
+        run: go generate ./cmd/github-ppoi
 
       - name: ビルド
         run: go build -trimpath -ldflags "-s -w" -o github-ppoi.exe ./cmd/github-ppoi

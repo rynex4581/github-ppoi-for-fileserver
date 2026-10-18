@@ -29,15 +29,16 @@ jobs:
           "tag=$tag number=$number"
           if ($tag -ne "v$number") { Write-Error "タグ $tag と version.Number $number が一致しない"; exit 1 }
 
+      - name: goversioninfo を入れる
+        run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
+
       - name: 検査とテスト
         run: |
           go vet ./...
           go test ./...
 
       - name: VERSIONINFO のリソースを作る
-        run: |
-          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
-          go generate ./cmd/github-ppoi
+        run: go generate ./cmd/github-ppoi
 
       - name: ビルド
         run: |
