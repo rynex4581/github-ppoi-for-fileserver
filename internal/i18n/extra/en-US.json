@@ -1,7 +1,6 @@
 {
   "ppoi.app_name": "github-ppoi for Fileserver",
   "ppoi.no_repos": "No repositories yet",
-  "ppoi.no_repos_desc": "Create a repository to start tracking issues.",
   "ppoi.new_repo_desc": "A bare git repository is created under the data root.",
   "ppoi.optional": "(optional)",
   "ppoi.issues.no_open": "There aren't any open issues.",
@@ -41,7 +40,7 @@
   "ppoi.pulls.reverted_desc": "Revert commit: %s",
   "ppoi.pulls.revert_confirm": "A commit that undoes this merge will be created on %s.",
   "ppoi.pulls.force_pushed": "Branch <code>%s</code> was force-pushed after this pull request was opened. Comments on earlier versions are folded under Outdated.",
-  "ppoi.pulls.head_deleted": "Branch <code>%s</code> has been deleted.",
+  "ppoi.pulls.head_deleted": "Branch %s has been deleted.",
   "ppoi.pulls.approval_required": "This repository requires at least one approval before merging.",
   "ppoi.pulls.conflict_help": "Merge <code>%[2]s</code> into <code>%[1]s</code> locally and push; then this pull request can be merged here.",
   "ppoi.pulls.merge_failed": "Merge failed: %s",
@@ -52,9 +51,6 @@
   "ppoi.pulls.same_branch": "Base and head are the same branch.",
   "ppoi.pulls.head_delete_failed": "Merged, but deleting branch %s failed: %s",
   "ppoi.pulls.commits_n": "%d commits",
-  "ppoi.pulls.outdated_on": "Comment on %s",
-  "ppoi.pulls.line_comment": "Line comment",
-  "ppoi.pulls.review_state": "Review result",
   "ppoi.pulls.needs_branches": "At least two branches are needed to open a pull request.",
   "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> merged %[1]s",
   "ppoi.settings.require_approval": "Require approval",
@@ -95,5 +91,6 @@
   "ppoi.settings.dismiss_stale_approval_desc": "Only matters when approval is required. When on, an approval counts only if the approved commit is the current head or an ancestor of it. Approvals replaced by a force push do not count.",
   "ppoi.pulls.head_kept": "Branch %s was kept because another pull request uses it as base.",
   "ppoi.settings.maintenance": "Run maintenance",
-  "ppoi.settings.maintenance_desc": "Runs git gc on the bare repository. Automatic gc on push (receive.autogc) is disabled so that no client stalls on it over SMB; run it here from time to time."
+  "ppoi.settings.maintenance_desc": "Runs git gc on the bare repository. Automatic gc on push (receive.autogc) is disabled so that no client stalls on it over SMB; run it here from time to time.",
+  "repo.diff.parents": "Parents"
 }

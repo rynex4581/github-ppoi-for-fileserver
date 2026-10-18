@@ -21,7 +21,7 @@
         <div class="color-fg-muted text-small text-mono wb-break-all mt-1">{{.Path}}</div>
         {{end}}
       </div>
-      <form method="post" action="/settings/roots/remove" class="ml-3" onsubmit="return confirm({{tr "ppoi.settings.remove_confirm"}})">
+      <form method="post" action="/settings/roots/remove" class="ml-3" data-confirm="{{tr "ppoi.settings.remove_confirm"}}">
         <input type="hidden" name="path" value="{{.Path}}">
         <button class="btn btn-sm btn-danger" type="submit">{{tr "ppoi.settings.remove"}}</button>
       </form>

@@ -8,7 +8,7 @@
     {{else}}
     <span class="State State--merged mr-2">{{icon "issue-closed"}} {{tr "repo.issues.closed_title"}}</span>
     {{end}}
-    <span class="color-fg-muted">{{trh "repo.issues.opened_by" (datetime .CreatedAt) (print "/" $.Owner "/" $.Repo.Name "/issues?assignee=" .User) (name .User)}} · {{if eq .Comments 1}}{{tr "repo.issues.num_comments_1" .Comments}}{{else}}{{tr "repo.issues.num_comments" .Comments}}{{end}}</span>
+    <span class="color-fg-muted">{{trh "repo.issues.opened_by" (datetime .CreatedAt) (print "/" $.Owner "/" $.Repo.Name "/issues?author=" .User) (name .User)}} · {{if eq .Comments 1}}{{tr "repo.issues.num_comments_1" .Comments}}{{else}}{{tr "repo.issues.num_comments" .Comments}}{{end}}</span>
   </div>
 </div>
 {{end}}

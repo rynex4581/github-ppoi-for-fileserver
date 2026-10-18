@@ -32,7 +32,7 @@
       <div class="col-4"><a class="IssueLabel" style="{{labelStyle .Color}}" href="/{{$.Owner}}/{{$.Repo.Name}}/issues?labels={{.ID}}">{{.Name}}</a></div>
       <div class="flex-auto color-fg-muted text-small">{{.Description}}</div>
       <a class="btn-link text-small mr-3" href="{{$.Data.BaseURL}}?edit={{.ID}}">{{tr "repo.issues.label_edit"}}</a>
-      <form method="post" action="{{$.Data.BaseURL}}/{{.ID}}/delete" onsubmit="return confirm({{tr "repo.issues.label_deletion_desc"}})">
+      <form method="post" action="{{$.Data.BaseURL}}/{{.ID}}/delete" data-confirm="{{tr "repo.issues.label_deletion_desc"}}">
         <button class="btn-link text-small color-fg-danger" type="submit">{{tr "repo.issues.label_delete"}}</button>
       </form>
     </div>

@@ -5,6 +5,8 @@
 package web
 
 import (
+	"path"
+	"io"
 	"bytes"
 	"embed"
 	"errors"
@@ -196,7 +198,7 @@ func (s *Server) openStore(root string) (*store.Store, error) {
 // パターンが衝突するため、ここで先に分ける。
 func (s *Server) Handler() http.Handler {
 	static, _ := fs.Sub(staticFS, "static")
-	staticHandler := http.StripPrefix("/static/", http.FileServerFS(static))
+	staticHandler := serveStatic(static)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/static/") {
 			staticHandler.ServeHTTP(w, r)
@@ -224,6 +226,52 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		protected.ServeHTTP(w, r)
+	})
+}
+
+// staticTypes は /static/ で返すファイルの Content-Type。拡張子ごとに明示し、端末のレジストリに
+// 左右されないようにする（.js が text/plain になる端末があると app.js が拒まれる）。
+var staticTypes = map[string]string{
+	".css":   "text/css; charset=utf-8",
+	".js":    "text/javascript; charset=utf-8",
+	".svg":   "image/svg+xml",
+	".png":   "image/png",
+	".ico":   "image/x-icon",
+	".woff":  "font/woff",
+	".woff2": "font/woff2",
+	".map":   "application/json",
+}
+
+// serveStatic は埋め込みの静的ファイルを返す。フォルダの一覧は返さない。
+func serveStatic(static fs.FS) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/static/")
+		if name == "" || strings.HasSuffix(name, "/") || !fs.ValidPath(name) {
+			http.NotFound(w, r)
+			return
+		}
+		f, err := static.Open(name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer f.Close()
+		info, err := f.Stat()
+		if err != nil || info.IsDir() {
+			http.NotFound(w, r)
+			return
+		}
+		ct, ok := staticTypes[strings.ToLower(path.Ext(name))]
+		if !ok {
+			ct = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", ct)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if rs, ok := f.(io.ReadSeeker); ok {
+			http.ServeContent(w, r, name, info.ModTime(), rs)
+			return
+		}
+		io.Copy(w, f)
 	})
 }
 
@@ -297,8 +345,17 @@ func (s *Server) funcs() template.FuncMap {
 		"labelStyle": labelStyle,
 		"chips":      labelChips,
 		"inc":        func(i int) int { return i + 1 },
+		"short":      shortSHA,
 		"lineKey":    lineKey,
 	}
+}
+
+// shortSHA はコミットの SHA を7文字に縮める。短ければそのまま返す（slice と違って落ちない）。
+func shortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
 }
 
 func formatTime(t time.Time) string {
@@ -387,6 +444,11 @@ func (s *Server) newPage(title string) page {
 	return page{Title: title, Login: s.login, LoginName: s.displayName(s.login), Version: version.Display, Port: s.port, Lang: s.locale().Lang(), Newer: s.newer}
 }
 
+// htmlCSP は画面の HTML に付ける Content-Security-Policy。スクリプトは /static/app.js だけで、
+// インラインのスクリプトは使わない。style はラベルの色をインラインで付けるので許す。
+// 画像は Markdown に外部の URL が書かれることがあるので制限しない。
+const htmlCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+
 func (s *Server) render(w http.ResponseWriter, status int, name string, p page) {
 	t, ok := s.pages[name]
 	if !ok {
@@ -401,6 +463,7 @@ func (s *Server) render(w http.ResponseWriter, status int, name string, p page) 
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Content-Security-Policy", htmlCSP)
 	w.WriteHeader(status)
 	w.Write(buf.Bytes())
 }

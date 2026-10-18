@@ -1,8 +1,18 @@
-// 画面で使う JS は次の2つだけ。
+// 画面で使う JS はこのファイルだけ（インラインのスクリプトは CSP で禁じている）。
 // 1. 差分の行コメント：行の「+」を押すと、その行の下にコメントの入力欄を出す
 // 2. 添付ファイル：本文の入力欄に画像を Ctrl+V で貼ると、本文に ![image](attachment:N) の印を入れ、
 //    画像はフォームの送信時に一緒に送る。保存と印の置き換えはサーバ側で行う
+// 3. 細かいもの：クリックで全選択する入力欄（.app-select-on-click）、送信前の確認（form の data-confirm）
 (function () {
+  document.addEventListener('click', function (e) {
+    var sel = e.target.closest('.app-select-on-click');
+    if (sel) sel.select();
+  });
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (form.dataset && form.dataset.confirm && !confirm(form.dataset.confirm)) e.preventDefault();
+  });
+
   // ---- 行コメント ----
   function closeForm(row) {
     var next = row.nextElementSibling;

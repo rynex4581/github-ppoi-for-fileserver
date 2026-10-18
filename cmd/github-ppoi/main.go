@@ -33,6 +33,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if _, err := exec.LookPath("git"); err != nil {
+		log.Printf("git が PATH に無い。Git for Windows（2.38 以上）を入れないとコードの画面とマージが動かない")
+	}
 
 	// 二重起動の検知。既に自分が上がっていれば、ブラウザだけ開いて終わる
 	if port := localconfig.ReadPortFile(); port > 0 && isRunning(port) {
@@ -78,7 +81,12 @@ func main() {
 		openBrowser(url)
 	}
 
-	if err := http.Serve(ln, srv.Handler()); err != nil {
+	hs := &http.Server{
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
+	if err := hs.Serve(ln); err != nil {
 		log.Fatal(err)
 	}
 }

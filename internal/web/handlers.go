@@ -146,10 +146,11 @@ type issueFilter struct {
 	State    string
 	Labels   []int  // 付いているラベルのID（すべて付いているものだけ出す）。0 は「ラベルなし」
 	Assignee string // ログオン名。"0" は「担当者なし」
+	Author   string // 作成者のログオン名
 }
 
 func parseIssueFilter(q url.Values) issueFilter {
-	f := issueFilter{State: q.Get("state"), Assignee: q.Get("assignee")}
+	f := issueFilter{State: q.Get("state"), Assignee: q.Get("assignee"), Author: q.Get("author")}
 	if f.State != "closed" {
 		f.State = "open"
 	}
@@ -232,6 +233,9 @@ func (f issueFilter) matches(is store.Issue) bool {
 		if !is.HasAssignee(f.Assignee) {
 			return false
 		}
+	}
+	if f.Author != "" && !strings.EqualFold(is.User, f.Author) {
+		return false
 	}
 	return true
 }

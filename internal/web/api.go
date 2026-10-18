@@ -535,7 +535,7 @@ func (s *Server) apiAuth(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 		if token == "" {
-			w.Header().Set("WWW-Authenticate", `Basic realm="github-ppoi"`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="github-ppoi"`)
 			s.apiError(w, http.StatusUnauthorized, "token required")
 			return
 		}

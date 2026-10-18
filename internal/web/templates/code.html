@@ -4,7 +4,7 @@
   <div class="Box-header"><h3 class="Box-title">{{tr "repo.empty_message"}}</h3></div>
   <div class="Box-body">
     <p class="text-bold">{{tr "repo.clone_this_repo"}}</p>
-    <input class="form-control input-block text-mono mb-3" type="text" readonly value="{{.Data.CloneCmd}}" onclick="this.select()">
+    <input class="form-control input-block text-mono mb-3 app-select-on-click" type="text" readonly value="{{.Data.CloneCmd}}">
     <p class="text-bold">{{tr "repo.push_exist_repo"}}</p>
     <p class="color-fg-muted text-small">{{tr "ppoi.code.empty_help"}}</p>
     <pre class="color-bg-subtle rounded-2 p-3 text-mono text-small">{{.Data.PushCmds}}</pre>
@@ -21,7 +21,7 @@
       <div class="SelectMenu-modal">
         <header class="SelectMenu-header"><h3 class="SelectMenu-title">{{tr "repo.clone_this_repo"}}</h3></header>
         <div class="p-3">
-          <input class="form-control input-block text-mono text-small" type="text" readonly value="{{.Data.CloneCmd}}" onclick="this.select()">
+          <input class="form-control input-block text-mono text-small app-select-on-click" type="text" readonly value="{{.Data.CloneCmd}}">
           <p class="color-fg-muted text-small mt-2 mb-0">{{tr "ppoi.code.clone_help"}}</p>
         </div>
       </div>

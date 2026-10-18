@@ -62,7 +62,7 @@
       {{range .Labels}}<a class="IssueLabel ml-1" style="{{labelStyle .Color}}" title="{{.Description}}" href="{{$.Data.ListURL}}?state={{$.Data.State}}&labels={{.ID}}">{{.Name}}</a>{{end}}
       <div class="color-fg-muted text-small mt-1">
         #{{.Number}}
-        {{if .Merged}}{{trh "ppoi.pulls.merged_by" (datetime .MergedAt) (print "?assignee=" .User) (name .User)}}{{else if eq .State "open"}}{{trh "repo.issues.opened_by" (datetime .CreatedAt) (print "?assignee=" .User) (name .User)}}{{else}}{{trh "repo.issues.closed_by" (datetime .ClosedAt) (print "?assignee=" .User) (name .User)}}{{end}}
+        {{if .Merged}}{{trh "ppoi.pulls.merged_by" (datetime .MergedAt) (print "?author=" .MergedBy) (name .MergedBy)}}{{else if eq .State "open"}}{{trh "repo.issues.opened_by" (datetime .CreatedAt) (print "?author=" .User) (name .User)}}{{else}}{{trh "repo.issues.closed_by" (datetime .ClosedAt) (print "?author=" .User) (name .User)}}{{end}}
       </div>
     </div>
     {{if .Assignees}}

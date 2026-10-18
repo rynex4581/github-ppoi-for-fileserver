@@ -121,7 +121,7 @@
         <strong class="color-fg-default">{{name .User}}</strong> {{tr "repo.issues.review.left_comment"}} <span class="color-fg-muted">{{datetime .Time}}</span>
         {{if .Outdated}}<span class="Label ml-1">{{tr "repo.issues.review.outdated"}}</span>{{end}}
         <details class="Box mt-2"{{if not .Outdated}} open{{end}}>
-          <summary class="Box-header color-bg-subtle text-mono text-small">{{.Path}}{{if .Outdated}} <span class="color-fg-muted">({{slice .CommitSHA 0 7}})</span>{{end}}</summary>
+          <summary class="Box-header color-bg-subtle text-mono text-small">{{.Path}}{{if .Outdated}} <span class="color-fg-muted">({{short .CommitSHA}})</span>{{end}}</summary>
           {{if .DiffHunk}}<pre class="app-hunk-pre m-0 text-small">{{.DiffHunk}}</pre>{{end}}
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
         </details>
@@ -130,12 +130,12 @@
     {{else if eq .Kind "merged"}}
     <div class="TimelineItem">
       <div class="TimelineItem-badge color-bg-done-emphasis color-fg-on-emphasis">{{icon "git-pull-request"}}</div>
-      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.comment_pull_merged_at" (slice .SHA 0 7) $v.Issue.Base (datetime .Time)}}</div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "repo.issues.comment_pull_merged_at" (short .SHA) $v.Issue.Base (datetime .Time)}}</div>
     </div>
     {{else if eq .Kind "reverted"}}
     <div class="TimelineItem">
       <div class="TimelineItem-badge">{{icon "skip"}}</div>
-      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "ppoi.pulls.reverted_at" (datetime .Time)}} <span class="text-mono text-small">{{slice .SHA 0 7}}</span></div>
+      <div class="TimelineItem-body"><strong class="color-fg-default">{{name .User}}</strong> {{trh "ppoi.pulls.reverted_at" (datetime .Time)}} <span class="text-mono text-small">{{short .SHA}}</span></div>
     </div>
     {{else if eq .Kind "closed"}}
     <div class="TimelineItem">
@@ -177,8 +177,8 @@
         {{if .Merged}}
         <div class="Box-row">
           <strong>{{trh "ppoi.pulls.merged_into" .Head .Base}}</strong>
-          <div class="color-fg-muted text-small mt-1">{{tr "repo.pulls.merge_commit_id"}}: <a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.MergeSHA}}">{{slice .MergeSHA 0 7}}</a></div>
-          {{if .RevertSHA}}<div class="color-fg-muted text-small mt-1">{{tr "ppoi.pulls.reverted_desc" ""}}<a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.RevertSHA}}">{{slice .RevertSHA 0 7}}</a></div>{{end}}
+          <div class="color-fg-muted text-small mt-1">{{tr "repo.pulls.merge_commit_id"}}: <a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.MergeSHA}}">{{short .MergeSHA}}</a></div>
+          {{if .RevertSHA}}<div class="color-fg-muted text-small mt-1">{{tr "ppoi.pulls.reverted_desc" ""}}<a class="text-mono" href="/{{$.Owner}}/{{$.Repo.Name}}/commit/{{.RevertSHA}}">{{short .RevertSHA}}</a></div>{{end}}
         </div>
         {{if $v.CanRevert}}
         <div class="Box-row">

@@ -1,7 +1,6 @@
 {
   "ppoi.app_name": "github-ppoi for Fileserver",
   "ppoi.no_repos": "リポジトリがまだありません",
-  "ppoi.no_repos_desc": "リポジトリを作成すると、イシューの管理を始められます。",
   "ppoi.new_repo_desc": "データルートの配下にベアリポジトリを作成します。",
   "ppoi.optional": "（省略可）",
   "ppoi.issues.no_open": "オープン中のイシューはありません。",
@@ -41,7 +40,7 @@
   "ppoi.pulls.reverted_desc": "取り消しのコミット: %s",
   "ppoi.pulls.revert_confirm": "このマージを打ち消すコミットを %s に作ります。",
   "ppoi.pulls.force_pushed": "このプルリクエストの作成後に、ブランチ <code>%s</code> が force push されています。force push 前のコミットに付いたコメントは「古い内容」に畳んであります。",
-  "ppoi.pulls.head_deleted": "ブランチ <code>%s</code> は削除されています。",
+  "ppoi.pulls.head_deleted": "ブランチ %s は削除されています。",
   "ppoi.pulls.approval_required": "このリポジトリの設定により、マージには承認が1つ以上必要です。",
   "ppoi.pulls.conflict_help": "手元で <code>%[1]s</code> に <code>%[2]s</code> をマージして push すると、ここからマージできるようになります。",
   "ppoi.pulls.merge_failed": "マージに失敗しました: %s",
@@ -52,9 +51,6 @@
   "ppoi.pulls.same_branch": "マージ先とプル元が同じブランチです。",
   "ppoi.pulls.head_delete_failed": "マージは通りましたが、ブランチ %s の削除に失敗しました: %s",
   "ppoi.pulls.commits_n": "%d 件のコミット",
-  "ppoi.pulls.outdated_on": "%s 時点へのコメント",
-  "ppoi.pulls.line_comment": "行コメント",
-  "ppoi.pulls.review_state": "レビューの結果",
   "ppoi.pulls.needs_branches": "ブランチが2つ以上無いとプルリクエストは作れません。",
   "ppoi.pulls.merged_by": "<a href=\"%[2]s\">%[3]s</a> が %[1]s にマージ",
   "ppoi.settings.require_approval": "承認必須",
@@ -95,5 +91,6 @@
   "ppoi.settings.dismiss_stale_approval_desc": "承認必須がオンのときだけ意味を持ちます。オンにすると、承認した時点の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数えます。force push で差し替わった承認は数えません。",
   "ppoi.pulls.head_kept": "ブランチ %s は他のプルリクエストの base になっているので残しました。",
   "ppoi.settings.maintenance": "メンテナンス実行",
-  "ppoi.settings.maintenance_desc": "ベアリポジトリの git gc を実行します。push のたびに各自の端末で自動実行されないよう receive.autogc は無効にしてあるので、たまにここから実行してください。"
+  "ppoi.settings.maintenance_desc": "ベアリポジトリの git gc を実行します。push のたびに各自の端末で自動実行されないよう receive.autogc は無効にしてあるので、たまにここから実行してください。",
+  "repo.diff.parents": "親"
 }

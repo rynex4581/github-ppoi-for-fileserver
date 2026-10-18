@@ -60,7 +60,7 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 ### exe を置く
 
 `github-ppoi.exe` は端末のどこに置いてもよい。配布用にはデータルートの `bin\` に置くと、古いバージョンを使っている端末の画面に「新しいバージョンがある」と出力される。<br>
-Git for Windows が入っていること（`git` がコマンドラインから呼べること）が前提になる。
+Git for Windows が入っていること（`git` がコマンドラインから呼べること）が前提になる。2.38 以上（`merge-tree --write-tree` を使う）。
 
 > [!IMPORTANT]
 > データルートに書ける人は全員、互いの端末で git のコマンドを実行できる関係にあることが前提になる。本ツールは共有フォルダ上のリポジトリを `safe.directory=*` 付きで開き、各自の clone でも同じ設定を勧めるためで、リポジトリの設定ファイルに書かれたコマンドは開いた人の端末で動く。緩和として、本ツールが読み取りに使う git は `diff.external` と `log.showSignature` を無効にして呼ぶ。信頼できるメンバーだけが書ける共有フォルダに置くこと。
@@ -222,4 +222,4 @@ Ver 0.10。開発中
 
 ## ライセンス
 
-MIT License。同梱しているOSS（Primer CSS、Octicons、Giteaの言語ファイル）のライセンスは [third_party/](third_party/) を参照。
+MIT License。同梱しているOSS（Primer CSS、Octicons、Giteaの言語ファイル、goldmark、Go の標準ライブラリ）のライセンスは [third_party/](third_party/) を参照。
