@@ -354,7 +354,7 @@ func (s *Server) buildPullView(st *store.Store, repo store.Repo, is store.Issue,
 		approved = false
 		for _, rv := range is.Reviews {
 			if rv.State == store.ReviewApproved && rv.CommitSHA != "" && v.HeadSHA != "" &&
-				approvalStillValid(g, is.Base, rv.CommitSHA, v.HeadSHA) {
+				s.approvalValid(g, is.Base, rv.CommitSHA, v.HeadSHA) {
 				approved = true
 				break
 			}
@@ -454,23 +454,60 @@ func (s *Server) handlePullReview(w http.ResponseWriter, r *http.Request, st *st
 	http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
 }
 
-// extractHunk は差分から、行コメントの位置の前後数行を文字列にして返す。
-// approvalStillValid は、承認したコミット（reviewSHA）から今の head までで PR の差分の中身が
-// 変わっていないかを返す。同じコミットなら真。base を取り込んだだけの push では差分は変わらないので
-// 承認は残り、差分が変わる push や force push（承認したコミットが無くなる）では偽になる。
-func approvalStillValid(g gitcmd.Repo, base, reviewSHA, headSHA string) bool {
+// approvalKey は承認の判定結果を覚えるキー。base の SHA、承認したコミット、今の head の3つが
+// 同じなら答えも同じなので、PR 画面を開くたびに bare へ git diff を2回走らせずに済む。
+type approvalKey struct{ base, review, head string }
+
+// approvalMemoMax を超えたら全部忘れる（際限なく増やさないため）。
+const approvalMemoMax = 4096
+
+// approvalValid は approvalStillValid の結果をプロセス内で覚えて返す。
+// git が失敗したときの偽は覚えない（次に開いたときにもう一度引く）。
+func (s *Server) approvalValid(g gitcmd.Repo, base, reviewSHA, headSHA string) bool {
 	if reviewSHA == headSHA {
 		return true
 	}
-	before, err := g.RangeDiff("refs/heads/"+base, reviewSHA)
+	baseSHA, err := g.ResolveCommit("refs/heads/" + base)
 	if err != nil {
 		return false
+	}
+	key := approvalKey{baseSHA, reviewSHA, headSHA}
+	s.approvalMu.Lock()
+	ok, hit := s.approvalMemo[key]
+	s.approvalMu.Unlock()
+	if hit {
+		return ok
+	}
+	ok, err = approvalStillValid(g, base, reviewSHA, headSHA)
+	if err != nil {
+		return false
+	}
+	s.approvalMu.Lock()
+	if s.approvalMemo == nil || len(s.approvalMemo) >= approvalMemoMax {
+		s.approvalMemo = map[approvalKey]bool{}
+	}
+	s.approvalMemo[key] = ok
+	s.approvalMu.Unlock()
+	return ok
+}
+
+// approvalStillValid は、承認したコミット（reviewSHA）から今の head までで PR の差分の中身が
+// 変わっていないかを返す。同じコミットなら真。base を取り込んだだけの push では差分は変わらないので
+// 承認は残り、差分が変わる push では偽になる。force push で承認したコミットが無くなっていれば
+// 差分が取れないのでエラー。
+func approvalStillValid(g gitcmd.Repo, base, reviewSHA, headSHA string) (bool, error) {
+	if reviewSHA == headSHA {
+		return true, nil
+	}
+	before, err := g.RangeDiff("refs/heads/"+base, reviewSHA)
+	if err != nil {
+		return false, err
 	}
 	after, err := g.RangeDiff("refs/heads/"+base, headSHA)
 	if err != nil {
-		return false
+		return false, err
 	}
-	return stripIndexLines(before) == stripIndexLines(after)
+	return stripIndexLines(before) == stripIndexLines(after), nil
 }
 
 // stripIndexLines は diff の index 行（blob の ID）を除く。中身が同じでも ID が違うことがあるため。
@@ -486,6 +523,7 @@ func stripIndexLines(diff string) string {
 	return strings.Join(out, "\n")
 }
 
+// extractHunk は差分から、行コメントの位置の前後数行を文字列にして返す。
 func extractHunk(files []gitcmd.DiffFile, path, side string, line int) string {
 	for _, f := range files {
 		if f.NewPath != path && f.OldPath != path {

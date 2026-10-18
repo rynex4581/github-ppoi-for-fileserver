@@ -50,15 +50,18 @@ type Server struct {
 	rootErrs map[string]string // 開けなかったデータルートのパス → 理由
 	loc      *i18n.Locale
 
-	login  string
-	port   int
-	locks  repoLocks     // マージと Revert がツール専用 clone を取り合わないための排他
-	newer  *newerVersion // bin\github-ppoi.exe の版が自分より新しいときに入る
-	pages  map[string]*template.Template
-	icons  map[string]template.HTML
-	md     goldmark.Markdown
-	mux    *http.ServeMux
-	apiMux *http.ServeMux // /api/v1/ 配下。画面の /{owner}/{repo}/... と衝突するので別にする
+	login string
+	port  int
+	locks repoLocks // マージと Revert がツール専用 clone を取り合わないための排他
+
+	approvalMu   sync.Mutex
+	approvalMemo map[approvalKey]bool // 承認がまだ有効かの判定結果（approvalValid）
+	newer        *newerVersion        // bin\github-ppoi.exe の版が自分より新しいときに入る
+	pages        map[string]*template.Template
+	icons        map[string]template.HTML
+	md           goldmark.Markdown
+	mux          *http.ServeMux
+	apiMux       *http.ServeMux // /api/v1/ 配下。画面の /{owner}/{repo}/... と衝突するので別にする
 }
 
 // New はサーバを作る。登録されているデータルートをすべて開く。
