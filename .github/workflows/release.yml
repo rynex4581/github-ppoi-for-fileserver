@@ -43,7 +43,6 @@ jobs:
       - name: ビルド
         run: |
           go build -trimpath -ldflags "-s -w" -o github-ppoi.exe ./cmd/github-ppoi
-          go build -trimpath -ldflags "-s -w" -o smbtest.exe ./cmd/smbtest
 
       - name: バージョンの確認
         run: |
@@ -54,7 +53,7 @@ jobs:
       - name: 7z に固める
         env:
           TAG: ${{ github.ref_name }}
-        run: 7z a "github-ppoi-$env:TAG.7z" github-ppoi.exe smbtest.exe LICENSE
+        run: 7z a "github-ppoi-$env:TAG.7z" github-ppoi.exe LICENSE
 
       - name: Releases に置く
         uses: softprops/action-gh-release@v2
