@@ -2,6 +2,7 @@
 // cmd/github-ppoi の go:generate から呼ぶ。出力先は引数で指定する。
 //
 // 数値4組の欄は英字を数字に置き換え（0.11A→0.11.1.0）、文字列の欄には "Ver 0.11A" を入れる。
+// アイコンは internal/web/static/favicon.ico（ロゴを正方形にしたもの）を exe にも使う。
 package main
 
 import (
@@ -55,6 +56,7 @@ type versionInfo struct {
 	VarFileInfo    struct {
 		Translation translation `json:"Translation"`
 	} `json:"VarFileInfo"`
+	IconPath string `json:"IconPath"` // exe のアイコン。画面の favicon と同じファイルを使う
 }
 
 func main() {
@@ -80,6 +82,7 @@ func main() {
 		},
 	}
 	v.VarFileInfo.Translation = translation{LangID: "0411", CharsetID: "04B0"}
+	v.IconPath = "../../internal/web/static/favicon.ico"
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
