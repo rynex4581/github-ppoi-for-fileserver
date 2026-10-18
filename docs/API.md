@@ -21,9 +21,9 @@
 
 - マイルストーン、Wiki、通知など、上に無い Gitea API の範囲
 
-## Codex に使わせる
+## Codex からの利用
 
-対象のリポジトリの AGENTS.md に次のように記述する。
+Codex から使用する場合は、対象のリポジトリの AGENTS.md に次のように記述する。
 
 > Issue と Pull Request は localhost の Gitea 互換 API で扱う。
 > ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。

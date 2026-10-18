@@ -77,7 +77,7 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 > 待ち受けポートは 9418 から 9427 の範囲で空いているものを使用する。使用中のポートは画面のフッターに表示し、`%LOCALAPPDATA%\github-ppoi\port.txt` にも書き出す。<br>
 > ~~こんなツール使う職場はどうせgitのポートである9418なんて使ってるわけないからこっちで使うね☆ﾐ~~
 
-### ソースからビルドする
+### ソースからのビルド
 
 要 Go 1.27 以上と Git for Windows
 
@@ -90,11 +90,11 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 
 `go generate` は exe のプロパティに出すバージョン（VERSIONINFO）のリソースを作成する。省いてもビルドは通るが、更新通知の比較ができない。
 
-## Codex／AI エージェントと使う
+## Codex／AI エージェントからの利用
 
 `localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使用可能。トークンは空でなければ何でも通る（`Authorization: token x`）。内輪のバージョン・履歴管理として使うものなので原則として性善説で。
 
-Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように記述する。
+Codex から使用する場合は、対象のリポジトリの AGENTS.md に次のように記述する。
 
 > Issue と Pull Request は localhost の Gitea 互換 API で扱う。
 > ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。
