@@ -2,6 +2,7 @@ package gitcmd
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -177,6 +178,45 @@ func TestHooksDoNotRunForTool(t *testing.T) {
 	}
 	if err := c.DeleteRemoteBranch("feature/x"); err != nil {
 		t.Fatalf("hooks があるとブランチの削除が通らない: %v", err)
+	}
+
+	// 運2：core.hooksPath を空文字にすると git は「ルート直下」を見る。bare のあるドライブ（Linux なら /）の
+	// 直下に pre-receive を置けるなら置いて、それでも動かないことを確かめる。置けない環境ではこの部分は飛ばす
+	rootHook := filepath.Join(filepath.VolumeName(r.Dir)+string(filepath.Separator), "pre-receive")
+	if _, err := os.Stat(rootHook); err == nil {
+		t.Fatalf("%s が既にある。消してから実行すること", rootHook)
+	}
+	if err := os.WriteFile(rootHook, []byte(hook), 0o755); err != nil {
+		t.Logf("ルート直下に pre-receive を置けないので、その確認は飛ばす: %v", err)
+	} else {
+		t.Cleanup(func() { os.Remove(rootHook) })
+		write(t, work, "root.txt", "root\n")
+		git(t, work, "add", ".")
+		git(t, work, "commit", "--quiet", "-m", "root")
+		// bare には hooks/pre-receive が残っているので、ブランチの用意は本ツールと同じ指定で push する
+		if _, _, err := runGit(work, nil, "push", "--quiet", noHooksReceivePack(), "origin", "HEAD:refs/heads/feature/root"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Merge("main", "feature/root", "Merge pull request #3 from feature/root"); err != nil {
+			t.Fatalf("ルート直下の pre-receive が動いている: %v", err)
+		}
+	}
+
+	// 本ツールが渡す core.hooksPath を receive-pack が本当に見ていることを、逆向きに確かめる。
+	// noHooksDir を差し替えてそこに pre-receive を置くと、push はその hook で止まるはず
+	write(t, work, "b.txt", "b\n")
+	git(t, work, "add", ".")
+	git(t, work, "commit", "--quiet", "-m", "b")
+	if _, _, err := runGit(work, nil, "push", "--quiet", noHooksReceivePack(), "origin", "HEAD:refs/heads/feature/y"); err != nil {
+		t.Fatal(err)
+	}
+	saved := noHooksDir
+	noHooksDir = filepath.Join(t.TempDir(), "hooks with space")
+	t.Cleanup(func() { noHooksDir = saved })
+	write(t, noHooksDir, "pre-receive", hook)
+	_, err = c.Merge("main", "feature/y", "Merge pull request #4 from feature/y")
+	if !errors.Is(err, ErrPushRejected) {
+		t.Fatalf("receive-pack が本ツールの core.hooksPath を見ていない: %v", err)
 	}
 }
 

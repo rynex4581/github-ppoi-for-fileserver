@@ -29,7 +29,10 @@ const pushRetries = 3
 // noHooksReceivePack は push 先の receive-pack を hooks 無しで起動させる指定。
 // runGit の -c は receive-pack に引き継がれないため、起動コマンドの側で付ける。
 // core.longpaths も同じ理由でここに付ける（共有フォルダの深いパスで pack の一時名が 260 文字を超える）。
-const noHooksReceivePack = "--receive-pack=git -c core.hooksPath= -c core.longpaths=true receive-pack"
+// パスに空白が入り得るので引用符で囲む（git はこの文字列を sh で解釈する）。
+func noHooksReceivePack() string {
+	return "--receive-pack=git -c \"core.hooksPath=" + noHooksDir + "\" -c core.longpaths=true receive-pack"
+}
 
 func (c Clone) git(args ...string) ([]byte, error) {
 	extra := []string{"-c", "user.name=" + c.UserName, "-c", "user.email=" + c.UserEmail}
@@ -66,7 +69,7 @@ func (c Clone) sync(branch string) error {
 
 // push は branch を push する。弾かれたら ErrPushRejected を返す。
 func (c Clone) push(branch string) error {
-	_, err := c.git("push", "--quiet", noHooksReceivePack, "origin", "refs/heads/"+branch+":refs/heads/"+branch)
+	_, err := c.git("push", "--quiet", noHooksReceivePack(), "origin", "refs/heads/"+branch+":refs/heads/"+branch)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "rejected") || strings.Contains(msg, "failed to push") || strings.Contains(msg, "fetch first") {
@@ -143,7 +146,7 @@ func (c Clone) CreateTag(name, target string) (string, error) {
 	if _, err := c.git("tag", "--end-of-options", name, sha); err != nil {
 		return "", err
 	}
-	if _, err := c.git("push", "--quiet", noHooksReceivePack, "origin", "refs/tags/"+name+":refs/tags/"+name); err != nil {
+	if _, err := c.git("push", "--quiet", noHooksReceivePack(), "origin", "refs/tags/"+name+":refs/tags/"+name); err != nil {
 		c.git("tag", "-d", name)
 		if strings.Contains(err.Error(), "rejected") || strings.Contains(err.Error(), "already exists") {
 			return "", ErrPushRejected
@@ -155,7 +158,7 @@ func (c Clone) CreateTag(name, target string) (string, error) {
 
 // DeleteRemoteBranch はリモートのブランチを消す。
 func (c Clone) DeleteRemoteBranch(name string) error {
-	_, err := c.git("push", "--quiet", noHooksReceivePack, "origin", ":refs/heads/"+name)
+	_, err := c.git("push", "--quiet", noHooksReceivePack(), "origin", ":refs/heads/"+name)
 	return err
 }
 

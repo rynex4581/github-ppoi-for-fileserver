@@ -34,13 +34,28 @@ func (r Repo) run(args ...string) ([]byte, error) {
 	return out, err
 }
 
+// noHooksDir は core.hooksPath に渡す、中身の無いフォルダ（%LOCALAPPDATA%\github-ppoi\nohooks）。
+// 空文字を渡すと git は「ルート直下」と解釈し、Windows ではカレントのドライブや UNC のルートに
+// 解決されるので、存在する空のフォルダを絶対パスで渡す。テストから差し替える。
+var noHooksDir = initNoHooksDir()
+
+func initNoHooksDir() string {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		base = os.TempDir()
+	}
+	dir := filepath.Join(base, "github-ppoi", "nohooks")
+	_ = os.MkdirAll(dir, 0o755)
+	return dir
+}
+
 // runGit は dir で git を実行し、標準出力と終了コードを返す。extra は -c の追加設定。
-// core.hooksPath を空にして、リポジトリに置かれた hooks を本ツールの呼び出しでは動かさない。
+// core.hooksPath を空のフォルダに向け、リポジトリに置かれた hooks を本ツールの呼び出しでは動かさない。
 // ただし -c は push 先の receive-pack には渡らない（git がローカルの push で設定の環境変数を
-// 落とす）ので、push 側は noHooksReceivePack で receive-pack にも同じ設定を付ける。
+// 落とす）ので、push 側は noHooksReceivePack() で receive-pack にも同じ設定を付ける。
 func runGit(dir string, extra []string, args ...string) ([]byte, int, error) {
 	// core.longpaths は Windows の 260 文字制限に掛からないようにするため（共有フォルダの深いパスで pack の一時名が超える）
-	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false", "-c", "core.hooksPath=", "-c", "core.longpaths=true"}
+	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false", "-c", "core.hooksPath=" + noHooksDir, "-c", "core.longpaths=true"}
 	full = append(full, extra...)
 	full = append(full, "-C", dir)
 	full = append(full, args...)
@@ -430,7 +445,7 @@ func CloneMirror(src, dst string) error {
 
 // PushMirror は src（bare か mirror）の全参照を dst に push する（インポート用）。
 func PushMirror(src, dst string) error {
-	_, _, err := runGit(src, nil, "push", "--quiet", "--mirror", noHooksReceivePack, "--end-of-options", dst)
+	_, _, err := runGit(src, nil, "push", "--quiet", "--mirror", noHooksReceivePack(), "--end-of-options", dst)
 	return err
 }
 
