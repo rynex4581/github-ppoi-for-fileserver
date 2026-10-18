@@ -6,6 +6,8 @@
 // 3. Markdown のプレビュー：本文の入力欄（textarea.app-textarea）の上に「書き込み／プレビュー」の
 //    タブを付け、プレビューはサーバの POST /markdown で描画したものを出す
 // 4. 細かいもの：クリックで全選択する入力欄（.app-select-on-click）、送信前の確認（form の data-confirm）
+// 5. フォルダの参照：data-browse-for を持つボタンを押すと、サーバの POST /settings/browse で本体側に
+//    Windows のフォルダ選択ダイアログを開かせ、選ばれたパスを指定の入力欄に入れる
 (function () {
   // ---- Markdown のプレビュー ----
   function setupPreview(textarea) {
@@ -201,6 +203,29 @@
     });
     if (marks.length) insertAtCursor(textarea, marks.join('\n'));
   }
+
+  // ---- フォルダの参照 ----
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-browse-for]');
+    if (!btn) return;
+    var input = document.getElementById(btn.dataset.browseFor);
+    if (!input) return;
+    btn.disabled = true;
+    fetch('/settings/browse', { method: 'POST' }).then(function (r) {
+      if (r.status === 204) return null;
+      if (!r.ok) return r.text().then(function (t) { throw new Error(t.trim() || r.statusText); });
+      return r.json();
+    }).then(function (j) {
+      if (j && j.path) {
+        input.value = j.path;
+        input.focus();
+      }
+    }).catch(function (err) {
+      alert(err.message);
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  });
 
   document.addEventListener('paste', function (e) {
     var textarea = e.target.closest('textarea.app-textarea');

@@ -58,6 +58,7 @@ type Server struct {
 	approvalMemo map[approvalKey]bool // 承認がまだ有効かの判定結果（approvalValid）
 
 	seen   seenStore     // 新着の印のための「前回開いた位置」
+	dialog sync.Mutex    // フォルダ選択のダイアログを同時に2つ開かないための排他
 	newer  *newerVersion // bin\github-ppoi.exe の版が自分より新しいときに入る
 	pages  map[string]*template.Template
 	icons  map[string]template.HTML
@@ -521,6 +522,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /settings", s.handleSettingsSave)
 	mux.HandleFunc("POST /settings/roots", s.handleRootAdd)
 	mux.HandleFunc("POST /settings/roots/remove", s.handleRootRemove)
+	mux.HandleFunc("POST /settings/browse", s.handleRootBrowse)
 	mux.HandleFunc("GET /licenses", s.handleLicenses)
 	mux.HandleFunc("POST /markdown", s.handleMarkdownPreview)
 	mux.HandleFunc("GET /issues", s.handleCrossIssues)

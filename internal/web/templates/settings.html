@@ -36,7 +36,10 @@
       <p class="color-fg-muted text-small">{{tr "ppoi.settings.root_help"}}</p>
       <div class="form-group mt-2">
         <div class="form-group-header"><label for="root-path">{{tr "ppoi.settings.root_path"}}</label></div>
-        <div class="form-group-body"><input class="form-control input-block text-mono" type="text" id="root-path" name="path" value="{{.Data.NewPath}}" placeholder="\\fileserver\share\github-ppoi" required autocomplete="off"></div>
+        <div class="form-group-body d-flex">
+          <input class="form-control input-block text-mono flex-auto" type="text" id="root-path" name="path" value="{{.Data.NewPath}}" placeholder="\\fileserver\share\github-ppoi" required autocomplete="off">
+          <button class="btn ml-2 flex-shrink-0" type="button" data-browse-for="root-path">{{tr "ppoi.settings.browse"}}</button>
+        </div>
       </div>
       <div class="d-flex flex-wrap gutter-condensed">
         <div class="col-12 col-md-5">

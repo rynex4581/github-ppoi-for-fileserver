@@ -1,6 +1,8 @@
 package web
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -198,4 +200,30 @@ func (s *Server) handleRootRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+}
+
+// handleRootBrowse は Windows のフォルダ選択ダイアログを本体側で開き、選ばれたパスを JSON で返す。
+// ブラウザと本体は同じ端末なので、ダイアログは操作している人の画面に出る。
+// 取り消しは 204、Windows 以外は 501、既に開いているときは 409。
+func (s *Server) handleRootBrowse(w http.ResponseWriter, r *http.Request) {
+	if !s.dialog.TryLock() {
+		http.Error(w, s.tr("ppoi.settings.browse_busy"), http.StatusConflict)
+		return
+	}
+	defer s.dialog.Unlock()
+	path, cancelled, err := pickFolder(s.tr("ppoi.settings.browse_title"))
+	if errors.Is(err, errFolderDialogUnsupported) {
+		http.Error(w, s.tr("ppoi.settings.browse_unsupported"), http.StatusNotImplemented)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if cancelled {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(map[string]string{"path": path})
 }

@@ -150,6 +150,10 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 - Releases には exe を直接置かず、`github-ppoi-<タグ>.7z`（github-ppoi.exe と LICENSE）を置く。smbtest.exe は同梱せず、`go build ./cmd/smbtest` で作る
 - アイコンは docs/logo/icon.svg（ロゴの黄色いフォルダを正方形いっぱいに広げ、表に GitHub の文字、その上に「っぽい」を斜めに重ねる）。Edge の headless で 512px に描画して favicon.ico（256／48／32／16）にし、internal/web/static に置く。画面の favicon と exe のアイコン（versioninfo.json の IconPath）の両方に使う。横長のロゴをそのまま縮めると 16px で何も見えないため
 
+### データルート登録のフォルダ選択
+
+- 設定画面の「フォルダのパス」の横に「参照…」を付けた。ブラウザからはフォルダのフルパスを取れないので、本体（同じ端末で動いている exe）が Windows 標準の「フォルダーの選択」（IFileOpenDialog、FOS_PICKFOLDERS）を開き、選ばれたパスを返す。COM は cgo 無しで vtable を直接呼ぶ。親ウィンドウは前面のウィンドウ（ブラウザ）にして手前に出す。Windows 以外は 501 でパスの直接入力を案内する
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
