@@ -179,3 +179,36 @@ func TestHooksDoNotRunForTool(t *testing.T) {
 		t.Fatalf("hooks があるとブランチの削除が通らない: %v", err)
 	}
 }
+
+func TestTagsAndCreateTag(t *testing.T) {
+	r, work := newTestRepo(t)
+	git(t, work, "tag", "-a", "v0.1", "-m", "最初のタグ", "main~1")
+	git(t, work, "push", "--quiet", "origin", "v0.1")
+	c := Clone{Dir: filepath.Join(t.TempDir(), "clones", "sample"), Remote: r.Dir, UserName: "testuser1", UserEmail: "testuser1@example.invalid"}
+	sha, err := c.CreateTag("v0.2", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mainSHA, _ := r.ResolveCommit("main")
+	if sha != mainSHA {
+		t.Fatalf("タグの指す先が違う: %s != %s", sha, mainSHA)
+	}
+	tags, err := r.Tags()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 並びは作成日時の新しい順（注釈付きタグはタグの日時、軽量タグはコミットの日時）なので、名前で引いて確かめる
+	byName := map[string]Tag{}
+	for _, tg := range tags {
+		byName[tg.Name] = tg
+	}
+	if len(tags) != 2 || byName["v0.2"].SHA != mainSHA || byName["v0.1"].SHA == "" || byName["v0.1"].Time.IsZero() {
+		t.Fatalf("タグの一覧が違う: %+v", tags)
+	}
+	if _, err := c.CreateTag("v0.2", "main"); !errors.Is(err, ErrTagExists) {
+		t.Fatalf("同名のタグが作れてしまう: %v", err)
+	}
+	if _, err := c.CreateTag("v0.3", "no-such-branch"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("無いブランチへのタグが %v", err)
+	}
+}

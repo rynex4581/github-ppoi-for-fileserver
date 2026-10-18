@@ -29,11 +29,16 @@ func (s *Store) SaveAttachment(repo string, number int, original string, data []
 	if err := s.writable(); err != nil {
 		return "", err
 	}
-	if int64(len(data)) > s.config.AttachmentMaxBytes {
-		return "", ErrAttachmentTooLarge
-	}
 	if _, err := os.Stat(s.eventsDir(repo, number)); err != nil {
 		return "", ErrIssueNotFound
+	}
+	return s.saveAttachmentTo(s.attachmentsDir(repo, number), original, data)
+}
+
+// saveAttachmentTo は dir に「UTC時刻_元の名前」で保存し、ファイル名を返す（Issue とリリースで共通）。
+func (s *Store) saveAttachmentTo(dir, original string, data []byte) (string, error) {
+	if int64(len(data)) > s.config.AttachmentMaxBytes {
+		return "", ErrAttachmentTooLarge
 	}
 	base := path.Base(strings.ReplaceAll(original, "\\", "/"))
 	// 拡張子は英数字だけのものを採用する。それ以外（: や ? を含むもの、長すぎるもの）は付けない
@@ -49,7 +54,6 @@ func (s *Store) SaveAttachment(repo string, number int, original string, data []
 	if len(stem) > 60 {
 		stem = stem[:60]
 	}
-	dir := s.attachmentsDir(repo, number)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -108,7 +112,12 @@ func (s *Store) ListAttachments(repo string, number int) ([]Attachment, error) {
 	if !isSafeName(repo) || number <= 0 {
 		return nil, ErrIssueNotFound
 	}
-	entries, err := os.ReadDir(s.attachmentsDir(repo, number))
+	return listAttachmentsIn(s.attachmentsDir(repo, number))
+}
+
+// listAttachmentsIn は dir の添付を名前順で返す。フォルダが無ければ空。
+func listAttachmentsIn(dir string) ([]Attachment, error) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil

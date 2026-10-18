@@ -67,6 +67,9 @@ type Event struct {
 	// 編集と削除用
 	Target string `json:"target,omitempty"` // edited / deleted: 対象のイベントのファイル名
 
+	// リリース用（3.18）。created / edited が持つ。commit_sha は作成時にタグが指していたコミット
+	Prerelease bool `json:"prerelease,omitempty"`
+
 	// File は読み込み元のファイル名。書き込み時は空でよい。
 	File string `json:"-"`
 

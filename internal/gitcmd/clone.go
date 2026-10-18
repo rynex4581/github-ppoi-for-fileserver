@@ -114,6 +114,44 @@ func (c Clone) Merge(base, head, message string) (string, error) {
 	return "", ErrPushRejected
 }
 
+// ErrTagExists は同名のタグが既にあるときのエラー。
+var ErrTagExists = errors.New("同じ名前のタグが既にある")
+
+// CreateTag は target（ブランチ名か SHA）にタグを打って push し、タグが指すコミットの SHA を返す。
+// 既に同名のタグがリモートにあれば ErrTagExists。
+func (c Clone) CreateTag(name, target string) (string, error) {
+	if err := c.Ensure(); err != nil {
+		return "", err
+	}
+	// --prune-tags で手元のタグをリモートと揃える（前回の失敗で残った手元だけのタグも消える）
+	if _, err := c.git("fetch", "--quiet", "--prune", "--prune-tags", "origin"); err != nil {
+		return "", err
+	}
+	if _, err := c.git("rev-parse", "--verify", "--quiet", "--end-of-options", "refs/tags/"+name); err == nil {
+		return "", ErrTagExists
+	}
+	ref := "origin/" + target
+	if _, err := c.git("rev-parse", "--verify", "--quiet", ref+"^{commit}"); err != nil {
+		ref = target // ブランチでなければ SHA とみなす
+	}
+	out, err := c.git("rev-parse", "--verify", "--quiet", "--end-of-options", ref+"^{commit}")
+	if err != nil {
+		return "", ErrNotFound
+	}
+	sha := strings.TrimSpace(string(out))
+	if _, err := c.git("tag", "--end-of-options", name, sha); err != nil {
+		return "", err
+	}
+	if _, err := c.git("push", "--quiet", noHooksReceivePack, "origin", "refs/tags/"+name+":refs/tags/"+name); err != nil {
+		c.git("tag", "-d", name)
+		if strings.Contains(err.Error(), "rejected") || strings.Contains(err.Error(), "already exists") {
+			return "", ErrPushRejected
+		}
+		return "", err
+	}
+	return sha, nil
+}
+
 // DeleteRemoteBranch はリモートのブランチを消す。
 func (c Clone) DeleteRemoteBranch(name string) error {
 	_, err := c.git("push", "--quiet", noHooksReceivePack, "origin", ":refs/heads/"+name)

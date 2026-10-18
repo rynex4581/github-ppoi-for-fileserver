@@ -391,6 +391,35 @@ func (r Repo) Maintenance() error {
 	return err
 }
 
+// Tag はタグ1つ。SHA はタグが指すコミット（注釈付きタグなら剥がした先）。
+type Tag struct {
+	Name string
+	SHA  string
+	Time time.Time // タグの作成日時（注釈付き）またはコミットの日時
+}
+
+// Tags はタグを新しい順で返す。
+func (r Repo) Tags() ([]Tag, error) {
+	out, err := r.run("for-each-ref", "--sort=-creatordate", "--format=%(refname:short)%00%(objectname)%00%(*objectname)%00%(creatordate:iso-strict)", "refs/tags/")
+	if err != nil {
+		return nil, err
+	}
+	var tags []Tag
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		parts := strings.Split(line, "\x00")
+		if len(parts) != 4 || parts[0] == "" {
+			continue
+		}
+		sha := parts[2] // 注釈付きタグの指す先
+		if sha == "" {
+			sha = parts[1]
+		}
+		t, _ := time.Parse(time.RFC3339, parts[3])
+		tags = append(tags, Tag{Name: parts[0], SHA: sha, Time: t})
+	}
+	return tags, nil
+}
+
 // Fsck は git fsck を実行する。force push で参照されなくなったオブジェクトは正常なので報告しない。
 // 問題があれば出力とエラーを返す。
 func (r Repo) Fsck() (string, error) {
