@@ -44,30 +44,25 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 ## Features
 
 - 🗂️ **サーバもデータベースも使わない。** データの原本はすべて共有フォルダ（データルート）にあり、端末側の exe、設定、キャッシュはあくまでクローン
-- 📁 **複数のデータルートを1つの画面で扱える。** データルート1つが owner 1つに対応し、URL は `/<owner>/<リポジトリ名>/`
-- 🐞 **Issue。** 状態・ラベル・担当者での絞り込み、コメント、クローズと再オープン、ラベルと担当者の変更、本文とコメントの編集・削除（編集前の本文は畳んで表示）
-- 🔀 **Pull Request。** ブランチを選んで作成、Conversation／Commits／Files changed、承認・変更要請・コメントのレビュー、差分への行コメント、`--no-ff` のマージと Revert、コンフリクトと force push の表示、承認必須の設定
-- 📄 **Code。** ファイルツリー、Markdown と画像の表示、ブランチ切替、コミット履歴と差分、タグ一覧、clone コマンドの表示
-- 📦 **Releases。** タグに紐づくリリース（タイトル、本文、配布ファイル、プレリリースの印）。タグが無ければ作成時に打つ
-- 🏷️ **ラベルの管理**と 📎 **添付ファイル**（本文の入力欄に Ctrl+V で画像を貼り付け。Excel や PDF などはファイル選択で添付）
-- 🔍 **横断ページ。** 全 owner の Issue と Pull Request を1つの一覧で見る（すべて／自分に割り当て／自分が作成）。タイトル・本文・コメントの部分一致で検索
-- 🔵 **新着の印。** 自分が関わる Issue と PR に、前回開いたあとに他の人の書き込みがあれば一覧に印が付く。「前回開いた」は端末側に持つ
+- 🐞 **Issue、Pull Request、Code、Releases。** レビューと行コメント、`--no-ff` のマージと Revert、承認必須の設定、ファイルツリーと差分、タグに紐づくリリース
+- 🏷️ **ラベル、添付ファイル、横断ページ、新着の印。** 全 owner の Issue と PR を1つの一覧で検索。自分が関わる Issue に他の人の書き込みが増えていれば印が付く
 - 🤖 **Gitea API v1 互換の API。** tea（Gitea 公式 CLI）や Codex からそのまま使用可能（筆者の環境はCodexのみ）
-- ⚡ **イベントのローカルキャッシュ。** 2回目以降の表示では新しいファイルだけを共有フォルダから読みこむ
 - 🌐 **日本語と英語。** 画面の文言は互換性のため Gitea の言語ファイルをそのまま使用する
-- 🔔 **運用まわり。** 待ち受けポートの自動選択、二重起動の検知、データルートの `bin\` に置いた新しい exe の通知
+- 📁 **複数のデータルートを1つの画面で扱える。** データルート1つが owner 1つに対応し、URL は `/<owner>/<リポジトリ名>/`
 
 ## <img src="docs/images/icon-rocket.svg" width="24" height="24" align="top" alt=""> Getting started
 
-### exe をローカル端末に配置
+### exe の配置
 
-`github-ppoi.exe` はローカル端末のどこに置いてもよい。配布用にはデータルートの `bin\` に置くと、古いバージョンを使っている端末の画面に「新しいバージョンがある」と出力される。この確認は起動時に1回だけで、起動中に `bin\` が更新されても気付かない。<br>
-Git for Windows が入っていること（`git` がコマンドラインから呼べること）が前提になる。2.38 以上（`merge-tree --write-tree` を使う）。
+`github-ppoi.exe` は端末のどこに置いてもよい。データルートの `bin\` に置くと、古い exe を使っている端末に更新の通知が出力される（確認は起動時に1回）。<br>
+要 Git for Windows 2.38 以上。
 
 > [!IMPORTANT]
-> データルートに書ける人は全員、互いの端末で git のコマンドを実行できる関係にあることが前提になる。本ツールは共有フォルダ上のリポジトリを `safe.directory=*` 付きで開き、各自の clone でも同じ設定を勧めるためで、リポジトリの設定ファイルに書かれたコマンドは開いた人の端末で動く。緩和として、本ツールが呼ぶ git は `diff.external` と `log.showSignature` を無効にし、hooks も動かさない（`core.hooksPath` を空にし、push では receive-pack にも同じ設定を付ける）。信頼できるメンバーだけが書ける共有フォルダに置くこと。
-> ログオン名は環境変数 `USERNAME` の自己申告で、ツールは検証しない。承認は記録であって統制ではない。共有フォルダに書ける人は他人名義のイベントも書けるので、承認必須の設定を統制の証跡として扱うなら、裏付けは NTFS のファイル所有者（`dir /q` で見える作成者）とファイルサーバの監査ログに求めること。<br>
-> ベアリポジトリの `hooks\` に置かれたスクリプトは push した人の端末で動く。絞るなら、`hooks\` を NTFS で利用者には書けなくする（本ツールは hooks を使わない）。利用者自身の git push には、Git for Windows のシステム設定で `core.hooksPath` を空のフォルダに向けておけば塞げる。
+> 信頼できるメンバーだけが書ける共有フォルダに置くこと。
+> - 共有フォルダ上のリポジトリは `safe.directory=*` で開く。リポジトリの設定に書かれたコマンドは、開いた人の端末で動く
+> - ログオン名は環境変数 `USERNAME` の自己申告で、検証しない。承認必須の設定も統制にはならない
+>
+> 詳細は [docs/運用.md](docs/運用.md) を参照。
 
 ### 初回の起動
 
@@ -76,15 +71,10 @@ Git for Windows が入っていること（`git` がコマンドラインから�
 - owner 名は URL に使うので半角英数（`.` `_` `-` 可）。表示名は任意で、日本語でよい
 - `config.json` の無いフォルダを指定すると、そのフォルダをデータルートとして初期化する。既にデータルートになっているフォルダなら登録だけを行う
 - 設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される
-
-### 2つ目以降のデータルート
-
-画面右上の歯車から「自分の設定」を開き、データルートを追加する。1つのデータルートが owner 1つに対応し、同じ owner 名のデータルートは2つ登録できない。トップ画面には owner ごとにリポジトリが並ぶ。
+- 2つ目以降のデータルートは、画面右上の歯車の「自分の設定」から追加する
 
 > [!TIP]
-> 待ち受けポートは 9418 から 9427 の範囲で空いているものを使う。上がったポートは画面のフッターと `%LOCALAPPDATA%\github-ppoi\port.txt` に表示、出力される。
-> `config.json` に `"port"` を書けばそのポートだけを使い、使えなければエラーで停止する。
-> 既に起動しているときにもう一度起動すると、ブラウザだけ開いて新しい方は終了する。`--no-browser` を付けると起動時にブラウザを開かない。<br>
+> 待ち受けポートは 9418 から 9427 の範囲で空いているものを使用する。使用中のポートは画面のフッターに表示し、`%LOCALAPPDATA%\github-ppoi\port.txt` にも書き出す。<br>
 > ~~こんなツール使う職場はどうせgitのポートである9418なんて使ってるわけないからこっちで使うね☆ﾐ~~
 
 ### ソースからビルドする
@@ -98,25 +88,11 @@ go build -o github-ppoi.exe ./cmd/github-ppoi
 .\github-ppoi.exe
 ```
 
-`go generate` は exe のプロパティに出すバージョン（VERSIONINFO）のリソースを作成する。goversioninfo（MIT）はビルドのときだけ使い、exe には入らない。省くとビルドはできるが、exe にバージョンが入らず、更新通知の比較もできない。
+`go generate` は exe のプロパティに出すバージョン（VERSIONINFO）のリソースを作成する。省いてもビルドは通るが、更新通知の比較ができない。
 
 ## Codex／AI エージェントと使う
 
-`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使用可能。ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に記載済み。トークンは空でなければ何でも通る（`Authorization: token x`）。URL のクエリ（`?token=`）は不可。JSON を送るときは `Content-Type: application/json` を付けること。`/api/v1/version` だけは認証無し。内輪のバージョン・履歴管理として使うものなので原則として性善説で。
-
-実装済
-
-- user、users/{login}、user/orgs、orgs/{org}、user/repos、repos/search、orgs/{org}/repos
-- repos/{owner}/{repo}：本体、branches、commits、git/commits/{sha}（`.diff` 付きで差分）、contents、raw、compare/{base}...{head}
-- issues：一覧（state、type、labels、q）、作成、取得、PATCH（title、body、state、assignees、labels）、comments（一覧、作成、取得、PATCH、DELETE）、labels、assets
-- labels：一覧、作成、取得、PATCH、削除
-- pulls：一覧、作成、取得、PATCH、`.diff`、commits、files、merge（`Do` は merge のみ）、reviews（APPROVED／REQUEST_CHANGES／COMMENT と行コメント）
-- releases：一覧、作成、取得（id と tags/{tag}）、latest、PATCH、削除、assets（一覧、アップロード、取得、削除）。tags：一覧
-- tea（Gitea 公式 CLI）の v0.16 で、ログイン、リポジトリ一覧、Issue の一覧・作成・表示・クローズ、コメント、ラベル、ブランチ、PR の一覧・作成・マージが通ることを確認済
-
-予定（未実装）
-
-- マイルストーン、Wiki、通知など、上に無い Gitea API の範囲
+`localhost:<ポート>/api/v1/` に Gitea API v1 と同じ形のエンドポイントがあるので、Gitea に対応したツールやエージェントはそのまま使用可能。トークンは空でなければ何でも通る（`Authorization: token x`）。内輪のバージョン・履歴管理として使うものなので原則として性善説で。
 
 Codex に使わせるときは、対象のリポジトリの AGENTS.md に次のように記述する。
 
@@ -124,6 +100,8 @@ Codex に使わせるときは、対象のリポジトリの AGENTS.md に次の
 > ポートは `%LOCALAPPDATA%\github-ppoi\port.txt` に書いてある。
 > URL は `http://localhost:<ポート>/api/v1/repos/<owner>/<リポジトリ名>/...` で、
 > Authorization ヘッダは `token dummy` のように空でない値を付ける。
+
+実装済の API の一覧は [docs/API.md](docs/API.md) を参照。
 
 ## <img src="docs/images/icon-browser.svg" width="24" height="24" align="top" alt=""> Web 画面
 
@@ -155,154 +133,13 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 - 画面の文言はGiteaの言語ファイルを~~パク~~互換性のためそのまま使用する。ほら用語とか統一したいし。既定は日本語で、英語に変更可能
 - gitは各端末のGit for Windowsを使用する。exeには同梱しない
 - コメントの削除と本文の編集も追記で行う。削除で画面から消えるのは本文だけで、添付ファイルは残り URL でも取得可能。編集前の本文は「編集済み」を開けば誰でも読める（GitHubと同じ）
-- 端末側の `%LOCALAPPDATA%\github-ppoi\` にあるキャッシュ（`cache\`）と専用 clone（`repos\`）に、Issue の全文と履歴の写しが残る。プロファイルを別の場所に写す仕組み（FSLogix 等）があれば、そこにも複製される
 - 他の端末が書いたものが見えるまで10秒程度かかる。Windows の SMB クライアントがフォルダの一覧を既定で10秒キャッシュするため
 
-## データルートの構成
+## ドキュメント
 
-```
-<データルート>\
-  config.json                  このデータルートの設定（owner 名、owner の表示名、既定のブランチ名、データ形式の版など）
-  repos\
-    <リポジトリ名>.git\        ベアリポジトリ
-  meta\
-    users\<ログオン名>.json    表示名
-    <リポジトリ名>\
-      repo.json                説明、既定のブランチ名、承認必須、新しいpushで承認を無効、force push禁止
-      labels.json              ラベル
-      issues\
-        000012\
-          events\              イベント（1件1ファイル）
-          attachments\         添付ファイル
-```
-
-## 書き込みの種類
-
-管理者が ACL を決めるときの材料。データルートへの書き込みは、追記だけのものと上書きするものに分かれる。
-
-| パス | 種類 | 内容 |
-| --- | --- | --- |
-| `meta\<リポジトリ名>\issues\<番号>\` | 作成のみ | 採番。フォルダの作成に成功した側が番号を取る |
-| `meta\<リポジトリ名>\issues\<番号>\events\*.json` | 追記のみ | イベント。既存ファイルの変更・削除は行わない |
-| `meta\<リポジトリ名>\issues\<番号>\attachments\*` | 追記のみ | 添付ファイル |
-| `meta\<リポジトリ名>\repo.json` | 上書き | Settings の保存 |
-| `meta\<リポジトリ名>\labels.json` | 上書き | ラベルの変更 |
-| `meta\users\<ログオン名>.json` | 上書き | 表示名の変更 |
-| `config.json` | 作成のみ | データルートの初期化のときだけ。以後はファイルを直接編集する |
-| `repos\<リポジトリ名>.git\` | git が管理 | push でオブジェクトの追加と refs の更新、Settings で `config` と `HEAD` の変更、メンテナンス実行で gc（パックの作り直し） |
-
-上書きするファイルも、書くときは同じフォルダに `<名前>.<端末名>-<PID>-<連番>.tmp` を作ってから rename する。1時間以上前の `.tmp` は見つけ次第削除する。Issue の作成に失敗したときは作りかけの番号フォルダを削除する。このため「作成だけ許して削除を禁じる」ACL では `.tmp` の後始末と失敗時の片付けができず、git の gc も通らない。
-
-## 設定
-
-端末側 `%LOCALAPPDATA%\github-ppoi\config.json`
-
-| 項目 | 内容 | 既定 |
-| --- | --- | --- |
-| `data_roots` | データルートのパスの一覧 | 無し（設定画面で登録する） |
-| `port` | 待ち受けポート。書くとそのポートだけを使う | 9418〜9427 から空きを探す |
-| `lang` | 画面の言語。`ja-JP` または `en-US` | `ja-JP` |
-
-データルート直下の `config.json`
-
-| 項目 | 内容 | 既定 |
-| --- | --- | --- |
-| `owner` | owner 名。URL に使う半角英数。データルートを作るときに決める | 無し（必須） |
-| `owner_name` | owner の表示名。日本語可 | 空（owner 名を表示） |
-| `default_branch` | 新規リポジトリの既定ブランチ名 | `main` |
-| `attachment_max_bytes` | 添付ファイルのサイズ上限 | 10485760（10 MB） |
-| `format` | データ形式の版。exe が知らない値なら、そのデータルートは読み取り専用で開く | 1 |
-
-端末側の `data_roots` と `lang` は設定画面から変更可能。`port` とデータルート側の項目はファイルを直接編集する。端末側のファイルは削除しても、exe を起動してデータルートを登録し直せば元に戻る。
-
-リポジトリの Settings にある「force push 禁止」はうっかり防止。receive-pack は push する本人の端末で動くので、本人が `-c receive.denyNonFastForwards=false` を付ければ通る。
-
-## バックアップと復元
-
-データルートはフォルダ1つで完結する。`config.json`、`repos\`、`meta\` が同じフォルダにあるので、ファイルサーバの既存のバックアップにそのまま含められる。Gitea のようにデータベースとリポジトリの整合を取る専用の手順は要らない。<br>
-イベントは追記のみで、ファイルは一時名で書いてから rename するため、シャドウコピーのようなスナップショット方式で足りる。`.tmp` が混ざっても読み手は弾く。<br>
-端末側の exe、設定、キャッシュ、専用 clone はあくまでクローンであり、バックアップの対象にしない。git のリポジトリは各自の clone と専用 clone にも写しがあるが、Issue のイベントと添付ファイルの原本は共有フォルダにしか無い。
-
-**取り方**
-
-- バックアップはファイルサーバの運用に含める。利用者の責任にしない。確認するのは、データルートのパスが対象に入っているか、保持期間、復元の所要時間と依頼先、`*.git` フォルダを除外していないか
-- スナップショット方式（シャドウコピー等）を推奨する。ファイルを順に写す方式（robocopy やエージェントの差分コピー）はベアリポジトリを壊すことがある。`objects\` → `packed-refs` → `refs\` の順に写す途中で push が入ると、refs が指すオブジェクトの無い複製ができる
-- `*.tmp` の除外は問題ない
-- Settings の「メンテナンス実行」（gc）は、ファイルを順に写す方式のバックアップと同じ時間帯に行わない
-
-**戻し方**
-
-- 丸ごと戻した後は、各端末で `%LOCALAPPDATA%\github-ppoi` を削除してから起動し直す。端末のキャッシュは共有に無いファイルを捨てて自己修復するが、専用 clone はベアリポジトリより進んだ状態のまま残る
-- Issue 番号が巻き戻る。採番は番号フォルダの有無だけで決まり、過去の最大番号はどこにも持たない。復元で最大番号が下がると次の採番が過去の番号を再利用し、メールやコミットメッセージに書いた `#57` が別の Issue を指す。復元後は、失われた最後の番号まで `reserve` で予約してから使い始める
-- ベアリポジトリと `meta\` は同じ時点のスナップショットから戻す。部分的に戻すときは `meta\` をベアリポジトリより新しい時点にしない。ベアリポジトリが新しく `meta\` が古い（merged イベントだけ失われた）状態は、PR 画面を開けばマージ済みとして記録し直す。逆だと PR 画面がベアリポジトリに無いコミットを引く
-- Issue 1件だけなら、「以前のバージョン」から `issues\000012\` のフォルダを戻すだけでよい
-
-**復元後の確認**
-
-`github-ppoi.exe` にはサブコマンドが2つある。どちらも画面は上げず、結果を出力して終わる。
-
-```powershell
-.\github-ppoi.exe reserve -root \\<サーバ>\<共有>\<データルート> -repo <リポジトリ名> -to 57
-```
-
-`reserve` は指定した番号までの空の番号フォルダを作り、採番を進める。既存の最大番号より下の欠番は埋めない。
-
-```powershell
-.\github-ppoi.exe check -root \\<サーバ>\<共有>\<データルート>
-```
-
-`check` は、イベントの JSON が読めるか、編集・削除の対象があるか、本文が参照する添付があるか、イベントが持つコミット（PR の head、レビューの対象、マージと Revert）がベアリポジトリにあるか、`git fsck` が通るかを全リポジトリについて調べ、問題を1行ずつ出力する。問題があれば終了コードは 2。`-repo <リポジトリ名>` で1つに絞れる。復元テストは、データルートを別の共有にコピーして別のデータルートとして登録すれば読めるので、`check` と合わせて四半期に一度程度行う。
-
-## インポートとエクスポート
-
-形式は Gitea の `dump-repo` / `restore-repo` に合わせている（参照した Gitea の版は v28.1.0。[third_party/README.md](third_party/README.md) に記録）。対応する方向は3つ。
-
-**GitHub → 本ツール**
-
-本ツールは GitHub の API を叩かない。家で Gitea の `dump-repo` を実行して dump-repo 形式のフォルダを作り、それを職場に持ち込んで取り込む。
-
-```powershell
-gitea dump-repo --git_service github --clone_addr https://github.com/<owner>/<リポジトリ名> --repo_dir <出力先> --auth_token <GitHub のトークン>
-.\github-ppoi.exe import -root \\<サーバ>\<共有>\<データルート> -dir <出力先> [-repo <リポジトリ名>]
-```
-
-Issue と PR の番号は元のまま、作成者は元のログオン名（poster_name）のまま保つ。マージ済みの PR はマージ済みとして、レビューの行コメントは差分の断片ごと取り込む。ラベルとリリース（添付を含む）も取り込む。マイルストーンと wiki は対応していないので読み飛ばし、その旨を表示する。
-
-**本ツール → Gitea**
-
-```powershell
-.\github-ppoi.exe export -root \\<サーバ>\<共有>\<データルート> -repo <リポジトリ名> -out <出力先>
-```
-
-`<出力先>\<owner>\<リポジトリ名>\` に書き出す。本物の Gitea には `gitea restore-repo --repo_dir <そのフォルダ> --owner_name <Gitea の owner> --repo_name <名前>` で流し込める（`--validation` 付きで通ることを Gitea 28.1.0 で確認済）。編集履歴は最新の本文だけ、削除済みのコメントは出さない。
-
-**本ツール → GitHub**
-
-```powershell
-.\github-ppoi.exe export-github -root \\<サーバ>\<共有>\<データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> -token <PAT>
-```
-
-GitHub 側に空のリポジトリを先に作っておく（Issue も PR も無いこと）。ネットが要るので家で実行する。git は `push --mirror`、Issue と PR は API で作る。作成者は API を叩いた本人になるため、本文の先頭に元の投稿者と日時を入れる。番号を揃えるため、欠番は空の Issue を作ってクローズして埋める。マージ済みの PR は GitHub で PR として作れないため、Issue として作り「元は PR #N、マージ済み」と記す。open の PR は head のブランチがあれば PR として作る。トークンは `-token` か環境変数 `GITHUB_TOKEN` で渡す。
-
-## Troubleshooting
-
-**起動時に「ポート 9418〜9427 がすべて使用中」と出る**
-
-他のプログラムがその範囲を使っている。`%LOCALAPPDATA%\github-ppoi\config.json` に `"port": 9500` のように空いているポートを書いて起動し直す。本ツールがもう上がっているだけなら、新しい方はブラウザを開いて終了するので、この表示にはならない。
-
-**git が「dubious ownership」「safe.directory」の警告を出す**
-
-共有フォルダ上のベアリポジトリは所有者が自分と違うため、Git for Windows が安全のために弾く。本ツールが git を呼ぶときは `safe.directory=*` を付けているので画面には出ないが、自分で clone や push をするときに出る。次を一度実行する。
-
-```powershell
-git config --global --add safe.directory "*"
-```
-
-`*` の代わりに特定のパスだけを許可してもよい。
-
-**書いたのに他の端末で見えない**
-
-Windows の SMB クライアントはフォルダの一覧を既定で10秒キャッシュする。他の端末が書いたイベントがこの端末の画面に出るまで、10秒程度かかることがある。少し待って再読み込みする。
+- [docs/運用.md](docs/運用.md)：データルートの構成、書き込みの種類、設定、バックアップと復元、インポートとエクスポート、Troubleshooting
+- [docs/API.md](docs/API.md)：実装済の Gitea 互換 API
+- [docs/設計メモ.md](docs/設計メモ.md)：設計の決定事項
 
 ## 現在の状態
 
@@ -311,7 +148,7 @@ Ver 0.10。開発中
 未実装
 
 - SMB 上の同時更新の検証。本体と同じ採番と書き込みを2台から同時に回す `smbtest.exe` を Releases に置いている。2台で `.\smbtest.exe -root <共有フォルダ>\smbtest -n 1000` を同時に実行し、終わってから `-check` を1台で実行すると、番号の重複、書きかけの読み込み、.tmp の残留、見えるまでの遅れを合格基準（各1000件、重複ゼロ、書きかけゼロ、30秒以内）で判定する
-- Gitea API のうち、上の「予定（未実装）」に挙げたもの
+- マイルストーン、Wiki、通知など、[docs/API.md](docs/API.md) に無い Gitea API の範囲
 
 リリースは GitHub Actions で行う。`v0.10` のようにタグを打つと、Windows 用の exe をビルドして Releases に置く。タグは `internal/version` の Number と一致していないと失敗する。README の画像は `go run ./tools/screenshot` で撮り直せる（端末の Chrome、Iron、Edge のいずれかを使う）。
 
