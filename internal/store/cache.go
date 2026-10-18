@@ -99,6 +99,9 @@ func (s *Store) cachedEvents(repo string, number int) ([]Event, error) {
 		return nil, err
 	}
 
+	// クラッシュで残った書きかけの .tmp は、ここで取った一覧を使って掃除する
+	removeStaleTemp(dir, entries)
+
 	s.cache.mu.Lock()
 	defer s.cache.mu.Unlock()
 	rc := s.repoCacheLocked(repo)

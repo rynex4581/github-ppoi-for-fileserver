@@ -268,24 +268,26 @@ func writeFileAtomic(path string, data []byte, replace bool) error {
 		os.Remove(tmp)
 		return err
 	}
-	removeStaleTemp(path)
+	// 上書きファイル（repo.json、labels.json など）は書くたびに同じフォルダの古い .tmp を掃除する。
+	// イベントと添付は名前が毎回違うのでここでは掃除せず、events の一覧を取るとき（cachedEvents）に行う
+	if replace {
+		if entries, err := os.ReadDir(filepath.Dir(path)); err == nil {
+			removeStaleTemp(filepath.Dir(path), entries)
+		}
+	}
 	return nil
 }
 
 // RenameNoReplace は既存があれば失敗する rename。検証プログラムが共有上の挙動を確かめるために公開する。
 func RenameNoReplace(from, to string) error { return renameNoReplace(from, to) }
 
-// removeStaleTemp は path と同じ対象の .tmp のうち1時間以上前のものを消す。
+// removeStaleTemp は dir の一覧 entries のうち、1時間以上前の .tmp を消す。
 // クラッシュや SMB の切断で残った書きかけの掃除で、消せなくても何もしない。
-func removeStaleTemp(path string) {
-	dir, base := filepath.Split(path)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
+// 一覧は呼ぶ側が既に取っているものを渡し、掃除のためだけに ReadDir を増やさない。
+func removeStaleTemp(dir string, entries []fs.DirEntry) {
 	for _, e := range entries {
 		n := e.Name()
-		if e.IsDir() || !strings.HasPrefix(n, base+".") || !strings.HasSuffix(n, ".tmp") {
+		if e.IsDir() || !strings.HasSuffix(n, ".tmp") {
 			continue
 		}
 		info, err := e.Info()

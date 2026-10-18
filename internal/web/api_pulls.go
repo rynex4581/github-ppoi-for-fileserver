@@ -230,7 +230,7 @@ func (s *Server) toReview(st *store.Store, repo store.Repo, is store.Issue, ev s
 	pullURL := s.apiURL("repos", owner, repo.Name, "pulls", strconv.Itoa(is.Number))
 	return apiReview{
 		ID: eventID(ev), User: s.toUser(ev.User), State: reviewState(ev.State), Body: ev.Body, CommitID: ev.CommitSHA,
-		PullURL: pullURL, SubmittedAt: apiTime(ev.Time), CreatedAt: apiTime(ev.Time), UpdatedAt: apiTime(ev.Time),
+		PullURL: pullURL, SubmittedAt: apiTime(ev.Time), CreatedAt: apiTime(ev.Time), UpdatedAt: apiTime(updatedTime(ev)),
 		HTMLURL: fmt.Sprintf("%s/%s/%s/pulls/%d", s.apiBase(), owner, repo.Name, is.Number),
 	}
 }
@@ -239,7 +239,7 @@ func (s *Server) toReviewComment(st *store.Store, repo store.Repo, is store.Issu
 	owner := st.Config().Owner
 	out := apiReviewComment{
 		ID: eventID(ev), Body: ev.Body, Path: ev.Path, CommitID: ev.CommitSHA, OrigCommit: ev.CommitSHA, DiffHunk: ev.DiffHunk,
-		User: s.toUser(ev.User), CreatedAt: apiTime(ev.Time), UpdatedAt: apiTime(ev.Time),
+		User: s.toUser(ev.User), CreatedAt: apiTime(ev.Time), UpdatedAt: apiTime(updatedTime(ev)),
 		HTMLURL: fmt.Sprintf("%s/%s/%s/pulls/%d/files", s.apiBase(), owner, repo.Name, is.Number),
 		PullURL: s.apiURL("repos", owner, repo.Name, "pulls", strconv.Itoa(is.Number)),
 		Side:    ev.Side, Line: ev.Line, ReviewID: reviewID,

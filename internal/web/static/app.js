@@ -42,8 +42,23 @@
       body.set('text', textarea.value);
       fetch('/markdown', { method: 'POST', body: body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
         .then(function (r) { return r.text(); })
-        .then(function (html) { preview.innerHTML = html; })
+        .then(function (html) { preview.innerHTML = html; showPendingAttachments(textarea, preview); })
         .catch(function () { preview.textContent = 'error'; });
+    });
+  }
+  // プレビューの中の (attachment:N) の印は、まだ送っていない添付を指す。送信前のファイルを
+  // Blob URL にして見せる。該当が無ければ壊れた画像を出さず消す
+  function showPendingAttachments(textarea, preview) {
+    var form = textarea.closest('form');
+    var files = form && form._attachments ? form._attachments.files : [];
+    preview.querySelectorAll('img[src^="attachment:"]').forEach(function (img) {
+      var n = Number(img.getAttribute('src').slice('attachment:'.length));
+      var f = files[n - 1];
+      if (f) {
+        img.src = URL.createObjectURL(f);
+      } else {
+        img.remove();
+      }
     });
   }
   function setupAllPreviews(root) {

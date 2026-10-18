@@ -474,8 +474,9 @@ func (s *Server) newPage(title string) page {
 
 // htmlCSP は画面の HTML に付ける Content-Security-Policy。スクリプトは /static/app.js だけで、
 // インラインのスクリプトは使わない。style はラベルの色をインラインで付けるので許す。
-// 画像は Markdown に外部の URL が書かれることがあるので制限しない。
-const htmlCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+// 画像は Markdown に外部の URL が書かれることがあるので制限しない。blob: はプレビューで
+// 送信前の添付画像を見せるため。
+const htmlCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
 
 func (s *Server) render(w http.ResponseWriter, status int, name string, p page) {
 	t, ok := s.pages[name]

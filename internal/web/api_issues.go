@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github-ppoi-for-fileserver/internal/store"
 )
@@ -311,6 +312,14 @@ func eventID(ev store.Event) int64 {
 	return stableID("event", ev.File)
 }
 
+// updatedTime はイベントの更新時刻。編集されていればその時刻、なければ書いた時刻。
+func updatedTime(ev store.Event) time.Time {
+	if !ev.EditedAt.IsZero() {
+		return ev.EditedAt
+	}
+	return ev.Time
+}
+
 func (s *Server) toComment(st *store.Store, repo store.Repo, is store.Issue, ev store.Event) apiComment {
 	owner := st.Config().Owner
 	kind := "issues"
@@ -321,7 +330,7 @@ func (s *Server) toComment(st *store.Store, repo store.Repo, is store.Issue, ev 
 	out := apiComment{
 		ID: eventID(ev), HTMLURL: html, IssueURL: s.apiURL("repos", owner, repo.Name, "issues", strconv.Itoa(is.Number)),
 		User: s.toUser(ev.User), Body: ev.Body, Assets: []apiAttachment{},
-		CreatedAt: apiTime(ev.Time), UpdatedAt: apiTime(ev.Time),
+		CreatedAt: apiTime(ev.Time), UpdatedAt: apiTime(updatedTime(ev)),
 	}
 	if is.IsPull {
 		out.PullURL = s.apiURL("repos", owner, repo.Name, "pulls", strconv.Itoa(is.Number))
