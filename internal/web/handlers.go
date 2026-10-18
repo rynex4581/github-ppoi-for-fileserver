@@ -805,15 +805,16 @@ func (s *Server) handleIssueEditSave(w http.ResponseWriter, r *http.Request, st 
 			s.renderIssueEdit(w, http.StatusUnprocessableEntity, repo, v, s.tr("ppoi.error.title_required"))
 			return
 		}
-		if v.Title != is.Title {
-			if err := s.setTitle(st, repo, is, v.Title); err != nil {
-				s.renderIssueEdit(w, opStatus(err), repo, v, s.opMessage(err))
-				return
-			}
-		}
 	}
+	// 本文を先に書く。題名を先に書くと、本文の書き込みに失敗したとき題名だけ変わった状態で画面に戻る
 	if v.Body != bodyOf(is, v) {
 		if err := s.editBody(st, repo, is, v.Target, v.Body); err != nil {
+			s.renderIssueEdit(w, opStatus(err), repo, v, s.opMessage(err))
+			return
+		}
+	}
+	if v.IsBody && v.Title != is.Title {
+		if err := s.setTitle(st, repo, is, v.Title); err != nil {
 			s.renderIssueEdit(w, opStatus(err), repo, v, s.opMessage(err))
 			return
 		}

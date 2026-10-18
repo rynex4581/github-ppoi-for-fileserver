@@ -179,6 +179,12 @@ func (s *Server) deleteComment(st *store.Store, repo store.Repo, is store.Issue,
 	if err := s.requireAuthor(is, target); err != nil {
 		return err
 	}
+	// 削除済みのものをもう一度消しても deleted を重ねて書かない
+	for _, ev := range is.Events {
+		if ev.File == target && ev.Deleted {
+			return opErr(404, "ppoi.error.comment_not_found")
+		}
+	}
 	if err := st.DeleteComment(repo.Name, is.Number, s.login, target); err != nil {
 		if errors.Is(err, store.ErrEventNotFound) {
 			return opErr(404, "ppoi.error.comment_not_found")

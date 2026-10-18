@@ -259,7 +259,7 @@ func (s *Server) apiGetIssue(w http.ResponseWriter, r *http.Request, st *store.S
 	writeJSON(w, http.StatusOK, s.toIssue(st, repo, is))
 }
 
-// apiEditIssue は title、state、assignees を変える。body の変更は持たない（本文を書き換えるイベントが無い）。
+// apiEditIssue は title、body、state、assignees を変える。body は edited イベントの追記（画面の編集と同じ）。
 func (s *Server) apiEditIssue(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, is store.Issue) {
 	var in issueInput
 	if !s.apiReadJSON(w, r, &in) {
@@ -458,20 +458,21 @@ func (s *Server) apiIssueLabels(w http.ResponseWriter, r *http.Request, st *stor
 	writeJSON(w, http.StatusOK, s.toLabels(st, repo, is.Labels))
 }
 
-func (s *Server) readLabelIDs(r *http.Request) ([]int, error) {
+// readLabelIDs はラベル ID の一覧を読む。Content-Type 違いなどの応答は apiReadJSON が書くので、
+// 偽が返ったときは呼ぶ側は何も書かずに戻る。
+func (s *Server) readLabelIDs(w http.ResponseWriter, r *http.Request) ([]int, bool) {
 	var in struct {
 		Labels []int64 `json:"labels"`
 	}
-	if err := readJSON(r, &in); err != nil {
-		return nil, err
+	if !s.apiReadJSON(w, r, &in) {
+		return nil, false
 	}
-	return toInts(in.Labels), nil
+	return toInts(in.Labels), true
 }
 
 func (s *Server) apiIssueReplaceLabels(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, is store.Issue) {
-	ids, err := s.readLabelIDs(r)
-	if err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	ids, ok := s.readLabelIDs(w, r)
+	if !ok {
 		return
 	}
 	if err := s.setLabels(st, repo, is, ids); err != nil {
@@ -483,9 +484,8 @@ func (s *Server) apiIssueReplaceLabels(w http.ResponseWriter, r *http.Request, s
 }
 
 func (s *Server) apiIssueAddLabels(w http.ResponseWriter, r *http.Request, st *store.Store, repo store.Repo, is store.Issue) {
-	ids, err := s.readLabelIDs(r)
-	if err != nil {
-		s.apiError(w, http.StatusUnprocessableEntity, err.Error())
+	ids, ok := s.readLabelIDs(w, r)
+	if !ok {
 		return
 	}
 	if err := s.setLabels(st, repo, is, append(append([]int(nil), is.Labels...), ids...)); err != nil {

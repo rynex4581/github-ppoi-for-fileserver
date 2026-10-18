@@ -1,7 +1,9 @@
 package web
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -54,7 +56,11 @@ func (l *repoLocks) lock(st *store.Store, repo store.Repo) (func(), error) {
 	}
 	if err := createLockFile(path); err != nil {
 		m.Unlock()
-		return nil, opErr(409, "ppoi.pulls.busy")
+		if errors.Is(err, fs.ErrExist) {
+			return nil, opErr(409, "ppoi.pulls.busy")
+		}
+		// ロックファイルを作れない（フォルダに書けない等）のは「別のマージが進行中」ではない
+		return nil, err
 	}
 	return func() {
 		os.Remove(path)
