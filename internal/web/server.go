@@ -5,7 +5,6 @@
 package web
 
 import (
-	"regexp"
 	"bytes"
 	"embed"
 	"errors"
@@ -19,6 +18,7 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
