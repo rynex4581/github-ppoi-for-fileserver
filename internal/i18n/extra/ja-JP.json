@@ -90,5 +90,7 @@
   "ppoi.pulls.not_open": "承認と変更要請はオープンなプルリクエストにしか付けられません",
   "ppoi.pulls.busy": "このリポジトリで別のマージまたは Revert が進行中です。少し待ってからやり直してください。",
   "ppoi.pulls.merged_but_not_recorded": "マージの push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度マージを押すと記録だけをやり直します。",
-  "ppoi.pulls.reverted_but_not_recorded": "Revert の push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度 Revert を押すと記録だけをやり直します。"
+  "ppoi.pulls.reverted_but_not_recorded": "Revert の push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度 Revert を押すと記録だけをやり直します。",
+  "ppoi.settings.dismiss_stale_approval": "新しいpushで承認を無効にする",
+  "ppoi.settings.dismiss_stale_approval_desc": "承認必須がオンのときだけ意味を持ちます。オンにすると、承認した時点の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数えます。force push で差し替わった承認は数えません。"
 }

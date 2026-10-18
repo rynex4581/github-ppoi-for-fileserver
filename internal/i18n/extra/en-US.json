@@ -90,5 +90,7 @@
   "ppoi.pulls.not_open": "Approvals and change requests can only be added to an open pull request",
   "ppoi.pulls.busy": "Another merge or revert is in progress for this repository. Try again shortly.",
   "ppoi.pulls.merged_but_not_recorded": "The merge was pushed, but recording it failed: %s. Press merge again to record it.",
-  "ppoi.pulls.reverted_but_not_recorded": "The revert was pushed, but recording it failed: %s. Press revert again to record it."
+  "ppoi.pulls.reverted_but_not_recorded": "The revert was pushed, but recording it failed: %s. Press revert again to record it.",
+  "ppoi.settings.dismiss_stale_approval": "Dismiss approvals on new pushes",
+  "ppoi.settings.dismiss_stale_approval_desc": "Only matters when approval is required. When on, an approval counts only if the approved commit is the current head or an ancestor of it. Approvals replaced by a force push do not count."
 }

@@ -30,6 +30,10 @@
       <p class="note">{{tr "ppoi.settings.require_approval_desc"}}</p>
     </div>
     <div class="form-checkbox">
+      <label><input type="checkbox" name="dismiss_stale_approval" value="1"{{if .Data.Repo.DismissStaleApproval}} checked{{end}}> {{tr "ppoi.settings.dismiss_stale_approval"}}</label>
+      <p class="note">{{tr "ppoi.settings.dismiss_stale_approval_desc"}}</p>
+    </div>
+    <div class="form-checkbox">
       <label><input type="checkbox" name="deny_force_push" value="1"{{if .Data.Repo.DenyForcePush}} checked{{end}}> {{tr "repo.settings.protect_disable_force_push"}}</label>
       <p class="note">{{tr "ppoi.settings.deny_force_push_desc"}}</p>
     </div>

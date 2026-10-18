@@ -19,7 +19,10 @@ type Repo struct {
 	Description     string `json:"description"`
 	DefaultBranch   string `json:"default_branch"`
 	RequireApproval bool   `json:"require_approval"`
-	DenyForcePush   bool   `json:"deny_force_push"`
+	// DismissStaleApproval がオンのとき、承認した時点の head と今の head が一致するか、
+	// 承認したコミットが今の head の祖先である承認だけを数える（force push で差し替わった承認は数えない）
+	DismissStaleApproval bool `json:"dismiss_stale_approval"`
+	DenyForcePush        bool `json:"deny_force_push"`
 }
 
 // ErrRepoNotFound はリポジトリが無いときのエラー。

@@ -161,7 +161,7 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
   meta\
     users\<ログオン名>.json    表示名
     <リポジトリ名>\
-      repo.json                説明、既定のブランチ名、承認必須、force push禁止
+      repo.json                説明、既定のブランチ名、承認必須、新しいpushで承認を無効、force push禁止
       labels.json              ラベル
       issues\
         000012\

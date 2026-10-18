@@ -41,6 +41,7 @@ func (s *Server) handleRepoSettingsSave(w http.ResponseWriter, r *http.Request, 
 	next.Description = strings.TrimSpace(r.FormValue("description"))
 	next.DefaultBranch = strings.TrimSpace(r.FormValue("default_branch"))
 	next.RequireApproval = r.FormValue("require_approval") == "1"
+	next.DismissStaleApproval = r.FormValue("dismiss_stale_approval") == "1"
 	next.DenyForcePush = r.FormValue("deny_force_push") == "1"
 
 	if next.DefaultBranch == "" || !branchNamePattern.MatchString(next.DefaultBranch) || strings.Contains(next.DefaultBranch, "..") {

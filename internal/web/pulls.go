@@ -346,7 +346,19 @@ func (s *Server) buildPullView(st *store.Store, repo store.Repo, is store.Issue,
 			v.ForcePushed = true
 		}
 	}
-	v.NeedsApproval = repo.RequireApproval && !is.Approved()
+	approved := is.Approved()
+	if repo.DismissStaleApproval && approved {
+		// 承認時の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数える
+		approved = false
+		for _, rv := range is.Reviews {
+			if rv.State == store.ReviewApproved && rv.CommitSHA != "" && v.HeadSHA != "" &&
+				(rv.CommitSHA == v.HeadSHA || g.IsAncestor(rv.CommitSHA, v.HeadSHA)) {
+				approved = true
+				break
+			}
+		}
+	}
+	v.NeedsApproval = repo.RequireApproval && !approved
 	v.CanMerge = is.State == "open" && v.HeadExists && !v.Conflict && !v.NothingToMerge && !v.NeedsApproval
 	v.CanRevert = is.Merged && is.RevertSHA == ""
 	v.MergeMessage = fmt.Sprintf("Merge pull request #%d from %s\n\n%s", is.Number, is.Head, is.Title)
