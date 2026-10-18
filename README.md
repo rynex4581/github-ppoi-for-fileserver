@@ -2,7 +2,7 @@
   <img src="docs/logo/logo-wordmark.png" width="420" height="230" alt="">
 </p>
 
-<h1 align="center">github-ppoi for Fileserver</h1>
+<h1 align="center">GitHub-ppoi for Fileserver</h1>
 
 <p align="center"><strong>え、共有ファイルサーバでIssueもコードレビューもPRもGithubっぽいWebUIから！？</strong></p>
 
