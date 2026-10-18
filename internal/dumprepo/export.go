@@ -179,7 +179,7 @@ func Export(st *store.Store, repoName, outRoot string, log io.Writer) (string, e
 			}
 			size := int(a.Size)
 			zero := 0
-			y.Assets = append(y.Assets, ymlReleaseAsset{Name: a.Name, Size: &size, DownloadCount: &zero, Created: a.ModTime.UTC(), Updated: a.ModTime.UTC(), DownloadURL: &rel})
+			y.Assets = append(y.Assets, ymlReleaseAsset{Name: store.OriginalAttachmentName(a.Name), Size: &size, DownloadCount: &zero, Created: a.ModTime.UTC(), Updated: a.ModTime.UTC(), DownloadURL: &rel})
 			assetCount++
 		}
 		ymlRels = append(ymlRels, y)

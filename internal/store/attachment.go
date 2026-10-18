@@ -75,6 +75,14 @@ func (s *Store) saveAttachmentTo(dir, original string, data []byte) (string, err
 	return name, nil
 }
 
+// attachmentPrefixPattern は保存名の先頭に付ける「UTC時刻_」の形。
+var attachmentPrefixPattern = regexp.MustCompile(`^\d{8}T\d{9}Z_`)
+
+// OriginalAttachmentName は保存名から先頭の時刻を外し、元のファイル名に近いものを返す（書き出し用）。
+func OriginalAttachmentName(name string) string {
+	return attachmentPrefixPattern.ReplaceAllString(name, "")
+}
+
 // attachmentExtPattern は添付ファイルの拡張子として採用する形。
 var attachmentExtPattern = regexp.MustCompile(`^\.[A-Za-z0-9]{1,10}$`)
 

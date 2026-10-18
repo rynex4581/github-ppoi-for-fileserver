@@ -253,6 +253,37 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 
 `check` は、イベントの JSON が読めるか、編集・削除の対象があるか、本文が参照する添付があるか、イベントが持つコミット（PR の head、レビューの対象、マージと Revert）がベアリポジトリにあるか、`git fsck` が通るかを全リポジトリについて調べ、問題を1行ずつ出力する。問題があれば終了コードは 2。`-repo <リポジトリ名>` で1つに絞れる。復元テストは、データルートを別の共有にコピーして別のデータルートとして登録すれば読めるので、`check` と合わせて四半期に一度程度行う。
 
+## インポートとエクスポート
+
+形式は Gitea の `dump-repo` / `restore-repo` に合わせている（参照した Gitea の版は v28.1.0。[third_party/README.md](third_party/README.md) に記録）。対応する方向は3つ。
+
+**GitHub → 本ツール**
+
+本ツールは GitHub の API を叩かない。家で Gitea の `dump-repo` を実行して dump-repo 形式のフォルダを作り、それを職場に持ち込んで取り込む。
+
+```powershell
+gitea dump-repo --git_service github --clone_addr https://github.com/<owner>/<リポジトリ名> --repo_dir <出力先> --auth_token <GitHub のトークン>
+.\github-ppoi.exe import -root \\<サーバ>\<共有>\<データルート> -dir <出力先> [-repo <リポジトリ名>]
+```
+
+Issue と PR の番号は元のまま、作成者は元のログオン名（poster_name）のまま保つ。マージ済みの PR はマージ済みとして、レビューの行コメントは差分の断片ごと取り込む。ラベルとリリース（添付を含む）も取り込む。マイルストーンと wiki は対応していないので読み飛ばし、その旨を表示する。
+
+**本ツール → Gitea**
+
+```powershell
+.\github-ppoi.exe export -root \\<サーバ>\<共有>\<データルート> -repo <リポジトリ名> -out <出力先>
+```
+
+`<出力先>\<owner>\<リポジトリ名>\` に書き出す。本物の Gitea には `gitea restore-repo --repo_dir <そのフォルダ> --owner_name <Gitea の owner> --repo_name <名前>` で流し込める（`--validation` 付きで通ることを Gitea 28.1.0 で確認済）。編集履歴は最新の本文だけ、削除済みのコメントは出さない。
+
+**本ツール → GitHub**
+
+```powershell
+.\github-ppoi.exe export-github -root \\<サーバ>\<共有>\<データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> -token <PAT>
+```
+
+GitHub 側に空のリポジトリを先に作っておく（Issue も PR も無いこと）。ネットが要るので家で実行する。git は `push --mirror`、Issue と PR は API で作る。作成者は API を叩いた本人になるため、本文の先頭に元の投稿者と日時を入れる。番号を揃えるため、欠番は空の Issue を作ってクローズして埋める。マージ済みの PR は GitHub で PR として作れないため、Issue として作り「元は PR #N、マージ済み」と記す。open の PR は head のブランチがあれば PR として作る。トークンは `-token` か環境変数 `GITHUB_TOKEN` で渡す。
+
 ## Troubleshooting
 
 **起動時に「ポート 9418〜9427 がすべて使用中」と出る**

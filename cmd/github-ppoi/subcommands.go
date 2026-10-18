@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github-ppoi-for-fileserver/internal/dumprepo"
+	"github-ppoi-for-fileserver/internal/ghexport"
 	"github-ppoi-for-fileserver/internal/integrity"
 	"github-ppoi-for-fileserver/internal/store"
 )
@@ -15,6 +18,7 @@ import (
 //   github-ppoi check   -root <データルート> [-repo <リポジトリ名>]
 //   github-ppoi export  -root <データルート> -repo <リポジトリ名> -out <出力先>
 //   github-ppoi import  -root <データルート> -dir <dump-repo のフォルダ> [-repo <リポジトリ名>]
+//   github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> -token <PAT>
 // いずれも画面は上げず、結果を標準出力に出して終わる。
 
 // runSubcommand は os.Args[1] がサブコマンドなら実行して真を返す。終了コードは code に入る。
@@ -31,6 +35,8 @@ func runSubcommand(args []string) (code int, handled bool) {
 		return runExport(args[2:]), true
 	case "import":
 		return runImport(args[2:]), true
+	case "export-github":
+		return runExportGitHub(args[2:]), true
 	}
 	return 0, false
 }
@@ -136,6 +142,35 @@ func runImport(args []string) int {
 		return 1
 	}
 	if _, err := dumprepo.Import(st, *dir, *repo, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	return 0
+}
+
+// runExportGitHub はリポジトリを GitHub の空のリポジトリに書き出す。ネットが要るので家で実行する。
+func runExportGitHub(args []string) int {
+	fs := flag.NewFlagSet("export-github", flag.ContinueOnError)
+	root := fs.String("root", "", "データルートのパス")
+	repo := fs.String("repo", "", "リポジトリ名")
+	to := fs.String("to", "", "GitHub 側の <owner>/<リポジトリ名>（空のリポジトリを先に作っておく）")
+	token := fs.String("token", os.Getenv("GITHUB_TOKEN"), "Personal Access Token（repo 権限）。省略時は環境変数 GITHUB_TOKEN")
+	api := fs.String("api", "https://api.github.com", "GitHub API の URL（GitHub Enterprise なら変える）")
+	wait := fs.Duration("wait", time.Second, "書き込みの API を呼ぶ間隔（二次的な制限に掛からないため）")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	owner, name, ok := strings.Cut(*to, "/")
+	if *root == "" || *repo == "" || !ok || owner == "" || name == "" || *token == "" {
+		fmt.Fprintln(os.Stderr, "使い方: github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> -token <PAT>")
+		return 2
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if _, err := ghexport.Export(st, *repo, ghexport.Options{Owner: owner, Repo: name, Token: *token, APIBase: *api, Wait: *wait, Log: os.Stdout}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
