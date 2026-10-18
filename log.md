@@ -156,7 +156,7 @@ docs_local/レビュー指摘_v0.10.txt の「直す順番の案」に従い、�
 
 ### ロゴの GitH○b
 
-- GitHub の商標の決まり（製品名やロゴに GitHub を使わない）に掛かるので、ロゴとアイコンの文字を GitH○b にした。u は描かず（fill="none"）、その位置に線の太さを字に合わせた円を置く。README の PNG と favicon.ico も作り直した。PNG は Edge の headless で SVG を 2 倍で描画したもの
+- GitHub の商標の決まり（製品名やロゴに GitHub を使わない）に掛かるので、ロゴとアイコンの文字を GitH○b にした。u は描かず（fill="none"）、その枠に字の高さ（キャップハイト）に近い円を置いて伏せ字にする。README の PNG と favicon.ico も作り直した。PNG は Edge の headless で SVG を 2 倍で描画したもの
 
 ## 設計メモに無い判断
 

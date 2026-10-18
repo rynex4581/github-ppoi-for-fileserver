@@ -2,7 +2,7 @@
   <!-- exe と画面のアイコン。ロゴ（logo-wordmark）の黄色いフォルダを正方形いっぱいに広げ、表に GitH○b の文字（u は○）を置き、その上に「っぽい」を斜めに重ねたもの -->
   <path d="M6 12h42l12 12h58a8 8 0 0 1 8 8v84a8 8 0 0 1-8 8H14a8 8 0 0 1-8-8V20a8 8 0 0 1 8-8z" fill="#d9a63a"/>
   <path d="M2 42h116a8 8 0 0 1 8 8v66a8 8 0 0 1-8 8H14a8 8 0 0 1-8-8z" fill="#f6cd55"/>
-  <text x="62" y="80" text-anchor="middle" font-family="'Segoe UI Black','Segoe UI',Arial,sans-serif" font-weight="900" font-size="34" letter-spacing="-1.5" fill="#24292f">GitH<tspan fill="none">u</tspan>b</text>
-  <circle cx="86.5" cy="71.5" r="6.5" fill="none" stroke="#24292f" stroke-width="6"/>
+  <text x="62" y="80" text-anchor="middle" font-family="'Segoe UI Black','Segoe UI',Arial,sans-serif" font-weight="900" font-size="34" letter-spacing="-1.5" fill="#24292f">GitH<tspan fill="none">u</tspan><tspan dx="3">b</tspan></text>
+  <circle cx="87.2" cy="68.1" r="8.7" fill="none" stroke="#24292f" stroke-width="4.5"/>
   <text transform="translate(66 102) rotate(-14)" text-anchor="middle" font-family="'Noto Sans JP Black','Noto Sans JP',sans-serif" font-weight="900" font-size="40" fill="#cf222e" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke fill">っぽい</text>
 </svg>
