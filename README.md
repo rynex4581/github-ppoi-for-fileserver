@@ -58,9 +58,9 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 
 ## <img src="docs/images/icon-rocket.svg" width="24" height="24" align="top" alt=""> Getting started
 
-### exe を置く
+### exe をローカル端末に配置
 
-`github-ppoi.exe` は端末のどこに置いてもよい。配布用にはデータルートの `bin\` に置くと、古いバージョンを使っている端末の画面に「新しいバージョンがある」と出力される。<br>
+`github-ppoi.exe` はローカル端末のどこに置いてもよい。配布用にはデータルートの `bin\` に置くと、古いバージョンを使っている端末の画面に「新しいバージョンがある」と出力される。<br>
 Git for Windows が入っていること（`git` がコマンドラインから呼べること）が前提になる。2.38 以上（`merge-tree --write-tree` を使う）。
 
 > [!IMPORTANT]
