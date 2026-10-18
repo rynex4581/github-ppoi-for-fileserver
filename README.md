@@ -19,7 +19,7 @@ Githubっぽいのをファイルサーバでやるやつ。
 
 ## インストール
 
-[Releases](https://github.com/rynex4581/github-ppoi-for-fileserver/releases/latest) から `github-ppoi.exe` を落として起動する。Git for Windows が入っていればそれだけでよい。
+[Releases](https://github.com/rynex4581/github-ppoi-for-fileserver/releases/latest) から `github-ppoi.exe` を落として起動する。事前にGit for Windowsをインストールしておくこと。
 
 <p align="center">
   <img src="docs/images/top.png" width="800" alt="トップ画面">
