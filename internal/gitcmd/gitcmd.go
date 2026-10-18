@@ -1,12 +1,17 @@
 // Package gitcmd は各端末の Git for Windows を呼んで、ベアリポジトリを読む。
 // 読み取り専用で、リポジトリの中身は変更しない。
 // ファイルサーバ上のリポジトリは所有者が自分と違うため、常に safe.directory=* を付けて呼ぶ。
+// そのため、データルートに書ける人はリポジトリの設定（diff.external 等）を通じて他の端末で
+// コマンドを動かせる関係にある。緩和として diff.external と log.showSignature を無効にし、
+// diff には --no-ext-diff を付ける。メッセージの判定が英語の文字列に依存するので LC_ALL=C で呼ぶ。
+// ブランチ名など外から来た引数は --end-of-options の後ろに置き、オプションとして解釈させない。
 package gitcmd
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -29,11 +34,12 @@ func (r Repo) run(args ...string) ([]byte, error) {
 
 // runGit は dir で git を実行し、標準出力と終了コードを返す。extra は -c の追加設定。
 func runGit(dir string, extra []string, args ...string) ([]byte, int, error) {
-	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false"}
+	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false"}
 	full = append(full, extra...)
 	full = append(full, "-C", dir)
 	full = append(full, args...)
 	cmd := exec.Command("git", full...)
+	cmd.Env = append(os.Environ(), "LC_ALL=C", "LANG=C")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -118,7 +124,7 @@ func (r Repo) Tree(ref, path string) ([]Entry, error) {
 	if path != "" {
 		spec = ref + ":" + path
 	}
-	out, err := r.run("ls-tree", "-l", "-z", spec)
+	out, err := r.run("ls-tree", "-l", "-z", "--end-of-options", spec)
 	if err != nil {
 		return nil, ErrNotFound
 	}
@@ -159,7 +165,7 @@ func (r Repo) Tree(ref, path string) ([]Entry, error) {
 
 // ObjectType は ref:path の種類（blob / tree）を返す。無ければ ErrNotFound。
 func (r Repo) ObjectType(ref, path string) (string, error) {
-	out, err := r.run("cat-file", "-t", ref+":"+path)
+	out, err := r.run("cat-file", "-t", "--end-of-options", ref+":"+path)
 	if err != nil {
 		return "", ErrNotFound
 	}
@@ -168,7 +174,7 @@ func (r Repo) ObjectType(ref, path string) (string, error) {
 
 // BlobSize は ref:path のファイルの大きさを返す。
 func (r Repo) BlobSize(ref, path string) (int64, error) {
-	out, err := r.run("cat-file", "-s", ref+":"+path)
+	out, err := r.run("cat-file", "-s", "--end-of-options", ref+":"+path)
 	if err != nil {
 		return 0, ErrNotFound
 	}
@@ -177,7 +183,7 @@ func (r Repo) BlobSize(ref, path string) (int64, error) {
 
 // Blob は ref:path のファイルの中身を返す。
 func (r Repo) Blob(ref, path string) ([]byte, error) {
-	out, err := r.run("cat-file", "blob", ref+":"+path)
+	out, err := r.run("cat-file", "blob", "--end-of-options", ref+":"+path)
 	if err != nil {
 		return nil, ErrNotFound
 	}
@@ -229,7 +235,7 @@ func parseCommits(out []byte) []Commit {
 // Log は ref から遡ったコミットを新しい順に返す。path が空でなければそのパスに触れたものだけ。
 // skip 件飛ばして limit 件まで返す。
 func (r Repo) Log(ref, path string, skip, limit int) ([]Commit, error) {
-	args := []string{"log", logFormat, "-n", strconv.Itoa(limit), "--skip=" + strconv.Itoa(skip), ref}
+	args := []string{"log", logFormat, "-n", strconv.Itoa(limit), "--skip=" + strconv.Itoa(skip), "--end-of-options", ref}
 	if path != "" {
 		args = append(args, "--", path)
 	}
@@ -242,7 +248,7 @@ func (r Repo) Log(ref, path string, skip, limit int) ([]Commit, error) {
 
 // CountCommits は ref から遡れるコミットの数を返す。
 func (r Repo) CountCommits(ref string) (int, error) {
-	out, err := r.run("rev-list", "--count", ref)
+	out, err := r.run("rev-list", "--count", "--end-of-options", ref)
 	if err != nil {
 		return 0, ErrNotFound
 	}
@@ -251,7 +257,7 @@ func (r Repo) CountCommits(ref string) (int, error) {
 
 // GetCommit は1つのコミットの情報を返す。
 func (r Repo) GetCommit(sha string) (Commit, error) {
-	out, err := r.run("log", logFormat, "-n", "1", sha)
+	out, err := r.run("log", logFormat, "-n", "1", "--end-of-options", sha)
 	if err != nil {
 		return Commit{}, ErrNotFound
 	}
@@ -268,9 +274,9 @@ func (r Repo) CommitDiff(c Commit) (string, error) {
 	var out []byte
 	var err error
 	if len(c.Parents) == 0 {
-		out, err = r.run("diff-tree", "-p", "--root", "-M", "--no-color", c.SHA)
+		out, err = r.run("diff-tree", "-p", "--root", "-M", "--no-color", "--no-ext-diff", "--end-of-options", c.SHA)
 	} else {
-		out, err = r.run("diff", "-M", "--no-color", c.Parents[0], c.SHA)
+		out, err = r.run("diff", "-M", "--no-color", "--no-ext-diff", "--end-of-options", c.Parents[0], c.SHA)
 	}
 	if err != nil {
 		return "", err
@@ -280,7 +286,7 @@ func (r Repo) CommitDiff(c Commit) (string, error) {
 
 // MergeBase は2つのコミットの共通の祖先を返す。
 func (r Repo) MergeBase(a, b string) (string, error) {
-	out, err := r.run("merge-base", a, b)
+	out, err := r.run("merge-base", "--end-of-options", a, b)
 	if err != nil {
 		return "", ErrNotFound
 	}
@@ -289,13 +295,13 @@ func (r Repo) MergeBase(a, b string) (string, error) {
 
 // IsAncestor は a が b の祖先（a が b に含まれている）かを返す。a が無くなっていれば false。
 func (r Repo) IsAncestor(a, b string) bool {
-	_, code, err := runGit(r.Dir, nil, "merge-base", "--is-ancestor", a, b)
+	_, code, err := runGit(r.Dir, nil, "merge-base", "--is-ancestor", "--end-of-options", a, b)
 	return err == nil && code == 0
 }
 
 // RangeLog は base に無く head にあるコミット（base..head）を新しい順に返す。
 func (r Repo) RangeLog(base, head string, limit int) ([]Commit, error) {
-	out, err := r.run("log", logFormat, "-n", strconv.Itoa(limit), base+".."+head)
+	out, err := r.run("log", logFormat, "-n", strconv.Itoa(limit), "--end-of-options", base+".."+head)
 	if err != nil {
 		return nil, ErrNotFound
 	}
@@ -332,7 +338,7 @@ func (r Repo) RevertCommitOf(base, mergeSHA string) (string, error) {
 
 // RangeDiff は base と head の共通の祖先から head までの差分（base...head）を返す。
 func (r Repo) RangeDiff(base, head string) (string, error) {
-	out, err := r.run("diff", "-M", "--no-color", base+"..."+head)
+	out, err := r.run("diff", "-M", "--no-color", "--no-ext-diff", "--end-of-options", base+"..."+head)
 	if err != nil {
 		return "", ErrNotFound
 	}
@@ -341,7 +347,7 @@ func (r Repo) RangeDiff(base, head string) (string, error) {
 
 // HasConflict は head を base にマージしたときにコンフリクトするかを、作業ツリー無しで調べる。
 func (r Repo) HasConflict(base, head string) (bool, error) {
-	_, code, err := runGit(r.Dir, nil, "merge-tree", "--write-tree", "--no-messages", base, head)
+	_, code, err := runGit(r.Dir, nil, "merge-tree", "--write-tree", "--no-messages", "--end-of-options", base, head)
 	if err == nil {
 		return false, nil
 	}

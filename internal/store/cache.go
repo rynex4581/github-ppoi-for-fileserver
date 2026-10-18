@@ -23,7 +23,12 @@ import (
 // キャッシュをディスクに書く間隔の下限。短い間に何度も画面を出しても毎回は書かない。
 const cacheSaveInterval = 5 * time.Second
 
+// cacheFormat はキャッシュの形式の版。Event に項目を足したときなどに上げる。
+// 版が違うキャッシュは読まずに捨て、共有フォルダから読み直す。
+const cacheFormat = 1
+
 type repoCache struct {
+	Format int                      `json:"format"`
 	Issues map[int]map[string]Event `json:"issues"` // 番号 → ファイル名 → イベント
 
 	loaded    bool
@@ -56,7 +61,7 @@ func (s *Store) repoCacheLocked(repo string) *repoCache {
 	}
 	rc := s.cache.repos[repo]
 	if rc == nil {
-		rc = &repoCache{Issues: map[int]map[string]Event{}}
+		rc = &repoCache{Format: cacheFormat, Issues: map[int]map[string]Event{}}
 		s.cache.repos[repo] = rc
 	}
 	if !rc.loaded {
@@ -64,7 +69,7 @@ func (s *Store) repoCacheLocked(repo string) *repoCache {
 		if s.cache.dir != "" {
 			if data, err := os.ReadFile(s.cachePath(repo)); err == nil {
 				var saved repoCache
-				if json.Unmarshal(data, &saved) == nil && saved.Issues != nil {
+				if json.Unmarshal(data, &saved) == nil && saved.Format == cacheFormat && saved.Issues != nil {
 					rc.Issues = saved.Issues
 				}
 			}
