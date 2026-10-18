@@ -87,7 +87,7 @@
   "ppoi.pulls.merged_but_not_recorded": "The merge was pushed, but recording it failed: %s. Press merge again to record it.",
   "ppoi.pulls.reverted_but_not_recorded": "The revert was pushed, but recording it failed: %s. Press revert again to record it.",
   "ppoi.settings.dismiss_stale_approval": "Dismiss approvals on new pushes",
-  "ppoi.settings.dismiss_stale_approval_desc": "Only matters when approval is required. When on, an approval counts only if the approved commit is the current head or an ancestor of it. Approvals replaced by a force push do not count.",
+  "ppoi.settings.dismiss_stale_approval_desc": "Only matters when approval is required. When on, an approval counts only if the content of the pull request diff has not changed since it was given. Merging the base branch in keeps the approval; pushes that change the diff or force pushes invalidate it (same as Gitea).",
   "ppoi.pulls.head_kept": "Branch %s was kept because another pull request uses it as base.",
   "ppoi.settings.maintenance": "Run maintenance",
   "ppoi.settings.maintenance_desc": "Runs git gc on the bare repository. Automatic gc on push (receive.autogc) is disabled so that no client stalls on it over SMB; run it here from time to time.",

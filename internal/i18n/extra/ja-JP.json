@@ -87,7 +87,7 @@
   "ppoi.pulls.merged_but_not_recorded": "マージの push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度マージを押すと記録だけをやり直します。",
   "ppoi.pulls.reverted_but_not_recorded": "Revert の push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度 Revert を押すと記録だけをやり直します。",
   "ppoi.settings.dismiss_stale_approval": "新しいpushで承認を無効にする",
-  "ppoi.settings.dismiss_stale_approval_desc": "承認必須がオンのときだけ意味を持ちます。オンにすると、承認した時点の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数えます。force push で差し替わった承認は数えません。",
+  "ppoi.settings.dismiss_stale_approval_desc": "承認必須がオンのときだけ意味を持ちます。オンにすると、承認した時点から PR の差分の中身が変わっていない承認だけを数えます。base を取り込んだだけなら承認は残り、差分が変わる push や force push では無効になります（Gitea と同じ）。",
   "ppoi.pulls.head_kept": "ブランチ %s は他のプルリクエストの base になっているので残しました。",
   "ppoi.settings.maintenance": "メンテナンス実行",
   "ppoi.settings.maintenance_desc": "ベアリポジトリの git gc を実行します。push のたびに各自の端末で自動実行されないよう receive.autogc は無効にしてあるので、たまにここから実行してください。",

@@ -350,11 +350,11 @@ func (s *Server) buildPullView(st *store.Store, repo store.Repo, is store.Issue,
 	}
 	approved := is.Approved()
 	if repo.DismissStaleApproval && approved {
-		// 承認時の head と今の head が一致するか、承認したコミットが今の head の祖先である承認だけを数える
+		// 承認した時点から PR の差分の中身が変わっていない承認だけを数える（Gitea と同じ）
 		approved = false
 		for _, rv := range is.Reviews {
 			if rv.State == store.ReviewApproved && rv.CommitSHA != "" && v.HeadSHA != "" &&
-				(rv.CommitSHA == v.HeadSHA || g.IsAncestor(rv.CommitSHA, v.HeadSHA)) {
+				approvalStillValid(g, is.Base, rv.CommitSHA, v.HeadSHA) {
 				approved = true
 				break
 			}
@@ -455,6 +455,37 @@ func (s *Server) handlePullReview(w http.ResponseWriter, r *http.Request, st *st
 }
 
 // extractHunk は差分から、行コメントの位置の前後数行を文字列にして返す。
+// approvalStillValid は、承認したコミット（reviewSHA）から今の head までで PR の差分の中身が
+// 変わっていないかを返す。同じコミットなら真。base を取り込んだだけの push では差分は変わらないので
+// 承認は残り、差分が変わる push や force push（承認したコミットが無くなる）では偽になる。
+func approvalStillValid(g gitcmd.Repo, base, reviewSHA, headSHA string) bool {
+	if reviewSHA == headSHA {
+		return true
+	}
+	before, err := g.RangeDiff("refs/heads/"+base, reviewSHA)
+	if err != nil {
+		return false
+	}
+	after, err := g.RangeDiff("refs/heads/"+base, headSHA)
+	if err != nil {
+		return false
+	}
+	return stripIndexLines(before) == stripIndexLines(after)
+}
+
+// stripIndexLines は diff の index 行（blob の ID）を除く。中身が同じでも ID が違うことがあるため。
+func stripIndexLines(diff string) string {
+	lines := strings.Split(diff, "\n")
+	out := lines[:0]
+	for _, l := range lines {
+		if strings.HasPrefix(l, "index ") {
+			continue
+		}
+		out = append(out, l)
+	}
+	return strings.Join(out, "\n")
+}
+
 func extractHunk(files []gitcmd.DiffFile, path, side string, line int) string {
 	for _, f := range files {
 		if f.NewPath != path && f.OldPath != path {
