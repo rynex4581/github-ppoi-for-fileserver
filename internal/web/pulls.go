@@ -593,7 +593,7 @@ func (s *Server) handlePullMerge(w http.ResponseWriter, r *http.Request, st *sto
 	}
 	warn, err := s.mergePull(st, repo, is, r.FormValue("message"))
 	if err != nil {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.opMessage(err))
+		s.renderPull(w, opStatus(err), st, repo, is, "conversation", s.opMessage(err))
 		return
 	}
 	if warn != "" {
@@ -614,7 +614,7 @@ func (s *Server) handlePullRevert(w http.ResponseWriter, r *http.Request, st *st
 		return
 	}
 	if err := s.revertPull(st, repo, is); err != nil {
-		s.renderPull(w, http.StatusUnprocessableEntity, st, repo, is, "conversation", s.opMessage(err))
+		s.renderPull(w, opStatus(err), st, repo, is, "conversation", s.opMessage(err))
 		return
 	}
 	http.Redirect(w, r, s.pullURL(st, repo, is.Number), http.StatusSeeOther)
