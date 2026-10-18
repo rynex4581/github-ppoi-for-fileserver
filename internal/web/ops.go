@@ -264,6 +264,11 @@ func (s *Server) addLineComment(st *store.Store, repo store.Repo, is store.Issue
 // merged イベントの記録、head ブランチの削除まで行う。
 // head ブランチの削除に失敗したときは、マージは済んでいるので nil と一緒に警告の文言を返す。
 func (s *Server) mergePull(st *store.Store, repo store.Repo, is store.Issue, message string) (warn string, err error) {
+	unlock, err := s.locks.lock(st, repo)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 	v, err := s.buildPullView(st, repo, is, "conversation")
 	if err != nil {
 		return "", err
@@ -275,6 +280,11 @@ func (s *Server) mergePull(st *store.Store, repo store.Repo, is store.Issue, mes
 		case !v.HeadExists:
 			return "", opErr(405, "ppoi.pulls.head_deleted", is.Head)
 		case v.NothingToMerge:
+			// 前回のマージで push は通ったが記録に失敗した可能性がある。base 上に head を親に持つ
+			// マージコミットがあれば、それを記録して済ませる
+			if sha, ferr := s.gitRepo(st, repo).MergeCommitOf(is.Base, v.HeadSHA); ferr == nil {
+				return s.recordMerge(st, repo, is, sha, v.HeadSHA)
+			}
 			return "", opErr(405, "repo.pulls.is_ancestor")
 		case v.Conflict:
 			return "", opErr(409, "repo.pulls.cannot_auto_merge_desc")
@@ -301,9 +311,19 @@ func (s *Server) mergePull(st *store.Store, repo store.Repo, is store.Issue, mes
 		}
 		return "", opErr(500, "ppoi.pulls.merge_failed", err.Error())
 	}
-	ev := store.Event{Type: store.EventMerged, User: s.login, MergeSHA: mergeSHA, HeadSHA: v.HeadSHA}
+	return s.recordMerge(st, repo, is, mergeSHA, v.HeadSHA)
+}
+
+// recordMerge はマージ済みのイベントを書き、head ブランチを消す。
+// push は済んでいるので、記録に失敗したときはその旨を伝える（次にマージを押せば記録だけやり直す）。
+func (s *Server) recordMerge(st *store.Store, repo store.Repo, is store.Issue, mergeSHA, headSHA string) (string, error) {
+	ev := store.Event{Type: store.EventMerged, User: s.login, MergeSHA: mergeSHA, HeadSHA: headSHA}
 	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
-		return "", err
+		return "", opErr(500, "ppoi.pulls.merged_but_not_recorded", err.Error())
+	}
+	c, err := s.cloneFor(st, repo)
+	if err != nil {
+		return s.tr("ppoi.pulls.head_delete_failed", is.Head, err.Error()), nil
 	}
 	if err := c.DeleteRemoteBranch(is.Head); err != nil {
 		return s.tr("ppoi.pulls.head_delete_failed", is.Head, err.Error()), nil
@@ -315,6 +335,16 @@ func (s *Server) mergePull(st *store.Store, repo store.Repo, is store.Issue, mes
 func (s *Server) revertPull(st *store.Store, repo store.Repo, is store.Issue) error {
 	if !is.Merged || is.RevertSHA != "" {
 		return opErr(405, "repo.pulls.is_closed")
+	}
+	unlock, err := s.locks.lock(st, repo)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	// 前回の Revert で push は通ったが記録に失敗した可能性がある。base 上に打ち消しのコミットが
+	// あれば、それを記録して済ませる（2回目の revert を作らない）
+	if sha, ferr := s.gitRepo(st, repo).RevertCommitOf(is.Base, is.MergeSHA); ferr == nil {
+		return s.recordRevert(st, repo, is, sha)
 	}
 	c, err := s.cloneFor(st, repo)
 	if err != nil {
@@ -331,5 +361,14 @@ func (s *Server) revertPull(st *store.Store, repo store.Repo, is store.Issue) er
 		}
 		return opErr(500, "ppoi.pulls.revert_failed", err.Error())
 	}
-	return st.AppendEvent(repo.Name, is.Number, store.Event{Type: store.EventReverted, User: s.login, MergeSHA: is.MergeSHA, RevertSHA: revertSHA})
+	return s.recordRevert(st, repo, is, revertSHA)
+}
+
+// recordRevert は取り消しのイベントを書く。push は済んでいるので、失敗したときはその旨を伝える。
+func (s *Server) recordRevert(st *store.Store, repo store.Repo, is store.Issue, revertSHA string) error {
+	ev := store.Event{Type: store.EventReverted, User: s.login, MergeSHA: is.MergeSHA, RevertSHA: revertSHA}
+	if err := st.AppendEvent(repo.Name, is.Number, ev); err != nil {
+		return opErr(500, "ppoi.pulls.reverted_but_not_recorded", err.Error())
+	}
+	return nil
 }

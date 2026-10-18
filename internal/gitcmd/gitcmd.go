@@ -302,6 +302,34 @@ func (r Repo) RangeLog(base, head string, limit int) ([]Commit, error) {
 	return parseCommits(out), nil
 }
 
+// MergeCommitOf は base の履歴から、headSHA を2つ目以降の親に持つマージコミットを探す。
+// マージの push は通ったのに記録に失敗したときの復旧に使う。無ければ ErrNotFound。
+func (r Repo) MergeCommitOf(base, headSHA string) (string, error) {
+	out, err := r.run("log", "--merges", "--format=%H %P", "-n", "200", "refs/heads/"+base)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		f := strings.Fields(line)
+		for _, parent := range f[min(len(f), 2):] {
+			if parent == headSHA {
+				return f[0], nil
+			}
+		}
+	}
+	return "", ErrNotFound
+}
+
+// RevertCommitOf は base の履歴から、mergeSHA を打ち消した revert コミットを探す。
+// Revert の push は通ったのに記録に失敗したときの復旧に使う。無ければ ErrNotFound。
+func (r Repo) RevertCommitOf(base, mergeSHA string) (string, error) {
+	out, err := r.run("log", "--fixed-strings", "--grep=This reverts commit "+mergeSHA, "--format=%H", "-n", "1", "refs/heads/"+base)
+	if err != nil || strings.TrimSpace(string(out)) == "" {
+		return "", ErrNotFound
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // RangeDiff は base と head の共通の祖先から head までの差分（base...head）を返す。
 func (r Repo) RangeDiff(base, head string) (string, error) {
 	out, err := r.run("diff", "-M", "--no-color", base+"..."+head)

@@ -87,5 +87,8 @@
   "ppoi.api.bad_state": "state の値が正しくありません。",
   "ppoi.api.body_edit": "本文の書き換えには対応していません（本文を書き換えるイベントが無いため）。",
   "ppoi.update.available": "新しいバージョン（Ver %s）があります。次のファイルを自分の端末にコピーして起動し直してください。",
-  "ppoi.pulls.not_open": "承認と変更要請はオープンなプルリクエストにしか付けられません"
+  "ppoi.pulls.not_open": "承認と変更要請はオープンなプルリクエストにしか付けられません",
+  "ppoi.pulls.busy": "このリポジトリで別のマージまたは Revert が進行中です。少し待ってからやり直してください。",
+  "ppoi.pulls.merged_but_not_recorded": "マージの push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度マージを押すと記録だけをやり直します。",
+  "ppoi.pulls.reverted_but_not_recorded": "Revert の push は完了しましたが、記録の書き込みに失敗しました: %s。もう一度 Revert を押すと記録だけをやり直します。"
 }

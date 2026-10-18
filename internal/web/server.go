@@ -49,6 +49,7 @@ type Server struct {
 
 	login  string
 	port   int
+	locks  repoLocks     // マージと Revert がツール専用 clone を取り合わないための排他
 	newer  *newerVersion // bin\github-ppoi.exe の版が自分より新しいときに入る
 	pages  map[string]*template.Template
 	icons  map[string]template.HTML

@@ -87,5 +87,8 @@
   "ppoi.api.bad_state": "Invalid state value.",
   "ppoi.api.body_edit": "Editing the body is not supported (there is no event for rewriting the body).",
   "ppoi.update.available": "A newer version (Ver %s) is available. Copy the following file to this PC and restart.",
-  "ppoi.pulls.not_open": "Approvals and change requests can only be added to an open pull request"
+  "ppoi.pulls.not_open": "Approvals and change requests can only be added to an open pull request",
+  "ppoi.pulls.busy": "Another merge or revert is in progress for this repository. Try again shortly.",
+  "ppoi.pulls.merged_but_not_recorded": "The merge was pushed, but recording it failed: %s. Press merge again to record it.",
+  "ppoi.pulls.reverted_but_not_recorded": "The revert was pushed, but recording it failed: %s. Press revert again to record it."
 }
