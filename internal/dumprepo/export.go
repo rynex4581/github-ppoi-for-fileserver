@@ -244,17 +244,45 @@ func exportComments(is store.Issue) []ymlComment {
 }
 
 // exportReviews はレビューと行コメントを Gitea の Review にする。行コメントは、その後に来た同じ人の
-// レビューに付ける。レビューが続かない行コメントは COMMENTED のレビューとして出す。
+// レビューに付ける。別の人のレビューが先に来たときや、レビューが続かないときは、行コメントの投稿者ごとに
+// COMMENTED のレビューとして出す（新20：他人のレビューに付けると発言者が変わってしまう）。
 func exportReviews(is store.Issue) []ymlReview {
 	var out []ymlReview
-	var pending []ymlReviewComment
-	pendingUser, pendingTime, pendingCommit := "", time.Time{}, ""
-	flush := func(r ymlReview) {
-		r.Comments = append(nonNil(pending), r.Comments...)
+	type pendingComment struct {
+		user string
+		c    ymlReviewComment
+	}
+	var pending []pendingComment
+	emit := func(r ymlReview, comments []ymlReviewComment) {
+		for i := range comments {
+			comments[i].ID = int64(i + 1)
+		}
+		r.Comments = nonNil(comments)
 		r.ID = int64(len(out) + 1)
 		r.IssueIndex = int64(is.Number)
 		out = append(out, r)
-		pending = nil
+	}
+	// take は pending から user の分を順を保って抜き出す
+	take := func(user string) []ymlReviewComment {
+		var mine []ymlReviewComment
+		var rest []pendingComment
+		for _, p := range pending {
+			if p.user == user {
+				mine = append(mine, p.c)
+			} else {
+				rest = append(rest, p)
+			}
+		}
+		pending = rest
+		return mine
+	}
+	// flushAll は pending に残っている分を、投稿者ごとに COMMENTED のレビューとして出す
+	flushAll := func() {
+		for len(pending) > 0 {
+			user := pending[0].user
+			mine := take(user)
+			emit(ymlReview{ReviewerName: user, CommitID: mine[0].CommitID, CreatedAt: mine[0].CreatedAt, State: "COMMENTED"}, mine)
+		}
 	}
 	for _, ev := range is.Events {
 		if ev.Deleted {
@@ -266,13 +294,10 @@ func exportReviews(is store.Issue) []ymlReview {
 			if ev.Side == "old" {
 				line = -line
 			}
-			if len(pending) == 0 {
-				pendingUser, pendingTime, pendingCommit = ev.User, ev.Time, ev.CommitSHA
-			}
-			pending = append(pending, ymlReviewComment{
-				ID: int64(len(pending) + 1), Content: ev.Body, TreePath: ev.Path, DiffHunk: ev.DiffHunk, Line: line,
+			pending = append(pending, pendingComment{user: ev.User, c: ymlReviewComment{
+				Content: ev.Body, TreePath: ev.Path, DiffHunk: ev.DiffHunk, Line: line,
 				CommitID: ev.CommitSHA, Reactions: []any{}, CreatedAt: ev.Time.UTC(), UpdatedAt: ev.Time.UTC(),
-			})
+			}})
 		case store.EventReview:
 			state := "COMMENTED"
 			switch ev.State {
@@ -281,12 +306,12 @@ func exportReviews(is store.Issue) []ymlReview {
 			case store.ReviewChangesRequested:
 				state = "CHANGES_REQUESTED"
 			}
-			flush(ymlReview{ReviewerName: ev.User, CommitID: ev.CommitSHA, Content: ev.Body, CreatedAt: ev.Time.UTC(), State: state})
+			mine := take(ev.User)
+			flushAll()
+			emit(ymlReview{ReviewerName: ev.User, CommitID: ev.CommitSHA, Content: ev.Body, CreatedAt: ev.Time.UTC(), State: state}, mine)
 		}
 	}
-	if len(pending) > 0 {
-		flush(ymlReview{ReviewerName: pendingUser, CommitID: pendingCommit, CreatedAt: pendingTime.UTC(), State: "COMMENTED"})
-	}
+	flushAll()
 	return out
 }
 
