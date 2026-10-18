@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -418,6 +419,24 @@ func (r Repo) Tags() ([]Tag, error) {
 		tags = append(tags, Tag{Name: parts[0], SHA: sha, Time: t})
 	}
 	return tags, nil
+}
+
+// CloneMirror は src を dst に --mirror で clone する（エクスポート用）。
+func CloneMirror(src, dst string) error {
+	_, _, err := runGit(filepath.Dir(dst), nil, "clone", "--quiet", "--mirror", "--end-of-options", src, dst)
+	return err
+}
+
+// PushMirror は src（bare か mirror）の全参照を dst に push する（インポート用）。
+func PushMirror(src, dst string) error {
+	_, _, err := runGit(src, nil, "push", "--quiet", "--mirror", "--end-of-options", dst)
+	return err
+}
+
+// UpdateRef は参照を sha に向ける（無ければ作る）。
+func (r Repo) UpdateRef(ref, sha string) error {
+	_, err := r.run("update-ref", "--no-deref", "--end-of-options", ref, sha)
+	return err
 }
 
 // Fsck は git fsck を実行する。force push で参照されなくなったオブジェクトは正常なので報告しない。

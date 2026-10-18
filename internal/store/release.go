@@ -186,6 +186,10 @@ func (s *Store) ListReleases(repo string) ([]Release, error) {
 
 // CreateRelease はリリースを作る。同じタグのリリースが生きていれば ErrReleaseExists。
 func (s *Store) CreateRelease(repo, user, tag, tagSHA, title, body string, prerelease bool) (Release, error) {
+	return s.createRelease(repo, user, tag, tagSHA, title, body, prerelease, time.Time{})
+}
+
+func (s *Store) createRelease(repo, user, tag, tagSHA, title, body string, prerelease bool, created time.Time) (Release, error) {
 	if err := s.writable(); err != nil {
 		return Release{}, err
 	}
@@ -201,7 +205,7 @@ func (s *Store) CreateRelease(repo, user, tag, tagSHA, title, body string, prere
 	if _, err := s.GetRelease(repo, tag); err == nil {
 		return Release{}, ErrReleaseExists
 	}
-	ev := Event{Type: EventCreated, User: user, Title: title, Body: body, Prerelease: prerelease, CommitSHA: tagSHA}
+	ev := Event{Type: EventCreated, User: user, Title: title, Body: body, Prerelease: prerelease, CommitSHA: tagSHA, Time: created}
 	if err := s.writeReleaseEvent(repo, tag, ev); err != nil {
 		return Release{}, err
 	}

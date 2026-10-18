@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"os"
 
+	"github-ppoi-for-fileserver/internal/dumprepo"
 	"github-ppoi-for-fileserver/internal/integrity"
 	"github-ppoi-for-fileserver/internal/store"
 )
 
-// サブコマンド（設計メモ 3.17）。
+// サブコマンド（設計メモ 3.16、3.17）。
 //   github-ppoi reserve -root <データルート> -repo <リポジトリ名> -to <番号>
 //   github-ppoi check   -root <データルート> [-repo <リポジトリ名>]
-// どちらも画面は上げず、結果を標準出力に出して終わる。
+//   github-ppoi export  -root <データルート> -repo <リポジトリ名> -out <出力先>
+//   github-ppoi import  -root <データルート> -dir <dump-repo のフォルダ> [-repo <リポジトリ名>]
+// いずれも画面は上げず、結果を標準出力に出して終わる。
 
 // runSubcommand は os.Args[1] がサブコマンドなら実行して真を返す。終了コードは code に入る。
 func runSubcommand(args []string) (code int, handled bool) {
@@ -24,6 +27,10 @@ func runSubcommand(args []string) (code int, handled bool) {
 		return runReserve(args[2:]), true
 	case "check":
 		return runCheck(args[2:]), true
+	case "export":
+		return runExport(args[2:]), true
+	case "import":
+		return runImport(args[2:]), true
 	}
 	return 0, false
 }
@@ -79,6 +86,58 @@ func runCheck(args []string) int {
 	}
 	if n > 0 {
 		return 2
+	}
+	return 0
+}
+
+// runExport はリポジトリを Gitea の dump-repo 形式で書き出す。
+func runExport(args []string) int {
+	fs := flag.NewFlagSet("export", flag.ContinueOnError)
+	root := fs.String("root", "", "データルートのパス")
+	repo := fs.String("repo", "", "リポジトリ名")
+	out := fs.String("out", "", "出力先のフォルダ（この下に <owner>/<リポジトリ名>/ を作る）")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *root == "" || *repo == "" || *out == "" {
+		fmt.Fprintln(os.Stderr, "使い方: github-ppoi export -root <データルート> -repo <リポジトリ名> -out <出力先>")
+		return 2
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	dir, err := dumprepo.Export(st, *repo, *out, os.Stdout)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Printf("%s に書き出した。Gitea へは gitea restore-repo --repo_dir %s --owner_name <owner> --repo_name %s で取り込める\n", dir, dir, *repo)
+	return 0
+}
+
+// runImport は dump-repo 形式のフォルダをデータルートに取り込む。
+func runImport(args []string) int {
+	fs := flag.NewFlagSet("import", flag.ContinueOnError)
+	root := fs.String("root", "", "データルートのパス")
+	dir := fs.String("dir", "", "dump-repo のフォルダ（repo.yml のある場所か、その親）")
+	repo := fs.String("repo", "", "作るリポジトリ名（省略すると repo.yml の name）")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *root == "" || *dir == "" {
+		fmt.Fprintln(os.Stderr, "使い方: github-ppoi import -root <データルート> -dir <dump-repo のフォルダ> [-repo <リポジトリ名>]")
+		return 2
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if _, err := dumprepo.Import(st, *dir, *repo, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 	return 0
 }
