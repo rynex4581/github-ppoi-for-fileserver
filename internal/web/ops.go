@@ -153,11 +153,14 @@ func (s *Server) setAssignees(st *store.Store, repo store.Repo, is store.Issue, 
 // ---- Pull Request ----
 
 // editBody は本文またはコメントを書き換える。target が空なら本文。
-// 誰でも編集できる（内輪で使う前提。編集前の本文は履歴として残る）。
+// 書いた本人だけが編集できる（GitHub と同じ）。編集前の本文は履歴として残る。
 func (s *Server) editBody(st *store.Store, repo store.Repo, is store.Issue, target, body string) error {
 	body = normalizeNewlines(body)
 	if target == "" {
 		target = is.BodyFile
+	}
+	if err := s.requireAuthor(is, target); err != nil {
+		return err
 	}
 	if target != is.BodyFile && strings.TrimSpace(body) == "" {
 		return opErr(422, "ppoi.error.comment_required")
@@ -171,8 +174,11 @@ func (s *Server) editBody(st *store.Store, repo store.Repo, is store.Issue, targ
 	return nil
 }
 
-// deleteComment はコメントまたは行コメントを削除する。
+// deleteComment はコメントまたは行コメントを削除する。書いた本人だけが削除できる。
 func (s *Server) deleteComment(st *store.Store, repo store.Repo, is store.Issue, target string) error {
+	if err := s.requireAuthor(is, target); err != nil {
+		return err
+	}
 	if err := st.DeleteComment(repo.Name, is.Number, s.login, target); err != nil {
 		if errors.Is(err, store.ErrEventNotFound) {
 			return opErr(404, "ppoi.error.comment_not_found")
@@ -180,6 +186,26 @@ func (s *Server) deleteComment(st *store.Store, repo store.Repo, is store.Issue,
 		return err
 	}
 	return nil
+}
+
+// requireAuthor は target のイベント（本文ならその Issue）を書いたのが自分であることを確かめる。
+// 違えば 403。対象が無ければ 404。
+func (s *Server) requireAuthor(is store.Issue, target string) error {
+	if target == "" || target == is.BodyFile {
+		if !strings.EqualFold(is.User, s.login) {
+			return opErr(403, "ppoi.error.not_author")
+		}
+		return nil
+	}
+	for _, ev := range is.Events {
+		if ev.File == target {
+			if !strings.EqualFold(ev.User, s.login) {
+				return opErr(403, "ppoi.error.not_author")
+			}
+			return nil
+		}
+	}
+	return opErr(404, "ppoi.error.comment_not_found")
 }
 
 // createPull は Pull Request を作る。base と head の確認と、差分の有無の確認を含む。

@@ -87,7 +87,7 @@
     <div class="TimelineItem-avatar app-avatar color-bg-subtle color-fg-muted border">{{icon "person"}}</div>
     <div class="TimelineItem-body">
       <div class="Box app-comment">
-        <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span>{{template "edithistory" $v.BodyEdit}}<a class="float-right Link--muted text-small" href="{{$v.PullURL}}/edit">{{tr "repo.issues.context.edit"}}</a></div>
+        <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span>{{template "edithistory" $v.BodyEdit}}{{if sameUser .User $.Login}}<a class="float-right Link--muted text-small" href="{{$v.PullURL}}/edit">{{tr "repo.issues.context.edit"}}</a>{{end}}</div>
         <div class="Box-body markdown-body">{{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>{{tr "repo.issues.no_content"}}</em></p>{{end}}</div>
       </div>
     </div>
@@ -101,10 +101,10 @@
       <div class="TimelineItem-body">
         <div class="Box app-comment">
           <div class="Box-header color-bg-subtle"><strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .Time)}}</span>{{template "edithistory" .Edit}}
-            <span class="float-right text-small">
+            {{if sameUser .User $.Login}}<span class="float-right text-small">
               <a class="Link--muted" href="{{$v.PullURL}}/edit?target={{.File}}">{{tr "repo.issues.context.edit"}}</a>
               {{if .CanDelete}}<form method="post" class="d-inline ml-2" action="{{$v.PullURL}}/delete?target={{.File}}" data-confirm="{{tr "repo.issues.delete_comment_confirm"}}"><button class="btn-link Link--muted" type="submit">{{tr "repo.issues.context.delete"}}</button></form>{{end}}
-            </span></div>
+            </span>{{end}}</div>
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
         </div>
       </div>
@@ -128,10 +128,10 @@
           <summary class="Box-header color-bg-subtle text-mono text-small">{{.Path}}{{if .Outdated}} <span class="color-fg-muted">({{short .CommitSHA}})</span>{{end}}</summary>
           {{if .DiffHunk}}<pre class="app-hunk-pre m-0 text-small">{{.DiffHunk}}</pre>{{end}}
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
-          <div class="Box-footer text-small color-bg-subtle">{{template "edithistory" .Edit}}
-            <a class="Link--muted" href="{{$v.PullURL}}/edit?target={{.File}}">{{tr "repo.issues.context.edit"}}</a>
-            <form method="post" class="d-inline ml-2" action="{{$v.PullURL}}/delete?target={{.File}}" data-confirm="{{tr "repo.issues.delete_comment_confirm"}}"><button class="btn-link Link--muted" type="submit">{{tr "repo.issues.context.delete"}}</button></form>
-          </div>
+          {{if or .Edit.Edited (sameUser .User $.Login)}}<div class="Box-footer text-small color-bg-subtle">{{template "edithistory" .Edit}}
+            {{if sameUser .User $.Login}}<a class="Link--muted" href="{{$v.PullURL}}/edit?target={{.File}}">{{tr "repo.issues.context.edit"}}</a>
+            <form method="post" class="d-inline ml-2" action="{{$v.PullURL}}/delete?target={{.File}}" data-confirm="{{tr "repo.issues.delete_comment_confirm"}}"><button class="btn-link Link--muted" type="submit">{{tr "repo.issues.context.delete"}}</button></form>{{end}}
+          </div>{{end}}
         </details>
       </div>
     </div>

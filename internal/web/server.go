@@ -350,6 +350,7 @@ func (s *Server) funcs() template.FuncMap {
 		"chips":      labelChips,
 		"inc":        func(i int) int { return i + 1 },
 		"short":      shortSHA,
+		"sameUser":   strings.EqualFold,
 		"lineKey":    lineKey,
 	}
 }

@@ -23,7 +23,7 @@
       <div class="Box app-comment">
         <div class="Box-header color-bg-subtle">
           <strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .CreatedAt)}}</span>{{template "edithistory" $.Data.BodyEdit}}
-          <a class="float-right Link--muted text-small" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}/edit">{{tr "repo.issues.context.edit"}}</a>
+          {{if sameUser .User $.Login}}<a class="float-right Link--muted text-small" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{.Number}}/edit">{{tr "repo.issues.context.edit"}}</a>{{end}}
         </div>
         <div class="Box-body markdown-body">
           {{if .Body}}{{markdown .Body}}{{else}}<p class="color-fg-muted"><em>{{tr "repo.issues.no_content"}}</em></p>{{end}}
@@ -41,10 +41,10 @@
         <div class="Box app-comment">
           <div class="Box-header color-bg-subtle">
             <strong>{{name .User}}</strong> <span class="color-fg-muted">{{trh "repo.issues.commented_at" "" (datetime .Time)}}</span>{{template "edithistory" .Edit}}
-            <span class="float-right text-small">
+            {{if sameUser .User $.Login}}<span class="float-right text-small">
               <a class="Link--muted" href="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{$.Data.Issue.Number}}/edit?target={{.File}}">{{tr "repo.issues.context.edit"}}</a>
               {{if .CanDelete}}<form method="post" class="d-inline ml-2" action="/{{$.Owner}}/{{$.Repo.Name}}/issues/{{$.Data.Issue.Number}}/delete?target={{.File}}" data-confirm="{{tr "repo.issues.delete_comment_confirm"}}"><button class="btn-link Link--muted" type="submit">{{tr "repo.issues.context.delete"}}</button></form>{{end}}
-            </span>
+            </span>{{end}}
           </div>
           <div class="Box-body markdown-body">{{markdown .Body}}</div>
         </div>
