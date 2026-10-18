@@ -146,6 +146,12 @@ func (s *Store) issueDir(repo string, number int) string {
 	return filepath.Join(s.issuesDir(repo), fmt.Sprintf("%06d", number))
 }
 
+// IssuesDir は issues フォルダのパスを返す（検証プログラムが直接走査するために公開する）。
+func (s *Store) IssuesDir(repo string) string { return s.issuesDir(repo) }
+
+// EventsDir は Issue の events フォルダのパスを返す（検証プログラム用）。
+func (s *Store) EventsDir(repo string, number int) string { return s.eventsDir(repo, number) }
+
 func (s *Store) eventsDir(repo string, number int) string {
 	return filepath.Join(s.issueDir(repo, number), "events")
 }

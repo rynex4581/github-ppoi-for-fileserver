@@ -209,7 +209,7 @@ Ver 0.10。開発中
 
 未実装
 
-- SMB 上の同時更新の検証。本体と同じ採番と書き込みを2台から同時に回す `smbtest.exe` を Releases に置いている。2台で `.\smbtest.exe -root <共有フォルダ>\smbtest -n 2000` を同時に実行し、終わってから `-check` で番号の重複と書きかけの読み込みが無いかを確かめる
+- SMB 上の同時更新の検証。本体と同じ採番と書き込みを2台から同時に回す `smbtest.exe` を Releases に置いている。2台で `.\smbtest.exe -root <共有フォルダ>\smbtest -n 1000` を同時に実行し、終わってから `-check` を1台で実行すると、番号の重複、書きかけの読み込み、.tmp の残留、見えるまでの遅れを合格基準（各1000件、重複ゼロ、書きかけゼロ、30秒以内）で判定する
 - Gitea API のうち、上の「予定（未実装）」に挙げたもの
 
 リリースは GitHub Actions で行う。`v0.10` のようにタグを打つと、Windows 用の exe をビルドして Releases に置く。タグは `internal/version` の Number と一致していないと失敗する。README の画像は `go run ./tools/screenshot` で撮り直せる（端末の Chrome、Iron、Edge のいずれかを使う）。

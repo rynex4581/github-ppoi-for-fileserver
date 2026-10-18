@@ -212,6 +212,9 @@ func writeFileAtomic(path string, data []byte, replace bool) error {
 	return nil
 }
 
+// RenameNoReplace は既存があれば失敗する rename。検証プログラムが共有上の挙動を確かめるために公開する。
+func RenameNoReplace(from, to string) error { return renameNoReplace(from, to) }
+
 // removeStaleTemp は path と同じ対象の .tmp のうち1時間以上前のものを消す。
 // クラッシュや SMB の切断で残った書きかけの掃除で、消せなくても何もしない。
 func removeStaleTemp(path string) {
