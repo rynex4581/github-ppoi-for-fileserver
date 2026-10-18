@@ -60,6 +60,9 @@ func (s *Store) SetUserName(login, name string) error {
 	if !isSafeName(login) {
 		return errors.New("ログオン名に使えない文字が含まれている")
 	}
+	if err := s.writable(); err != nil {
+		return err
+	}
 	return writeJSONAtomic(s.userPath(login), User{Name: strings.TrimSpace(name)})
 }
 
@@ -70,7 +73,7 @@ func (s *Store) EnsureUser(login string) error {
 		return errors.New("ログオン名に使えない文字が含まれている")
 	}
 	_, err := os.Stat(s.userPath(login))
-	if err == nil {
+	if err == nil || s.readOnly {
 		return nil
 	}
 	if !errors.Is(err, fs.ErrNotExist) {

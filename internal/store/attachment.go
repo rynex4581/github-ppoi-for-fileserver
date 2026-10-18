@@ -26,6 +26,9 @@ func (s *Store) attachmentsDir(repo string, number int) string {
 // SaveAttachment は添付ファイルを issues\<番号>\attachments\<UTC時刻>_<元の名前> に保存し、そのファイル名を返す。
 // 元の名前はパス区切りや記号を落とし、空になれば file にする。大きさが上限を超えれば ErrAttachmentTooLarge。
 func (s *Store) SaveAttachment(repo string, number int, original string, data []byte) (string, error) {
+	if err := s.writable(); err != nil {
+		return "", err
+	}
 	if int64(len(data)) > s.config.AttachmentMaxBytes {
 		return "", ErrAttachmentTooLarge
 	}

@@ -92,5 +92,7 @@
   "ppoi.pulls.head_kept": "ブランチ %s は他のプルリクエストの base になっているので残しました。",
   "ppoi.settings.maintenance": "メンテナンス実行",
   "ppoi.settings.maintenance_desc": "ベアリポジトリの git gc を実行します。push のたびに各自の端末で自動実行されないよう receive.autogc は無効にしてあるので、たまにここから実行してください。",
-  "repo.diff.parents": "親"
+  "repo.diff.parents": "親",
+  "ppoi.readonly.banner": "データルート %s はこの exe が知らないデータ形式（format %d。この exe は %d まで）なので、読み取り専用で開いています。新しいバージョンの exe に更新してください。",
+  "ppoi.readonly.write": "このデータルートは読み取り専用で開いています（exe が知らないデータ形式）。新しいバージョンの exe に更新してください。"
 }

@@ -32,6 +32,9 @@ func (s *Server) opMessage(err error) string {
 	if errors.As(err, &oe) {
 		return s.tr(oe.Key, oe.Args...)
 	}
+	if errors.Is(err, store.ErrReadOnly) {
+		return s.tr("ppoi.readonly.write")
+	}
 	return err.Error()
 }
 
@@ -39,6 +42,9 @@ func opStatus(err error) int {
 	var oe *opError
 	if errors.As(err, &oe) {
 		return oe.Status
+	}
+	if errors.Is(err, store.ErrReadOnly) {
+		return 403
 	}
 	return 500
 }

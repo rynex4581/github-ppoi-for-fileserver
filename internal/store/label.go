@@ -79,6 +79,9 @@ func (s *Store) GetLabel(repo string, id int) (Label, error) {
 }
 
 func (s *Store) saveLabels(repo string, labels []Label) error {
+	if err := s.writable(); err != nil {
+		return err
+	}
 	if labels == nil {
 		labels = []Label{}
 	}

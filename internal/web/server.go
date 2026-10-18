@@ -5,18 +5,18 @@
 package web
 
 import (
-	"path"
-	"io"
 	"bytes"
 	"embed"
 	"errors"
 	"fmt"
 	"html"
 	"html/template"
+	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -433,7 +433,8 @@ type page struct {
 	Lang      string
 	Owner     string
 	Newer     *newerVersion
-	MaxAttach int64 // 添付ファイルの上限（バイト）。リポジトリの画面で入る
+	ReadOnly  []string // 読み取り専用で開いているデータルートの知らせ（表示する文のまま）
+	MaxAttach int64    // 添付ファイルの上限（バイト）。リポジトリの画面で入る
 	Repo      *store.Repo
 	Tab       string
 	Error     string
@@ -441,7 +442,13 @@ type page struct {
 }
 
 func (s *Server) newPage(title string) page {
-	return page{Title: title, Login: s.login, LoginName: s.displayName(s.login), Version: version.Display, Port: s.port, Lang: s.locale().Lang(), Newer: s.newer}
+	p := page{Title: title, Login: s.login, LoginName: s.displayName(s.login), Version: version.Display, Port: s.port, Lang: s.locale().Lang(), Newer: s.newer}
+	for _, st := range s.allStores() {
+		if st.ReadOnly() {
+			p.ReadOnly = append(p.ReadOnly, s.tr("ppoi.readonly.banner", st.Config().DisplayOwner(), st.Config().Format, store.CurrentFormat))
+		}
+	}
+	return p
 }
 
 // htmlCSP は画面の HTML に付ける Content-Security-Policy。スクリプトは /static/app.js だけで、

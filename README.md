@@ -156,7 +156,7 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 
 ```
 <データルート>\
-  config.json                  このデータルートの設定（owner 名、owner の表示名、既定のブランチ名など）
+  config.json                  このデータルートの設定（owner 名、owner の表示名、既定のブランチ名、データ形式の版など）
   repos\
     <リポジトリ名>.git\        ベアリポジトリ
   meta\
@@ -188,6 +188,7 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 | `owner_name` | owner の表示名。日本語可 | 空（owner 名を表示） |
 | `default_branch` | 新規リポジトリの既定ブランチ名 | `main` |
 | `attachment_max_bytes` | 添付ファイルのサイズ上限 | 10485760（10 MB） |
+| `format` | データ形式の版。exe が知らない値なら、そのデータルートは読み取り専用で開く | 1 |
 
 端末側の `data_roots` と `lang` は設定画面から変更可能。`port` とデータルート側の項目はファイルを直接編集する。端末側のファイルは削除しても、exe を起動してデータルートを登録し直せば元に戻る。
 

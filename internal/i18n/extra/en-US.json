@@ -92,5 +92,7 @@
   "ppoi.pulls.head_kept": "Branch %s was kept because another pull request uses it as base.",
   "ppoi.settings.maintenance": "Run maintenance",
   "ppoi.settings.maintenance_desc": "Runs git gc on the bare repository. Automatic gc on push (receive.autogc) is disabled so that no client stalls on it over SMB; run it here from time to time.",
-  "repo.diff.parents": "Parents"
+  "repo.diff.parents": "Parents",
+  "ppoi.readonly.banner": "Data root %s uses a data format this exe does not know (format %d; this exe supports up to %d), so it is opened read-only. Update to a newer exe.",
+  "ppoi.readonly.write": "This data root is opened read-only (unknown data format). Update to a newer exe."
 }

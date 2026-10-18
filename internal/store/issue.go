@@ -220,6 +220,9 @@ func (s *Store) eventFileName(t time.Time) string {
 
 // writeEvent はイベントを1ファイルとして書く。Time が空なら現在時刻を入れる。
 func (s *Store) writeEvent(repo string, number int, ev Event) error {
+	if err := s.writable(); err != nil {
+		return err
+	}
 	if ev.Time.IsZero() {
 		ev.Time = time.Now()
 	}
@@ -236,6 +239,9 @@ func (s *Store) writeEvent(repo string, number int, ev Event) error {
 // AllocateIssue は番号を採番してフォルダを作り、番号を返す。created イベントはまだ書かない。
 // 添付ファイルを先に保存して本文に参照を入れたいときに使う。続けて WriteCreated を呼ぶ。
 func (s *Store) AllocateIssue(repo string) (int, error) {
+	if err := s.writable(); err != nil {
+		return 0, err
+	}
 	if _, err := s.GetRepo(repo); err != nil {
 		return 0, err
 	}

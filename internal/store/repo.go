@@ -102,6 +102,9 @@ func (s *Store) readRepoMeta(name string) Repo {
 
 // UpdateRepo は repo.json を書き換える。説明、既定ブランチ、承認必須、force push 禁止を持つ。
 func (s *Store) UpdateRepo(r Repo) error {
+	if err := s.writable(); err != nil {
+		return err
+	}
 	if _, err := s.GetRepo(r.Name); err != nil {
 		return err
 	}
@@ -116,6 +119,9 @@ func (s *Store) UpdateRepo(r Repo) error {
 
 // CreateRepo は repos\<名前>.git に git init --bare し、meta\<名前>\repo.json を作る。
 func (s *Store) CreateRepo(name, description string) (Repo, error) {
+	if err := s.writable(); err != nil {
+		return Repo{}, err
+	}
 	if err := ValidateRepoName(name); err != nil {
 		return Repo{}, err
 	}

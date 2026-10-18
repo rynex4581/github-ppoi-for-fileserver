@@ -28,8 +28,17 @@ import (
 	"time"
 )
 
+// CurrentFormat はこの exe が読み書きできるデータ形式の版。フォルダ構成やイベント JSON に
+// 互換性の無い変更をしたときに上げる。
+const CurrentFormat = 1
+
+// ErrReadOnly は読み取り専用で開いたデータルートに書こうとしたときのエラー。
+var ErrReadOnly = errors.New("このデータルートはこの exe が知らないデータ形式なので、読み取り専用で開いている。新しいバージョンの exe に更新する")
+
 // Config はデータルート直下の config.json の内容。1つのデータルートが owner 1つに対応する。
 type Config struct {
+	// Format はデータ形式の版。無ければ 1。exe が知らない値（CurrentFormat より大きい）なら読み取り専用で開く。
+	Format int `json:"format"`
 	// Owner はGitea API上のowner名。URLに入るためASCIIに限る。データルートを作るときに決め、既定値は無い。
 	Owner string `json:"owner"`
 	// OwnerName は owner の表示名（日本語可）。空なら Owner をそのまま表示する。
@@ -98,6 +107,7 @@ func Create(root string, cfg Config) (*Store, error) {
 	if _, err := os.Stat(path); err == nil {
 		return nil, ErrConfigExists
 	}
+	cfg.Format = CurrentFormat
 	if cfg.DefaultBranch == "" {
 		cfg.DefaultBranch = "main"
 	}
@@ -113,12 +123,13 @@ func Create(root string, cfg Config) (*Store, error) {
 
 // Store はデータルートを指す。
 type Store struct {
-	root   string
-	config Config
-	host   string // 端末名（ファイル名に使える文字に直したもの）
-	pid    int    // 自プロセスの ID。同じ端末で2つ動いても名前が重ならないようにする
-	seq    atomic.Uint64
-	cache  eventCache // イベントのローカルキャッシュ（cache.go）
+	root     string
+	config   Config
+	readOnly bool   // config.json の format が exe より新しい。書き込みはすべて ErrReadOnly
+	host     string // 端末名（ファイル名に使える文字に直したもの）
+	pid      int    // 自プロセスの ID。同じ端末で2つ動いても名前が重ならないようにする
+	seq      atomic.Uint64
+	cache    eventCache // イベントのローカルキャッシュ（cache.go）
 }
 
 var hostSanitize = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
@@ -161,6 +172,17 @@ func (s *Store) Root() string { return s.root }
 // Config は全体設定を返す。
 func (s *Store) Config() Config { return s.config }
 
+// ReadOnly はこのデータルートを読み取り専用で開いているかを返す。
+func (s *Store) ReadOnly() bool { return s.readOnly }
+
+// writable は書き込みの前に呼ぶ。読み取り専用なら ErrReadOnly。
+func (s *Store) writable() error {
+	if s.readOnly {
+		return ErrReadOnly
+	}
+	return nil
+}
+
 func (s *Store) reposDir() string { return filepath.Join(s.root, "repos") }
 func (s *Store) metaDir() string  { return filepath.Join(s.root, "meta") }
 
@@ -175,6 +197,12 @@ func (s *Store) loadOrCreateConfig() error {
 	}
 	if err := json.Unmarshal(data, &s.config); err != nil {
 		return fmt.Errorf("%s の読み込みに失敗: %w", path, err)
+	}
+	if s.config.Format == 0 {
+		s.config.Format = 1
+	}
+	if s.config.Format > CurrentFormat {
+		s.readOnly = true
 	}
 	if s.config.Owner == "" {
 		return fmt.Errorf("%s に owner 名が無い。\"owner\" を足す", path)
