@@ -159,7 +159,7 @@ Pull Request の Files changed。差分の行にコメントを付けられる�
 
 ## 現在の状態
 
-Ver 0.21。開発中
+Ver 0.21A。開発中
 
 未実装
 

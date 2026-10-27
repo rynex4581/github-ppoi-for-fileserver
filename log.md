@@ -177,6 +177,13 @@ ohooks（空フォルダ）の絶対パスを渡す。--receive-pack の中で�
 
 - 外部レビュー 3 回目の対応、設定画面のフォルダ参照、owner 名の形式検査、ロゴとアイコンの GitH○b 化を含めて Ver 0.21 とした。タグ v0.21 で release を通す
 
+### Ver 0.21A
+
+- UNC で登録したデータルートで git が「unable to get current working directory」で失敗する件の対応（設計メモ 3.19）。UNC のデータルートごとに DOS デバイス名（github-ppoi-<owner 名>）を定義し、git には `\\.\<名前>\...` の仮想パスを渡す。リポジトリ作成の git init --bare も仮想パスで、他の git の呼び出しと同じ -c を付けて実行する
+- 新しく作るデータルートでは owner 名の末尾の . を弾く（`\\.\` のパスで末尾の . が落ちるため）。既に末尾が . のデータルートは DOS デバイス名を定義せず、赤帯を出して UNC のまま使う
+- 画面の clone コマンドと push 手順の receivepack に -c core.longpaths=true を足した。検証で、深いパスのデータルートへの利用者の push が Filename too long で失敗したため（ツール自身の push には以前から付けてある）
+- 自宅では `\\localhost\C$` 経由の UNC で、データルートの登録、リポジトリ作成、画面の clone コマンドでの clone と push、マージ、check、export、import が仮想パスで通ることを確かめた。中間の階層の一覧権限を外しても UNC のままの git init は通り、職場の失敗は再現できなかった。最終確認は職場で行う
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
