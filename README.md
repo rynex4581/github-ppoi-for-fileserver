@@ -69,7 +69,7 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 
 起動するとブラウザに設定画面が開く。データルートにするフォルダ（共有フォルダ）を「参照…」で選ぶか、パスを直接入力し、owner 名と合わせて登録する。
 
-- owner 名は URL に使うので半角英数（`.` `_` `-` 可）。表示名は任意。日本語可
+- owner 名は URL に使うので半角英数（`.` `_` `-` 可、末尾の `.` は不可）。表示名は任意。日本語可
 - `config.json` の無いフォルダを指定すると、そのフォルダをデータルートとして初期化する。既にデータルートになっているフォルダなら登録だけを行う
 - 設定は `%LOCALAPPDATA%\github-ppoi\config.json` に保存される
 - 2つ目以降のデータルートは、画面右上の歯車の「自分の設定」から追加する
@@ -77,6 +77,20 @@ Gitea互換にしたのは、CodexにGiteaのAPIを使わせる形でIssueの読
 > [!TIP]
 > 待ち受けポートは 9418 から 9427 の範囲で空いているものを使用する。使用中のポートは画面のフッターに表示し、`%LOCALAPPDATA%\github-ppoi\port.txt` にも書き出す。<br>
 > ~~こんなツール使う職場はどうせgitのポートである9418なんて使ってるわけないからこっちで使うね☆ﾐ~~
+
+### UNC パスで登録したデータルート
+
+UNC パス（`\\<サーバ>\<共有>\...`）で登録したデータルートには DOS デバイス名 `github-ppoi-<owner 名>` を定義し、git には `\\.\github-ppoi-<owner 名>\...` の形のパス（仮想パス）を渡す。<br>
+UNC パスのままでは、上位の階層に一覧の権限が無い共有で git が失敗するためである。名前は owner 名から決まるので、どの端末でも同じ名前になる。<br>
+定義はログオンセッション内のみ有効で、再起動で消える。ツールの終了時には削除しないので、ツールの停止中も Codex 等の git から仮想パスを使用可能。次回の起動時に再定義する。
+
+- 管理者として実行したプロセスでは定義が別になり、仮想パスは使用できない（subst と同じ）
+- Ver 0.21A より前に clone した作業 clone は、次のコマンドで remote を仮想パスに付け替え、push 時の長いパスを許可する
+
+```powershell
+git remote set-url origin \\.\github-ppoi-<owner 名>\repos\<リポジトリ名>.git
+git config remote.origin.receivepack "git -c safe.directory=* -c core.longpaths=true receive-pack"
+```
 
 ### ソースからのビルド
 

@@ -242,7 +242,7 @@ func Export(st *store.Store, repoName string, opts Options) (Result, error) {
 	}
 
 	// git
-	bare := filepath.Join(st.Root(), "repos", repoName+".git")
+	bare := st.GitPath(filepath.Join(st.Root(), "repos", repoName+".git"))
 	g := gitcmd.Repo{Dir: bare}
 	// refs/pull/* は GitHub が拒むので、ブランチとタグだけを push する（新19）
 	if err := gitcmd.PushBranchesAndTags(bare, opts.GitRemote); err != nil {

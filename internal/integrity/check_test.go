@@ -23,6 +23,16 @@ func git(t *testing.T, dir string, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// reopen はデータルートを開き直す。サブコマンドの check と同じく、開いたばかりの store で調べる。
+func reopen(t *testing.T, root string) *store.Store {
+	t.Helper()
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
 func TestCheck(t *testing.T) {
 	root := t.TempDir()
 	st, err := store.Create(root, store.Config{Owner: "demo"})
@@ -66,7 +76,7 @@ func TestCheck(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	n, err := Check(root, "", &out)
+	n, err := Check(reopen(t, root), "", &out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +98,7 @@ func TestCheck(t *testing.T) {
 	os.Remove(st.ReleaseAttachmentsDir("r", "v2.0"))
 
 	out.Reset()
-	n, err = Check(root, "r", &out)
+	n, err = Check(reopen(t, root), "r", &out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +113,7 @@ func TestCheck(t *testing.T) {
 		t.Errorf("問題は 7 件のはずが %d 件:\n%s", n, text)
 	}
 
-	if _, err := Check(root, "nothing", &out); err == nil {
+	if _, err := Check(reopen(t, root), "nothing", &out); err == nil {
 		t.Error("無いリポジトリを指定してもエラーにならない")
 	}
 }

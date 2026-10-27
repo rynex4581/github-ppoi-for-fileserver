@@ -1,6 +1,6 @@
 // Package gitcmd は各端末の Git for Windows を呼んで、ベアリポジトリを読む。
 // ほとんどは読み取りだが、HasConflict の merge-tree は結果のツリーを共有のベアリポジトリに書く。
-// 設定を変えるのは SetDenyNonFastForwards、SetHead、Maintenance だけ。
+// 設定を変えるのは InitBare、SetDenyNonFastForwards、SetHead、Maintenance だけ。
 // ファイルサーバ上のリポジトリは所有者が自分と違うため、常に safe.directory=* を付けて呼ぶ。
 // そのため、データルートに書ける人はリポジトリの設定（diff.external 等）を通じて他の端末で
 // コマンドを動かせる関係にある。緩和として diff.external と log.showSignature を無効にし、
@@ -435,6 +435,18 @@ func (r Repo) Tags() ([]Tag, error) {
 		tags = append(tags, Tag{Name: parts[0], SHA: sha, Time: t})
 	}
 	return tags, nil
+}
+
+// InitBare は作成済みの空のフォルダ dir に git init --bare する。
+// push を受けた端末が SMB 越しに gc を走らせて固まらないよう、自動 gc は切る。gc は Settings から手で実行する。
+func InitBare(dir, branch string) error {
+	if _, _, err := runGit(dir, nil, "init", "--bare", "--quiet", "--initial-branch="+branch, dir); err != nil {
+		return fmt.Errorf("git init --bare に失敗: %w", err)
+	}
+	if _, _, err := runGit(dir, nil, "config", "receive.autogc", "false"); err != nil {
+		return fmt.Errorf("git config に失敗: %w", err)
+	}
+	return nil
 }
 
 // CloneMirror は src を dst に --mirror で clone する（エクスポート用）。

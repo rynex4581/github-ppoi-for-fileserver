@@ -2,14 +2,14 @@ package store
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github-ppoi-for-fileserver/internal/gitcmd"
 )
 
 // Repo はリポジトリの情報。meta\<名前>\repo.json に対応する。
@@ -134,15 +134,10 @@ func (s *Store) CreateRepo(name, description string) (Repo, error) {
 		}
 		return Repo{}, err
 	}
-	cmd := exec.Command("git", "init", "--bare", "--quiet", "--initial-branch="+s.config.DefaultBranch, bare)
-	if out, err := cmd.CombinedOutput(); err != nil {
+	// git には UNC のデータルートでも失敗しない仮想パスを渡す（GitPath）
+	if err := gitcmd.InitBare(s.GitPath(bare), s.config.DefaultBranch); err != nil {
 		os.RemoveAll(bare)
-		return Repo{}, fmt.Errorf("git init --bare に失敗: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	// push を受けた端末が SMB 越しに gc を走らせて固まらないよう、自動 gc は切る。gc は Settings から手で実行する
-	if out, err := exec.Command("git", "-C", bare, "config", "receive.autogc", "false").CombinedOutput(); err != nil {
-		os.RemoveAll(bare)
-		return Repo{}, fmt.Errorf("git config に失敗: %w: %s", err, strings.TrimSpace(string(out)))
+		return Repo{}, err
 	}
 
 	r := Repo{Name: name, Owner: s.config.Owner, Description: description, DefaultBranch: s.config.DefaultBranch}

@@ -46,6 +46,28 @@ func TestRangeAndConflict(t *testing.T) {
 	}
 }
 
+// 既にある clone は、Remote が変わると origin を付け替えて、新しいパスから取り込む
+// （UNC のデータルートを仮想パスで扱うようになる前に作った clone の想定）。
+func TestCloneEnsureUpdatesRemote(t *testing.T) {
+	r, _ := newTestRepo(t)
+	c := Clone{Dir: filepath.Join(t.TempDir(), "clones", "sample"), Remote: r.Dir, UserName: "testuser1", UserEmail: "testuser1@example.invalid"}
+	if err := c.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	moved := filepath.Join(t.TempDir(), "moved.git")
+	if err := os.Rename(r.Dir, moved); err != nil {
+		t.Fatal(err)
+	}
+	c.Remote = moved
+	if err := c.sync("main"); err != nil {
+		t.Fatalf("付け替えた origin から取り込めない: %v", err)
+	}
+	out, err := c.git("remote", "get-url", "origin")
+	if err != nil || strings.TrimSpace(string(out)) != moved {
+		t.Errorf("origin が付け替わっていない: %q %v", out, err)
+	}
+}
+
 func TestCloneMergeAndRevert(t *testing.T) {
 	r, work := newTestRepo(t)
 	c := Clone{Dir: filepath.Join(t.TempDir(), "clones", "sample"), Remote: r.Dir, UserName: "testuser1", UserEmail: "testuser1@example.invalid"}

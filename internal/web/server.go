@@ -101,6 +101,11 @@ func New(cfg localconfig.Config, login string, port int) (*Server, error) {
 		owners[strings.ToLower(owner)] = root
 		s.stores = append(s.stores, st)
 	}
+	// UNC のデータルートに DOS デバイス名を定義する。名前は owner 名から作るので、
+	// owner 名の重複を弾いた後に行う
+	for _, st := range s.stores {
+		s.defineDOSDevice(st)
+	}
 	s.newer = s.findNewerVersion()
 	s.routes()
 	return s, nil
@@ -200,6 +205,14 @@ func (s *Server) openStore(root string) (*store.Store, error) {
 		log.Printf("利用者ファイルを作れない: %v", err)
 	}
 	return st, nil
+}
+
+// defineDOSDevice は UNC のデータルートに DOS デバイス名を定義する。
+// 定義できなくても UNC パスのまま使い続け、ログと画面の上部で知らせる（newPage）。
+func (s *Server) defineDOSDevice(st *store.Store) {
+	if err := st.DefineDOSDevice(); err != nil {
+		log.Printf("DOS デバイス名を定義できない（UNC パスのまま使用する）: %s: %v", st.Root(), err)
+	}
 }
 
 // Handler はHTTPハンドラを返す。
@@ -460,6 +473,7 @@ type page struct {
 	Owner        string
 	Newer        *newerVersion
 	ReadOnly     []string // 読み取り専用で開いているデータルートの知らせ（表示する文のまま）
+	DOSDevice    []string // DOS デバイス名を定義できなかったデータルートの知らせ（表示する文のまま）
 	RepoReadOnly bool     // 表示中のリポジトリのデータルートが読み取り専用。書き込みの操作を画面に出さない
 	MaxAttach    int64    // 添付ファイルの上限（バイト）。リポジトリの画面で入る
 	Repo         *store.Repo
@@ -473,6 +487,9 @@ func (s *Server) newPage(title string) page {
 	for _, st := range s.allStores() {
 		if st.ReadOnly() {
 			p.ReadOnly = append(p.ReadOnly, s.tr("ppoi.readonly.banner", st.Config().DisplayOwner(), st.Config().Format, store.CurrentFormat))
+		}
+		if err := st.DOSDeviceErr(); err != nil {
+			p.DOSDevice = append(p.DOSDevice, s.tr("ppoi.dosdevice.failed", st.Config().DisplayOwner(), err.Error()))
 		}
 	}
 	return p

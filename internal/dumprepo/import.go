@@ -101,7 +101,7 @@ func importRepo(st *store.Store, dir, repoName string, log io.Writer, created *b
 	}
 	*created = true
 	fmt.Fprintf(log, "リポジトリ %s を作った\n", repoName)
-	bare := filepath.Join(st.Root(), "repos", repoName+".git")
+	bare := st.GitPath(filepath.Join(st.Root(), "repos", repoName+".git"))
 	g := gitcmd.Repo{Dir: bare}
 
 	// git

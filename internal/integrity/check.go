@@ -44,11 +44,8 @@ func (p Problem) String() string {
 var attachmentRef = regexp.MustCompile(`/attachments/([^/\s)]+)/([^/\s)]+)/(\d+)/([^\s)"']+)`)
 
 // Check はデータルートを調べ、問題を出力して件数を返す。repo が空なら全リポジトリ。
-func Check(root, repo string, out io.Writer) (int, error) {
-	st, err := store.Open(root)
-	if err != nil {
-		return 0, err
-	}
+// st は開いたばかりのもの（DOS デバイス名の定義は呼ぶ側で済ませる）を渡す。
+func Check(st *store.Store, repo string, out io.Writer) (int, error) {
 	repos, err := st.ListRepos()
 	if err != nil {
 		return 0, err
@@ -78,7 +75,8 @@ func checkRepo(st *store.Store, repo string) []Problem {
 	add := func(number int, file, msg string) {
 		problems = append(problems, Problem{Repo: repo, Number: number, File: file, Message: msg})
 	}
-	g := gitcmd.Repo{Dir: filepath.Join(st.Root(), "repos", repo+".git")}
+	bare := filepath.Join(st.Root(), "repos", repo+".git")
+	g := gitcmd.Repo{Dir: st.GitPath(bare)}
 	commitSeen := map[string]bool{}
 	commitOK := func(sha string) bool {
 		if ok, seen := commitSeen[sha]; seen {
@@ -231,8 +229,8 @@ func checkRepo(st *store.Store, repo string) []Problem {
 		}
 	}
 
-	if _, err := os.Stat(g.Dir); err != nil {
-		add(0, "", "ベアリポジトリが無い: "+g.Dir)
+	if _, err := os.Stat(bare); err != nil {
+		add(0, "", "ベアリポジトリが無い: "+bare)
 		return problems
 	}
 	if out, err := g.Fsck(); err != nil {

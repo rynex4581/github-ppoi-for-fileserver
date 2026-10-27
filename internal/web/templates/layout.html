@@ -56,6 +56,7 @@
 
 <main class="container-lg px-3 py-4 app-main">
   {{range .ReadOnly}}<div class="flash flash-warn mb-3">{{.}}</div>{{end}}
+  {{range .DOSDevice}}<div class="flash flash-error mb-3">{{.}}</div>{{end}}
   {{if .Newer}}<div class="flash flash-warn mb-3">{{trh "ppoi.update.available" .Newer.Version}} <span class="text-mono text-small wb-break-all">{{.Newer.Path}}</span></div>{{end}}
   {{if .Error}}<div class="flash flash-error mb-3">{{.Error}}</div>{{end}}
   {{template "content" .}}

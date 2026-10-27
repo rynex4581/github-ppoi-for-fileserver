@@ -40,10 +40,12 @@ func (c Clone) git(args ...string) ([]byte, error) {
 	return out, err
 }
 
-// Ensure は clone が無ければ作る。
+// Ensure は clone が無ければ作る。あれば origin を Remote に合わせる（UNC のデータルートを
+// \\.\<名前> の仮想パスで扱うようになる前に作った clone が、UNC のまま fetch と push をしないため）。
 func (c Clone) Ensure() error {
 	if _, err := os.Stat(filepath.Join(c.Dir, ".git")); err == nil {
-		return nil
+		_, err := c.git("remote", "set-url", "origin", c.Remote)
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(c.Dir), 0o755); err != nil {
 		return err

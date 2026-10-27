@@ -8,6 +8,7 @@
 | Octicons | 19.40.0 | MIT | internal/web/static/octicons/ |
 | Gitea の言語ファイル | v28.1.0（options/locale/locale_ja-JP.json、locale_en-US.json） | MIT | third_party/gitea/locale/ |
 | yaml.v3（gopkg.in/yaml.v3） | v3.0.1 | MIT と Apache 2.0 | exe にリンク（dump-repo 形式の読み書き） |
+| golang.org/x/sys | v0.48.0 | BSD-3-Clause（ライセンス文は go/LICENSE と同一） | exe にリンク（DOS デバイス名の定義） |
 
 Primer CSS は 22 系で Box、State、TimelineItem、UnderlineNav などの部品が削除されたため、これらが残っている 21 系の最終版を使う。
 

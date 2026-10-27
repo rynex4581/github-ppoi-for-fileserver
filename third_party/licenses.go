@@ -26,4 +26,6 @@ var Components = []Component{
 	{Name: "Octicons", Version: "19.40.0", License: "MIT", URL: "https://primer.style/octicons/", File: "octicons/LICENSE", Note: "画面のアイコン"},
 	{Name: "Gitea", Version: "v28.1.0", License: "MIT", URL: "https://gitea.com/", File: "gitea/LICENSE", Note: "画面の文言（言語ファイル）と API の形"},
 	{Name: "goldmark", Version: "v1.8.6", License: "MIT", URL: "https://github.com/yuin/goldmark", File: "goldmark/LICENSE", Note: "Markdown の描画"},
+	// ライセンス文は Go と同一なので go/LICENSE を使用する
+	{Name: "golang.org/x/sys", Version: "v0.48.0", License: "BSD-3-Clause", URL: "https://pkg.go.dev/golang.org/x/sys", File: "go/LICENSE", Note: "DOS デバイス名の定義（Windows API の呼び出し）"},
 }

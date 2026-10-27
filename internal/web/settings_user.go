@@ -158,6 +158,7 @@ func (s *Server) handleRootAdd(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusUnprocessableEntity, s.tr("ppoi.settings.duplicate_owner", st.Config().Owner, other.Root()))
 		return
 	}
+	s.defineDOSDevice(st)
 
 	s.mu.Lock()
 	s.cfg.DataRoots = append(s.cfg.DataRoots, root)

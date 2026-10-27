@@ -4,12 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github-ppoi-for-fileserver/internal/dumprepo"
 	"github-ppoi-for-fileserver/internal/ghexport"
 	"github-ppoi-for-fileserver/internal/integrity"
+	"github-ppoi-for-fileserver/internal/localconfig"
 	"github-ppoi-for-fileserver/internal/store"
 )
 
@@ -20,6 +22,52 @@ import (
 //   github-ppoi import  -root <データルート> -dir <dump-repo のフォルダ> [-repo <リポジトリ名>]
 //   github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> [-resume]（トークンは環境変数 GITHUB_TOKEN か -token）
 // いずれも画面は上げず、結果を標準出力に出して終わる。
+
+// openRoot はデータルートを開き、UNC パスなら DOS デバイス名を定義する（画面と同じ。設計メモ 3.19）。
+// 定義できなければ、その旨を出して UNC パスのまま続ける。
+func openRoot(root string) (*store.Store, error) {
+	st, err := store.Open(root)
+	if err != nil {
+		return nil, err
+	}
+	if !st.IsUNC() {
+		return st, nil
+	}
+	// 同じ owner 名の別のデータルート（別の場所に復元した複製など）が端末に登録されていれば、
+	// 定義し直すとそちらの DOS デバイス名がこのデータルートを指してしまうので定義しない
+	if other := registeredSameOwner(st); other != "" {
+		fmt.Fprintf(os.Stderr, "同じ owner 名 %s のデータルート %s が登録されているので、DOS デバイス名を定義せず UNC パスのまま使用する\n", st.Config().Owner, other)
+		return st, nil
+	}
+	if err := st.DefineDOSDevice(); err != nil {
+		fmt.Fprintf(os.Stderr, "DOS デバイス名を定義できないので、UNC パスのまま使用する: %v\n", err)
+	}
+	return st, nil
+}
+
+// registeredSameOwner は、st と同じ owner 名の別のデータルートが端末に登録されていれば、そのパスを返す。
+// 同じデータルートを別の書き方で登録したもの（ネットワークドライブなど）は、config.json が同じ
+// ファイルなので除く。
+func registeredSameOwner(st *store.Store) string {
+	cfg, err := localconfig.Load()
+	if err != nil {
+		return ""
+	}
+	mine, err := os.Stat(filepath.Join(st.Root(), "config.json"))
+	if err != nil {
+		return ""
+	}
+	for _, other := range cfg.DataRoots {
+		if !strings.EqualFold(store.PeekOwner(other), st.Config().Owner) {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(other, "config.json")); err == nil && os.SameFile(info, mine) {
+			continue
+		}
+		return other
+	}
+	return ""
+}
 
 // runSubcommand は os.Args[1] がサブコマンドなら実行して真を返す。終了コードは code に入る。
 func runSubcommand(args []string) (code int, handled bool) {
@@ -55,7 +103,7 @@ func runReserve(args []string) int {
 		fmt.Fprintln(os.Stderr, "使い方: github-ppoi reserve -root <データルート> -repo <リポジトリ名> -to <番号>")
 		return 2
 	}
-	st, err := store.Open(*root)
+	st, err := openRoot(*root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -85,7 +133,12 @@ func runCheck(args []string) int {
 		fmt.Fprintln(os.Stderr, "使い方: github-ppoi check -root <データルート> [-repo <リポジトリ名>]")
 		return 2
 	}
-	n, err := integrity.Check(*root, *repo, os.Stdout)
+	st, err := openRoot(*root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	n, err := integrity.Check(st, *repo, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -109,7 +162,7 @@ func runExport(args []string) int {
 		fmt.Fprintln(os.Stderr, "使い方: github-ppoi export -root <データルート> -repo <リポジトリ名> -out <出力先>")
 		return 2
 	}
-	st, err := store.Open(*root)
+	st, err := openRoot(*root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -136,7 +189,7 @@ func runImport(args []string) int {
 		fmt.Fprintln(os.Stderr, "使い方: github-ppoi import -root <データルート> -dir <dump-repo のフォルダ> [-repo <リポジトリ名>]")
 		return 2
 	}
-	st, err := store.Open(*root)
+	st, err := openRoot(*root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -166,7 +219,7 @@ func runExportGitHub(args []string) int {
 		fmt.Fprintln(os.Stderr, "使い方: github-ppoi export-github -root <データルート> -repo <リポジトリ名> -to <owner>/<リポジトリ名> [-resume]（トークンは環境変数 GITHUB_TOKEN に入れるか -token で渡す）")
 		return 2
 	}
-	st, err := store.Open(*root)
+	st, err := openRoot(*root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

@@ -30,6 +30,9 @@ func TestCreateAndOpen(t *testing.T) {
 	if _, err := Create(root, Config{Owner: ""}); err == nil {
 		t.Fatal("空の owner 名が通った")
 	}
+	if _, err := Create(root, Config{Owner: "team."}); err == nil {
+		t.Fatal("末尾が . の owner 名で新しく作れた")
+	}
 	s, err := Create(root, Config{Owner: "team-a", OwnerName: "試験チーム"})
 	if err != nil {
 		t.Fatal(err)

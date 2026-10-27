@@ -45,7 +45,7 @@
         <div class="col-12 col-md-5">
           <div class="form-group">
             <div class="form-group-header"><label for="root-owner">{{tr "ppoi.settings.owner"}}</label></div>
-            <div class="form-group-body"><input class="form-control input-block" type="text" id="root-owner" name="owner" value="{{.Data.NewOwner}}" placeholder="team-a" autocomplete="off" pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,49}" title="{{tr "ppoi.settings.owner_format"}}"></div>
+            <div class="form-group-body"><input class="form-control input-block" type="text" id="root-owner" name="owner" value="{{.Data.NewOwner}}" placeholder="team-a" autocomplete="off" pattern="[A-Za-z0-9]([A-Za-z0-9._\-]{0,48}[A-Za-z0-9_\-])?" title="{{tr "ppoi.settings.owner_format"}}"></div>
           </div>
         </div>
         <div class="col-12 col-md-7">

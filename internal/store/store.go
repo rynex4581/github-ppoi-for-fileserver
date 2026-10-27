@@ -106,6 +106,11 @@ func Create(root string, cfg Config) (*Store, error) {
 	if err := ValidateOwner(cfg.Owner); err != nil {
 		return nil, err
 	}
+	// 末尾の . は Windows のパスで落ち、DOS デバイス名に使えないので、新しく作るデータルートでは弾く
+	// （設計メモ 3.19）。既存のデータルートが開けなくならないよう、Open の検査には入れない
+	if strings.HasSuffix(cfg.Owner, ".") {
+		return nil, errors.New("owner 名の末尾に . は使えない")
+	}
 	path := filepath.Join(root, "config.json")
 	if _, err := os.Stat(path); err == nil {
 		return nil, ErrConfigExists
@@ -137,6 +142,8 @@ type Store struct {
 	pid      int    // 自プロセスの ID。同じ端末で2つ動いても名前が重ならないようにする
 	seq      atomic.Uint64
 	cache    eventCache // イベントのローカルキャッシュ（cache.go）
+	gitRoot  string     // DOS デバイス名を定義できたときの \\.\<名前>。git に渡すパスの根元にする
+	dosErr   error      // DOS デバイス名を定義できなかった理由
 }
 
 var hostSanitize = regexp.MustCompile(`[^A-Za-z0-9_-]+`)

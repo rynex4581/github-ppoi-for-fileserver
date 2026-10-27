@@ -25,8 +25,10 @@ const maxRawBytes = 64 * 1024 * 1024
 // 履歴の1ページの件数。
 const commitsPerPage = 30
 
+// gitRepo はベアリポジトリを返す。Dir は git に渡す形（UNC のデータルートなら仮想パス）で、
+// clone コマンドと push 手順の表示にもそのまま使う。
 func (s *Server) gitRepo(st *store.Store, repo store.Repo) gitcmd.Repo {
-	return gitcmd.Repo{Dir: filepath.Join(st.Root(), "repos", repo.Name+".git")}
+	return gitcmd.Repo{Dir: st.GitPath(filepath.Join(st.Root(), "repos", repo.Name+".git"))}
 }
 
 // escapePath はパスの各セグメントをURL用にエスケープする。
@@ -169,14 +171,15 @@ func (s *Server) buildRefContext(g gitcmd.Repo, base, defaultBranch, rest, kind 
 }
 
 // cloneCommand は手元に clone するための PowerShell 1行を返す。
-// push 時の所有者チェック対策（remote.origin.receivepack）を含める。
+// push 時の所有者チェック対策（remote.origin.receivepack）を含める。共有フォルダの深いパスで
+// push 中の一時ファイルの名前が 260 文字を超えないよう、受け側に core.longpaths も付ける。
 func cloneCommand(g gitcmd.Repo, name string) string {
-	return fmt.Sprintf(`git clone "%s"; git -C "%s" config remote.origin.receivepack "git -c safe.directory=* receive-pack"`, g.Dir, name)
+	return fmt.Sprintf(`git clone "%s"; git -C "%s" config remote.origin.receivepack "git -c safe.directory=* -c core.longpaths=true receive-pack"`, g.Dir, name)
 }
 
 // pushExistingCommands は既存のリポジトリを履歴ごと移す手順を返す。
 func pushExistingCommands(g gitcmd.Repo) string {
-	return fmt.Sprintf("git remote add origin \"%s\"\ngit config remote.origin.receivepack \"git -c safe.directory=* receive-pack\"\ngit push --mirror origin", g.Dir)
+	return fmt.Sprintf("git remote add origin \"%s\"\ngit config remote.origin.receivepack \"git -c safe.directory=* -c core.longpaths=true receive-pack\"\ngit push --mirror origin", g.Dir)
 }
 
 // ---- ツリー ----

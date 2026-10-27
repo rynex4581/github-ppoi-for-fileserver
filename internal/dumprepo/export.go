@@ -30,7 +30,7 @@ func Export(st *store.Store, repoName, outRoot string, log io.Writer) (string, e
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	bare := filepath.Join(st.Root(), "repos", repoName+".git")
+	bare := st.GitPath(filepath.Join(st.Root(), "repos", repoName+".git"))
 	g := gitcmd.Repo{Dir: bare}
 
 	// git：--mirror の clone
