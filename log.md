@@ -184,6 +184,17 @@ ohooks（空フォルダ）の絶対パスを渡す。--receive-pack の中で�
 - 画面の clone コマンドと push 手順の receivepack に -c core.longpaths=true を足した。検証で、深いパスのデータルートへの利用者の push が Filename too long で失敗したため（ツール自身の push には以前から付けてある）
 - 自宅では `\\localhost\C$` 経由の UNC で、データルートの登録、リポジトリ作成、画面の clone コマンドでの clone と push、マージ、check、export、import が仮想パスで通ることを確かめた。中間の階層の一覧権限を外しても UNC のままの git init は通り、職場の失敗は再現できなかった。最終確認は職場で行う
 
+### Ver 0.21B
+
+外部レビューの新34、新35、新37、新38、新39 の対応と、Linux で落ちていた web のテストの修正。
+
+- 新34：専用 clone の clone、fetch、push と、export の clone --mirror、import の push で、子として起動する upload-pack と receive-pack に -c safe.directory=* を付けた。git はローカルのリモートで GIT_CONFIG_PARAMETERS を外して子を起動するため、runGit の -c は届かない。GIT_TEST_ASSUME_DIFFERENT_OWNER=1 で所有者違いを装い、全体とシステムの設定を外したテストを足した。手元の git（Windows の 2.54、Linux の 2.53）では、修正前に落ちるのは push だけで、clone と fetch は --upload-pack 無しでも通った
+- 新38：smbtest もデータルートを開いた後に DOS デバイス名を定義する。失敗したら理由を出して UNC のまま続ける
+- 新37：既に同じ場所を指す定義が 1 つだけなら、削除も定義もせずに使用する。別の場所を指すか、積み重なっているときだけ削除してから定義し直す
+- 新35：GitPath の外側の判定と仮想パスの区切りを OS のものにし、テストの期待値を filepath.Join で組んだ。Linux でもテストが通る
+- 新39：DOS デバイス名の定義が消えるのは、再起動ではなくログオフ。README に、ログオン後にツールを一度起動するまでは、仮想パスで clone した作業ツリーで git の操作が失敗することを書いた
+- web の TestStaleLabelsRejected が Linux で落ちていた（v0.21A の時点から）。イベント名の連番を Store ごとに持っていたため、同じプロセスで同じデータルートを 2 回開くと、同じミリ秒に書いた 2 件の名前が重なっていた。連番を一時ファイルと同じくプロセス全体で 1 つにした。本体はデータルートを 1 回しか開かないので、動作は変わらない
+
 ## 設計メモに無い判断
 
 - マージコミットの作者は表示名、メールは `<ログオン名>@github-ppoi.invalid`
