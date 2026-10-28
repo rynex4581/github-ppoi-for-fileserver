@@ -42,7 +42,7 @@ func TestDOSDeviceWithGit(t *testing.T) {
 		t.Fatalf("定義先が違う: %v %v", targets, err)
 	}
 
-	// 定義が残った状態でもう一度開いても、定義し直せて積み重ならない
+	// 定義が残った状態でもう一度開くと、その定義をそのまま使用し、積み重ならない（新37）
 	again, err := Open(s.Root())
 	if err != nil {
 		t.Fatal(err)

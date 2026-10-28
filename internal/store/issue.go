@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -276,12 +277,16 @@ func (s *Store) listIssueNumbers(repo string) ([]int, error) {
 	return numbers, nil
 }
 
+// eventSeq はイベント名に入れるプロセス内の連番。同じプロセスで同じデータルートを 2 回開いても
+// 名前が重ならないよう、Store ごとではなくプロセス全体で 1 つにする。
+var eventSeq atomic.Uint64
+
 // eventFileName はイベントのファイル名を作る。
 // 「UTC時刻（ミリ秒まで）_端末名_プロセスID_プロセス内連番.json」で、他の端末とも、
 // 同じ端末の別のプロセスとも重複しないようにする。
 func (s *Store) eventFileName(t time.Time) string {
 	t = t.UTC()
-	seq := s.seq.Add(1)
+	seq := eventSeq.Add(1)
 	return fmt.Sprintf("%s%03dZ_%s_%d_%03d.json", t.Format("20060102T150405"), t.Nanosecond()/1e6, s.host, s.pid, seq)
 }
 

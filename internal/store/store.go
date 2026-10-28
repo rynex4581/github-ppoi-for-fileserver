@@ -137,10 +137,9 @@ func Create(root string, cfg Config) (*Store, error) {
 type Store struct {
 	root     string
 	config   Config
-	readOnly bool   // config.json の format が exe より新しい。書き込みはすべて ErrReadOnly
-	host     string // 端末名（ファイル名に使える文字に直したもの）
-	pid      int    // 自プロセスの ID。同じ端末で2つ動いても名前が重ならないようにする
-	seq      atomic.Uint64
+	readOnly bool       // config.json の format が exe より新しい。書き込みはすべて ErrReadOnly
+	host     string     // 端末名（ファイル名に使える文字に直したもの）
+	pid      int        // 自プロセスの ID。同じ端末で2つ動いても名前が重ならないようにする
 	cache    eventCache // イベントのローカルキャッシュ（cache.go）
 	gitRoot  string     // DOS デバイス名を定義できたときの \\.\<名前>。git に渡すパスの根元にする
 	dosErr   error      // DOS デバイス名を定義できなかった理由

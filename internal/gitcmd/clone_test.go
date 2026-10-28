@@ -169,6 +169,52 @@ func TestCloneMergeRetriesAfterRemoteMoved(t *testing.T) {
 	}
 }
 
+// 新34：bare の所有者が自分と違い、全体の設定に safe.directory を足していない端末でも、専用 clone の
+// マージ、タグ、import（PushBranchesAndTags）、export（CloneMirror）が通ること。git はローカルの clone、
+// fetch、push で子として起動する upload-pack と receive-pack に -c を引き継がないので、起動コマンドの側で
+// safe.directory=* を付けている。所有者は GIT_TEST_ASSUME_DIFFERENT_OWNER で違うものとみなさせ、
+// 全体とシステムの設定は外す（運用.md の safe.directory "*" を入れた端末でも確かめられるように）。
+func TestToolWorksWithDifferentOwner(t *testing.T) {
+	r, _ := newTestRepo(t)
+	empty := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(empty, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", empty)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+
+	c := Clone{Dir: filepath.Join(t.TempDir(), "clones", "sample"), Remote: r.Dir, UserName: "testuser1", UserEmail: "testuser1@example.invalid"}
+	mergeSHA, err := c.Merge("main", "feature/x", "Merge pull request #2 from feature/x")
+	if err != nil {
+		t.Fatalf("マージが通らない: %v", err)
+	}
+	if sha, _ := r.ResolveCommit("main"); sha != mergeSHA {
+		t.Fatalf("push が bare に届いていない: main=%s merge=%s", sha, mergeSHA)
+	}
+	if _, err := c.CreateTag("v1.0", "main"); err != nil {
+		t.Fatalf("タグが通らない: %v", err)
+	}
+
+	mirror := filepath.Join(t.TempDir(), "mirror.git")
+	if err := CloneMirror(r.Dir, mirror); err != nil {
+		t.Fatalf("export の clone が通らない: %v", err)
+	}
+	dst := filepath.Join(t.TempDir(), "dst.git")
+	if err := os.Mkdir(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := InitBare(dst, "main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := PushBranchesAndTags(mirror, dst); err != nil {
+		t.Fatalf("import の push が通らない: %v", err)
+	}
+	if sha, err := (Repo{Dir: dst}).ResolveCommit("refs/tags/v1.0"); err != nil || sha != mergeSHA {
+		t.Errorf("import 先にタグが無い: %s %v", sha, err)
+	}
+}
+
 // 本ツールの git 呼び出しでは、ベアリポジトリと専用 clone に置かれた hooks が動かないことを確かめる。
 // -c core.hooksPath= はローカルの push では receive-pack に渡らないので、--receive-pack で付けた分も含めて見る。
 func TestHooksDoNotRunForTool(t *testing.T) {

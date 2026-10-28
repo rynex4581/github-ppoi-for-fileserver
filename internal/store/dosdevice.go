@@ -13,7 +13,7 @@ import (
 // （fatal: unable to get current working directory）。そこで UNC のデータルートごとに DOS デバイス名を
 // 定義し、git にはデータルートを根元にした \\.\<名前>\... の形（仮想パス）を渡す。
 // 名前は github-ppoi-<owner 名>。owner 名は同じ端末で重複しないので、名前も重ならず、
-// どの端末でも同じ名前になる。定義はログオンセッション内のみで、再起動で消える。
+// どの端末でも同じ名前になる。定義はログオンセッション内のみで、ログオフで消える。
 // ツールの終了時には削除しない（ツールの停止中も Codex 等の git が仮想パスで動作できるようにするため）。
 
 // dosDevicePrefix は DOS デバイス名の先頭。後ろに owner 名を付ける。テストから差し替える。
@@ -61,8 +61,14 @@ func (s *Store) defineDOSDevice(target string) error {
 	if strings.HasSuffix(name, ".") {
 		return fmt.Errorf("owner 名 %s は末尾が . なので、DOS デバイス名として使用できない", s.config.Owner)
 	}
-	// 既に定義があれば削除してから定義し直す（異常終了などで残った定義への対処）。
-	// 同じ名前に定義が積み重なっていることがあるので、照会できなくなるまで削除する
+	// 既に同じ場所を指す定義が 1 つだけあれば触らない。サーバの稼働中にサブコマンドや smbtest が
+	// 定義し直すと、その間に実行された git が失敗するため（新37）
+	if targets, err := queryDOSDevice(name); err == nil && len(targets) == 1 && sameDOSTarget(targets[0], target) {
+		s.gitRoot = `\\.\` + name
+		return nil
+	}
+	// 別の場所を指す定義（データルートを移した後に残ったものなど）や、積み重なった定義があれば、
+	// 照会できなくなるまで削除してから定義し直す
 	for i := 0; i < 16; i++ {
 		if _, err := queryDOSDevice(name); err != nil {
 			break
@@ -86,13 +92,22 @@ func (s *Store) GitPath(p string) string {
 		return p
 	}
 	rel, err := filepath.Rel(s.root, p)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, `..\`) {
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return p
 	}
 	if rel == "." {
 		return s.gitRoot
 	}
-	return s.gitRoot + `\` + rel
+	return s.gitRoot + string(filepath.Separator) + rel
+}
+
+// sameDOSTarget は QueryDosDevice が返す定義先（\??\UNC\サーバ\共有\... の形）が target を指すかを返す。
+func sameDOSTarget(got, target string) bool {
+	want := `\??\` + target
+	if strings.HasPrefix(target, `\\`) {
+		want = `\??\UNC\` + target[2:]
+	}
+	return strings.EqualFold(strings.TrimRight(got, `\`), strings.TrimRight(want, `\`))
 }
 
 // DOSDeviceErr は DOS デバイス名を定義できなかった理由を返す。定義できたか、UNC でなければ nil。

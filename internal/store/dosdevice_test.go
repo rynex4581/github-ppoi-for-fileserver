@@ -92,8 +92,9 @@ func TestDefineDOSDevice(t *testing.T) {
 	if after, _ := os.ReadFile(filepath.Join(s.Root(), "config.json")); string(after) != string(before) {
 		t.Errorf("config.json が書き換わった:\n%s", after)
 	}
-	if got := s.GitPath(filepath.Join(s.Root(), "repos", "sample.git")); got != `\\.\github-ppoi-team-a\repos\sample.git` {
-		t.Errorf("ベアリポジトリの仮想パスが違う: %s", got)
+	// 区切りは OS のものになる（Windows では \\.\github-ppoi-team-a\repos\sample.git）
+	if got, want := s.GitPath(filepath.Join(s.Root(), "repos", "sample.git")), filepath.Join(`\\.\github-ppoi-team-a`, "repos", "sample.git"); got != want {
+		t.Errorf("ベアリポジトリの仮想パスが違う: %s。期待は %s", got, want)
 	}
 	if got := s.GitPath(s.Root()); got != `\\.\github-ppoi-team-a` {
 		t.Errorf("データルートの仮想パスが違う: %s", got)
@@ -117,6 +118,58 @@ func TestDefineDOSDeviceRedefine(t *testing.T) {
 	}
 	if f.removes != 2 || f.defines != 1 {
 		t.Errorf("削除 %d 回、定義 %d 回。期待は 2 回と 1 回", f.removes, f.defines)
+	}
+}
+
+// 新37：既に同じ場所を指す定義が 1 つだけなら、削除も定義もせずに仮想パスを使う。
+// 同じ場所でも定義が積み重なっていれば、削除してから定義し直す。
+func TestDefineDOSDeviceKeepsSameTarget(t *testing.T) {
+	t.Run("同じ場所を指す定義が 1 つ", func(t *testing.T) {
+		f := newFakeDOS(t)
+		s := newTestStore(t)
+		f.defs["github-ppoi-team-a"] = []string{`\??\UNC\FS01\Share\team-a\`}
+		if err := s.defineDOSDevice(`\\fs01\share\team-a`); err != nil {
+			t.Fatal(err)
+		}
+		if f.removes != 0 || f.defines != 0 {
+			t.Errorf("同じ場所を指す定義に触った: 削除 %d 回、定義 %d 回", f.removes, f.defines)
+		}
+		if got := s.GitPath(s.Root()); got != `\\.\github-ppoi-team-a` {
+			t.Errorf("仮想パスを使っていない: %s", got)
+		}
+	})
+
+	t.Run("同じ場所でも積み重なっている", func(t *testing.T) {
+		f := newFakeDOS(t)
+		s := newTestStore(t)
+		f.defs["github-ppoi-team-a"] = []string{`\??\UNC\fs01\share\team-a`, `\??\UNC\fs01\share\older`}
+		if err := s.defineDOSDevice(`\\fs01\share\team-a`); err != nil {
+			t.Fatal(err)
+		}
+		if got := f.defs["github-ppoi-team-a"]; len(got) != 1 || got[0] != `\??\UNC\fs01\share\team-a` {
+			t.Errorf("積み重なった定義が残っている: %v", got)
+		}
+		if f.removes != 2 || f.defines != 1 {
+			t.Errorf("削除 %d 回、定義 %d 回。期待は 2 回と 1 回", f.removes, f.defines)
+		}
+	})
+}
+
+func TestSameDOSTarget(t *testing.T) {
+	if !sameDOSTarget(`\??\UNC\fs01\share\github-ppoi`, `\\fs01\share\github-ppoi`) {
+		t.Error("同じ UNC パスを別物と判定した")
+	}
+	if !sameDOSTarget(`\??\UNC\FS01\Share\GitHub-ppoi\`, `\\fs01\share\github-ppoi`) {
+		t.Error("大文字小文字と末尾の \\ の違いで別物と判定した")
+	}
+	if sameDOSTarget(`\??\UNC\fs01\share\other`, `\\fs01\share\github-ppoi`) {
+		t.Error("違う UNC パスを同じと判定した")
+	}
+	if sameDOSTarget(`\??\UNC\fs01\share\github-ppoi-old`, `\\fs01\share\github-ppoi`) {
+		t.Error("前方が一致するだけの UNC パスを同じと判定した")
+	}
+	if !sameDOSTarget(`\??\C:\data\github-ppoi`, `C:\data\github-ppoi`) {
+		t.Error("同じローカルパスを別物と判定した")
 	}
 }
 

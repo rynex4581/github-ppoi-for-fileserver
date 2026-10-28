@@ -28,11 +28,16 @@ const pushRetries = 3
 
 // noHooksReceivePack は push 先の receive-pack を hooks 無しで起動させる指定。
 // runGit の -c は receive-pack に引き継がれないため、起動コマンドの側で付ける。
+// safe.directory=* も同じ理由でここに付ける（bare の所有者が自分と違う端末で dubious ownership にしない。新34）。
 // core.longpaths も同じ理由でここに付ける（共有フォルダの深いパスで pack の一時名が 260 文字を超える）。
-// パスに空白が入り得るので引用符で囲む（git はこの文字列を sh で解釈する）。
+// パスに空白が入り得るので引用符で囲む（git はこの文字列を sh で解釈する）。* も sh に展開させないよう囲む。
 func noHooksReceivePack() string {
-	return "--receive-pack=git -c \"core.hooksPath=" + noHooksDir + "\" -c core.longpaths=true receive-pack"
+	return "--receive-pack=git -c \"safe.directory=*\" -c \"core.hooksPath=" + noHooksDir + "\" -c core.longpaths=true receive-pack"
 }
+
+// safeUploadPack は clone と fetch の相手の upload-pack に safe.directory=* を付ける指定（receive-pack と同じ理由）。
+// upload-pack は hooks を動かさず、一時ファイルも書かないので、core.hooksPath と core.longpaths は付けない。
+const safeUploadPack = "--upload-pack=git -c \"safe.directory=*\" upload-pack"
 
 func (c Clone) git(args ...string) ([]byte, error) {
 	extra := []string{"-c", "user.name=" + c.UserName, "-c", "user.email=" + c.UserEmail}
@@ -50,7 +55,7 @@ func (c Clone) Ensure() error {
 	if err := os.MkdirAll(filepath.Dir(c.Dir), 0o755); err != nil {
 		return err
 	}
-	_, _, err := runGit(filepath.Dir(c.Dir), nil, "clone", "--quiet", "--no-checkout", c.Remote, c.Dir)
+	_, _, err := runGit(filepath.Dir(c.Dir), nil, "clone", "--quiet", "--no-checkout", safeUploadPack, c.Remote, c.Dir)
 	return err
 }
 
@@ -59,7 +64,7 @@ func (c Clone) sync(branch string) error {
 	if err := c.Ensure(); err != nil {
 		return err
 	}
-	if _, err := c.git("fetch", "--quiet", "--prune", "origin"); err != nil {
+	if _, err := c.git("fetch", "--quiet", "--prune", safeUploadPack, "origin"); err != nil {
 		return err
 	}
 	if _, err := c.git("checkout", "--quiet", "--force", "-B", branch, "origin/"+branch); err != nil {
@@ -130,7 +135,7 @@ func (c Clone) CreateTag(name, target string) (string, error) {
 		return "", err
 	}
 	// --prune-tags で手元のタグをリモートと揃える（前回の失敗で残った手元だけのタグも消える）
-	if _, err := c.git("fetch", "--quiet", "--prune", "--prune-tags", "origin"); err != nil {
+	if _, err := c.git("fetch", "--quiet", "--prune", "--prune-tags", safeUploadPack, "origin"); err != nil {
 		return "", err
 	}
 	if _, err := c.git("rev-parse", "--verify", "--quiet", "--end-of-options", "refs/tags/"+name); err == nil {

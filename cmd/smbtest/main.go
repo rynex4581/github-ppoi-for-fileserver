@@ -56,6 +56,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// UNC のデータルートでも git が失敗しないよう、本体と同じく DOS デバイス名を定義する（設計メモ 3.19）
+	if err := st.DefineDOSDevice(); err != nil {
+		fmt.Fprintf(os.Stderr, "DOS デバイス名を定義できないので、UNC パスのまま使用する: %v\n", err)
+	}
 	if *check {
 		if err := runCheck(st, *root); err != nil {
 			log.Fatal(err)

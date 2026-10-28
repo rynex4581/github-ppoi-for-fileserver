@@ -53,6 +53,7 @@ func initNoHooksDir() string {
 // core.hooksPath を空のフォルダに向け、リポジトリに置かれた hooks を本ツールの呼び出しでは動かさない。
 // ただし -c は push 先の receive-pack には渡らない（git がローカルの push で設定の環境変数を
 // 落とす）ので、push 側は noHooksReceivePack() で receive-pack にも同じ設定を付ける。
+// clone と fetch の相手の upload-pack にも、同じ理由で safe.directory=* を付ける（safeUploadPack）。
 func runGit(dir string, extra []string, args ...string) ([]byte, int, error) {
 	// core.longpaths は Windows の 260 文字制限に掛からないようにするため（共有フォルダの深いパスで pack の一時名が超える）
 	full := []string{"-c", "safe.directory=*", "-c", "core.quotepath=false", "-c", "diff.external=", "-c", "log.showSignature=false", "-c", "core.hooksPath=" + noHooksDir, "-c", "core.longpaths=true"}
@@ -451,7 +452,7 @@ func InitBare(dir, branch string) error {
 
 // CloneMirror は src を dst に --mirror で clone する（エクスポート用）。
 func CloneMirror(src, dst string) error {
-	_, _, err := runGit(filepath.Dir(dst), nil, "clone", "--quiet", "--mirror", "--end-of-options", src, dst)
+	_, _, err := runGit(filepath.Dir(dst), nil, "clone", "--quiet", "--mirror", safeUploadPack, "--end-of-options", src, dst)
 	return err
 }
 
